@@ -1427,11 +1427,18 @@ void disconnect_callback(uint16_t conn_handle, uint8_t reason)
 
 void nRF52_Bluetooth_setup()
 {
-  if (settings->bluetooth != BLUETOOTH_LE_HM10_SERIAL)
+  if (settings->bluetooth != BLUETOOTH_LE_HM10_SERIAL) {
+      Serial.printf("[BLE] Bluetooth disabled (setting=%d, expected=%d)\n",
+                    settings->bluetooth, BLUETOOTH_LE_HM10_SERIAL);
       return;
-  if (settings->nmea_out != DEST_BLUETOOTH && settings->nmea_out2 != DEST_BLUETOOTH)
+  }
+  if (settings->nmea_out != DEST_BLUETOOTH && settings->nmea_out2 != DEST_BLUETOOTH) {
+      Serial.printf("[BLE] NMEA output not routed to Bluetooth (out=%d, out2=%d)\n",
+                    settings->nmea_out, settings->nmea_out2);
       return;
+  }
 
+  Serial.println("[BLE] Initializing Bluetooth LE (nRF52)...");
   BTactive = true;
 
   if (settings->myssid[0] != '\0') {
@@ -1441,6 +1448,7 @@ void nRF52_Bluetooth_setup()
       //BT_name += "-";
       BT_name += String(SoC->getChipId() & 0x00FFFFFFU, HEX);
   }
+  Serial.printf("[BLE] Device name: %s-LE\n", BT_name.c_str());
 
   // Setup the BLE LED to be enabled on CONNECT
   // Note: This is actually the default behavior, but provided
@@ -1457,9 +1465,11 @@ void nRF52_Bluetooth_setup()
   Bluefruit.setName((BT_name+"-LE").c_str());
   Bluefruit.Periph.setConnectCallback(connect_callback);
   Bluefruit.Periph.setDisconnectCallback(disconnect_callback);
+  Serial.println("[BLE] Bluefruit initialized");
 
   // To be consistent OTA DFU should be added first if it exists
   bledfu.begin();
+  Serial.println("[BLE] DFU service started");
 
 #if defined(BLE_SENSORS)
   // Configure and Start Device Information Service
@@ -1469,32 +1479,39 @@ void nRF52_Bluetooth_setup()
                         Hardware_Rev[3] : Hardware_Rev[hw_info.revision]);
   bledis.setSoftwareRev(SOFTRF_FIRMWARE_VERSION);
   bledis.begin();
+  Serial.println("[BLE] Device Information Service started");
 #endif
 
   // Configure and Start BLE Uart Service
   bleuart_HM10.begin();
+  Serial.println("[BLE] HM10 UART service started");
 #if !defined(EXCLUDE_NUS)
   bleuart_NUS.begin();
   bleuart_NUS.bufferTXD(true);
+  Serial.println("[BLE] NUS UART service started");
 #endif /* EXCLUDE_NUS */
 
 #if defined(BLE_SENSORS)
   // Start BLE Battery Service
   blebas.begin();
   blebas.write(100);
+  Serial.println("[BLE] Battery service started");
 
   // Start SensBox Service
   blesens.begin();
+  Serial.println("[BLE] SensBox service started");
 #endif
 
 #if defined(USE_BLE_MIDI)
   // Initialize MIDI with no any input channels
   // This will also call blemidi service's begin()
   MIDI_BLE.begin(MIDI_CHANNEL_OFF);
+  Serial.println("[BLE] MIDI service started");
 #endif /* USE_BLE_MIDI */
 
   // Set up and start advertising
   startAdv();
+  Serial.println("[BLE] Advertising started - ready for connections");
 
 #if DEBUG_BLE
   Serial.println("Please use Adafruit's Bluefruit LE app to connect in UART mode");

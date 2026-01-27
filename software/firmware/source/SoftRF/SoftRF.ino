@@ -242,13 +242,25 @@ void setup()
 Serial.printf("\r\nID_method: %d, settings_ID: %06X, used_ID: %06X\r\n\r\n",
 settings->id_method, settings->aircraft_id, ThisAircraft.addr);
 
+Serial.println(F("calling Button_setup()..."));
+Serial.flush();
   SoC->Button_setup();
+Serial.println(F("... Button_setup() returned"));
+Serial.flush();
 
   // do this before Baro_setup - Wire.begin() happens there
+Serial.println(F("calling Display_setup()..."));
+Serial.flush();
   hw_info.display = SoC->Display_setup();
+Serial.println(F("... Display_setup() returned"));
+Serial.flush();
 
 #if defined(ESP32)
+Serial.println(F("calling ESP32_charge_mode()..."));
+Serial.flush();
   ESP32_charge_mode();  // if both battery & USB power, shut down and just charge
+Serial.println(F("... ESP32_charge_mode() returned"));
+Serial.flush();
 #endif
 
 Serial.println(F("calling Baro_setup()..."));
@@ -277,36 +289,49 @@ Serial.println(ESP.getFreePsram());
 #endif
 //#endif
 
+// #if !defined(SOFTRF_NRF52_T1000E)
+  Serial.println("[MAIN] Initializing RF module...");
   hw_info.rf = RF_setup();
+  Serial.print("[MAIN] RF module initialized: ");
+  Serial.println(hw_info.rf);
   delay(100);
+// #endif // !SOFTRF_NRF52_T1000E
 
+  Serial.println("[MAIN] Initializing Buzzer...");
   Buzzer_setup();
-  Strobe_setup();
+  Serial.println("[MAIN] Buzzer initialized");
+  // Strobe_setup();
 
 #if defined(ENABLE_AHRS)
+  Serial.println("[MAIN] Initializing IMU...");
   hw_info.imu = AHRS_setup();
+  Serial.println("[MAIN] IMU initialized");
 #endif /* ENABLE_AHRS */
 
 #if !defined(EXCLUDE_MAVLINK)
   if (settings->mode == SOFTRF_MODE_UAV) {
     Serial.begin(57600);
     MAVLink_setup();
-    ThisAircraft.aircraft_type = AIRCRAFT_TYPE_UAV;  
+    ThisAircraft.aircraft_type = AIRCRAFT_TYPE_UAV;
   }  else
 #endif /* EXCLUDE_MAVLINK */
   {
+    Serial.println("[MAIN] Initializing GNSS module...");
     hw_info.gnss = GNSS_setup();
+    Serial.print("[MAIN] GNSS module initialized: ");
+    Serial.println(GNSS_name[hw_info.gnss]);
     ThisAircraft.aircraft_type = settings->acft_type;
   }
   ThisAircraft.protocol = settings->rf_protocol;
   ThisAircraft.stealth  = settings->stealth;
   ThisAircraft.no_track = settings->no_track;
-
+  Serial.println("[MAIN] Battery Setup: ");
   Battery_setup();
+  Serial.println("[MAIN] Traffic Setup: ");
   Traffic_setup();
 
   SoC->swSer_enableRx(false);
-
+  Serial.println("[MAIN] Initializing WiFi module...");
   WiFi_setup();
 
   if (SoC->USB_ops) {
@@ -316,7 +341,7 @@ Serial.println(ESP.getFreePsram());
   if (SoC->Bluetooth_ops) {
      SoC->Bluetooth_ops->setup();
   }
-
+  Serial.println("[MAIN] USB and Bluetooth modules initialized");
   OTA_setup();
   Web_setup();
   NMEA_setup();
@@ -325,26 +350,34 @@ Serial.println(ESP.getFreePsram());
   if (settings->rx1090 == ADSB_RX_GNS5892)
       gns5892_setup();
 #endif
-
+#if !defined(SOFTRF_NRF52_T1000E)
+  Serial.println("[MAIN] Initializing LED module...");
   LED_setup();   // moved here to allow Serial2 to grab pin 4
+#endif // !SOFTRF_NRF52_T1000E
 
 #if defined(ENABLE_TTN)
   TTN_setup();
 #endif
 
   delay(1000);
-
+#if !defined(SOFTRF_NRF52_T1000E)
+  Serial1.print("[MAIN]  LED test...");
   /* expedite restart on WDT reset */
   if (resetInfo->reason != REASON_WDT_RST) {
     LED_test();
   }
-
+#endif // !SOFTRF_NRF52_T1000E
 #if !defined(EXCLUDE_VOICE)
 #if defined(ESP32)
   Voice_setup();
   Voice_test(resetInfo->reason);
 #endif
 #endif
+
+  Serial.println("[MAIN] ========================================");
+  Serial.println("[MAIN] Firmware initialization complete!");
+  Serial.println("[MAIN] System ready for operation");
+  Serial.println("[MAIN] ========================================");
 
   switch (settings->mode)
   {
@@ -362,7 +395,8 @@ Serial.println(ESP.getFreePsram());
   }
 
 //Serial.println("calling Buzzer_test()");
-  SoC->Buzzer_test(resetInfo->reason);
+  // SoC->Buzzer_test(resetInfo->reason);
+  SoC->Batt_beeps(resetInfo->reason, Battery_voltage()); /* VB008: Pass battery for status beeps */
 
 #if defined(USE_SD_CARD)
   MD5_test();
@@ -463,15 +497,30 @@ void normal()
   bool rx_success = false;
   bool tx_success = false;
 
+
+#if !defined(EXCLUDE_BMP180) || !defined(EXCLUDE_BMP280) || !defined(EXCLUDE_MPL3115A2)
+  // DEBUG: Disabled loop debug (kept for future use if needed)
+  // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Entering Baro_loop()");
   Baro_loop();
+  // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Exiting Baro_loop()");
+#endif
 
 #if defined(ENABLE_AHRS)
+  // DEBUG: Disabled loop debug (kept for future use if needed)
+  // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Entering AHRS_loop()");
   AHRS_loop();
+  // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Exiting AHRS_loop()");
 #endif /* ENABLE_AHRS */
 
+  // DEBUG: Disabled loop debug (kept for future use if needed)
+  // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Entering GNSS_loop()");
   GNSS_loop();
+  // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Exiting GNSS_loop()");
 
+  // DEBUG: Disabled loop debug (kept for future use if needed)
+  // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Entering Time_loop()");
   Time_loop();   /* this is where GNSS time data is processed for Legacy protocol */
+  // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Exiting Time_loop()");
 
   static uint32_t initial_time = 0;
 
@@ -541,6 +590,7 @@ Serial.printf("Stable GNSS fix:\r\n\
 gnss.location.lat(), gnss.location.lng(),
 gnss.date.year(), gnss.date.month(), gnss.date.day(),
 gnss.time.hour(), gnss.time.minute(), gnss.time.second());
+SoC->Buzzer_GPSfix();
         (void) leap_seconds_valid();    // computes leap_seconds_correction
       } else {
         validfix = false;          // do not transmit yet
@@ -644,21 +694,34 @@ gnss.time.hour(), gnss.time.minute(), gnss.time.second());
       // check for newly received data, usually returns false
       // >>> do this here (too?) to ensure no incoming packets are missed
       rx_tried = true;
+      // DEBUG: Disabled loop debug (kept for future use if needed)
+  // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Entering RF_Receive()");
+// #if !defined(SOFTRF_NRF52_T1000E)
       rx_success = RF_Receive();
+// #endif /* SOFTRF_NRF52_T1000E */
 if (rx_success) which_rx_try = 1;
+      // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Exiting RF_Receive()");
       // if received a packet, postpone transmission until next time around the loop().
 
       if (!rx_success && RF_Transmit_Ready(true)
           && (relay_waiting == NULL || RF_current_slot == 0)
           && settings->relay < RELAY_ONLY) {
           // Don't bother with the encode() if can't transmit right now
+#if !defined(SOFTRF_NRF52_T1000E)
+          // DEBUG: Disabled loop debug (kept for future use if needed)
+  // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Entering RF_Encode()");
           size_t s = RF_Encode(&ThisAircraft, true);  // returns 0 if implausible data
+          // if (settings->debug_flags & DEBUG_DEEPER2) Serial.printf("[LOOP_DEBUG] RF_Encode() returned: %u\r\n", s);
           if (s != 0) {
+              // DEBUG: Disabled loop debug (kept for future use if needed)
+  // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Entering RF_Transmit()");
               RF_Transmit(s, true);
+              // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Exiting RF_Transmit()");
               // if actually transmitted, time-slot is then locked out
               if (RF_Transmit_Happened())
                 tx_success = true;
           }
+#endif /* SOFTRF_NRF52_T1000E */
       }
       /* - this only actually transmits when some preset random time is reached */
 
@@ -687,8 +750,10 @@ if (rx_success) which_rx_try = 1;
 // - but with this code included it only happens in try2?
 // - note that the "try1" will be reached again in about 1-2 ms around the loop
     // ensure receiver is re-activated
+// #if !defined(SOFTRF_NRF52_T1000E)
     if (!rx_tried || tx_success)
       rx_success = RF_Receive();
+// #endif /* SOFTRF_NRF52_T1000E */
 if (rx_success) which_rx_try = 2;
 #endif
 
@@ -701,18 +766,27 @@ if (rx_success) which_rx_try = 2;
 
     /* process received data - only if we know where we are */
     if (rx_success && validfix) {
+        // DEBUG: Disabled loop debug (kept for future use if needed)
+  // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Entering ParseData()");
         ParseData();
+        // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Exiting ParseData()");
     }
 
   }
 
 #if defined(ENABLE_TTN)
+  // DEBUG: Disabled loop debug (kept for future use if needed)
+  // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Entering TTN_loop()");
   TTN_loop();
+  // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Exiting TTN_loop()");
 #endif
 
   if (validfix) {
     /* handle the known traffic - only if we know where we are */
+    // DEBUG: Disabled loop debug (kept for future use if needed)
+  // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Entering Traffic_loop()");
     Traffic_loop();
+    // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Exiting Traffic_loop()");
   }
 
   if (validfix && settings->logflight != FLIGHT_LOG_NONE) {
@@ -743,36 +817,59 @@ if (rx_success) which_rx_try = 2;
   }
 
   if (isTimeToDisplay()) {
+    // DEBUG: Disabled loop debug (kept for future use if needed)
+  // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Entering LED_DisplayTraffic/LED_Clear()");
     if (validfix) {
       LED_DisplayTraffic();
     } else {
       LED_Clear();
     }
+    // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Exiting LED_DisplayTraffic/LED_Clear()");
     LEDTimeMarker = millis();
   }
 
+  // DEBUG: Disabled loop debug (kept for future use if needed)
+  // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Entering Buzzer_loop()");
   Buzzer_loop();   /* may sound collision alarms */
-
+  // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Exiting Buzzer_loop()");
+#if !defined(SOFTRF_NRF52_T1000E)
+  // DEBUG: Disabled loop debug (kept for future use if needed)
+  // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Entering Strobe_loop()");
   Strobe_loop();
+  // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Exiting Strobe_loop()");
+#endif
 
 #if !defined(EXCLUDE_VOICE)
 #if defined(ESP32)
+  // DEBUG: Disabled loop debug (kept for future use if needed)
+  // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Entering Voice_loop()");
   Voice_loop();   /* may sound collision alarms */
+  // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Exiting Voice_loop()");
 #endif
 #endif
 
   if (isTimeToExport()) {
+    // DEBUG: Disabled loop debug (kept for future use if needed)
+  // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Entering NMEA_Export()");
     NMEA_Export();
+    if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] NMEA_Export() done, entering GDL90_Export()");
     GDL90_Export();
+    if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] GDL90_Export() done");
 
     if (validfix) {
+      // DEBUG: Disabled loop debug (kept for future use if needed)
+  // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Entering D1090_Export()");
       D1090_Export();
+      // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Exiting D1090_Export()");
     }
     ExportTimeMarker = millis();
   }
 
   // Handle Air Connect
+  // DEBUG: Disabled loop debug (kept for future use if needed)
+  // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Entering NMEA_loop()");
   NMEA_loop();
+  // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Exiting NMEA_loop()");
 
   //ClearExpired();    // now done in Traffic_loop() instead
 }
@@ -798,7 +895,12 @@ void uav()
     ThisAircraft.pressure_altitude = the_aircraft.location.baro_alt;
     ThisAircraft.hdop = the_aircraft.location.gps_hdop;
 
-    RF_Transmit(RF_Encode(&ThisAircraft,true),true);
+    size_t tx_size = RF_Encode(&ThisAircraft, true);
+    Serial.print(F("[TX] Encoded packet: "));
+    Serial.print(tx_size);
+    Serial.println(F(" bytes"));
+    RF_Transmit(tx_size, true);
+    Serial.println(F("[TX] Transmission complete"));
   }
 
   success = RF_Receive();
@@ -1128,7 +1230,7 @@ void loop()
   }
 
   if (SoC->UART_ops) {
-     SoC->UART_ops->loop();
+    SoC->UART_ops->loop();
   }
 
   Battery_loop();

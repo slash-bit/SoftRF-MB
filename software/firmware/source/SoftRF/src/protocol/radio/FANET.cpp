@@ -54,7 +54,7 @@ const rf_proto_desc_t fanet_proto_desc = {
 
   .deviation        = 0 /* INVALID FOR LORA */,
   .whitening        = RF_WHITENING_NONE,
-  .bandwidth        = 0, /* INVALID FOR LORA */
+  .bandwidth        = RF_RX_BANDWIDTH_SS_125KHZ, /* RF_RX_BANDWIDTH_SS_250KHZ */
 
   .air_time         = FANET_AIR_TIME,
 

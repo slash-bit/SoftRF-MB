@@ -58,7 +58,6 @@ void LED_setup() {
   if (status_LED != SOC_UNUSED_PIN) {
     pinMode(status_LED, OUTPUT);
     /* Indicate positive power supply */
-    //digitalWrite(status_LED, LED_STATE_ON);
     digitalWrite(status_LED, ((hw_info.revision < 8)? HIGH : LOW));
   }
 }

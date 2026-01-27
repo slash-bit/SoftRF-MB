@@ -97,16 +97,25 @@ static bool follow_ext_power_shutoff(float voltage)
 void Battery_loop()
 {
   if (isTimeToBattery()) {
+    // Timeout protection: if ADC read hangs, skip this cycle
+    uint32_t timeout_start = millis();
+    const uint32_t BATTERY_READ_TIMEOUT = 500; // 500ms timeout
+
     float voltage = SoC->Battery_param(BATTERY_PARAM_VOLTAGE);
 
-    int reason = SOFTRF_SHUTDOWN_NONE;
-    if (voltage < Battery_cutoff())
-        reason = SOFTRF_SHUTDOWN_LOWBAT;
-    else if (follow_ext_power_shutoff(voltage))
-        reason = SOFTRF_SHUTDOWN_EXTPWR;
-    if (voltage > BATTERY_THRESHOLD_INVALID && reason != SOFTRF_SHUTDOWN_NONE) {
-      if (Battery_cutoff_count > 3) {
-        shutdown(reason);
+    uint32_t elapsed = millis() - timeout_start;
+
+    // If the read took too long, skip battery checks this cycle
+    if (elapsed > BATTERY_READ_TIMEOUT) {
+      Battery_TimeMarker = millis();
+      return;
+    }
+
+    // Match the working T1000E-Card implementation: only check low battery
+    // Do NOT use follow_ext_power_shutoff() to avoid unexpected shutdowns
+    if (voltage > BATTERY_THRESHOLD_INVALID && voltage < Battery_cutoff()) {
+      if (Battery_cutoff_count > 2) {
+        shutdown(SOFTRF_SHUTDOWN_LOWBAT);
       } else {
         Battery_cutoff_count++;
       }
