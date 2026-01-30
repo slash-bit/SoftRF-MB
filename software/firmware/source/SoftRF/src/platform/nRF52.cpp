@@ -639,9 +639,8 @@ static void nRF52_setup()
       lmic_pins.nss  = SOC_GPIO_PIN_T1000_SS;
       lmic_pins.rst  = SOC_GPIO_PIN_T1000_RST;
       lmic_pins.busy = SOC_GPIO_PIN_T1000_BUSY;
-#if defined(USE_RADIOLIB)
       lmic_pins.dio[0] = SOC_GPIO_PIN_T1000_DIO9; /* LR1110 */
-#endif /* USE_RADIOLIB */
+
 
       hw_info.revision = 3; /* Unknown */
 

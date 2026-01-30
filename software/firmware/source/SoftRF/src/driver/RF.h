@@ -33,9 +33,12 @@
 #include <RadioLib.h>
 #endif
 #include <hal/hal.h>
+#include <lmic/hal.h>
 #include <lib_crc.h>
 #include <protocol.h>
 #include <freqplan.h>
+
+#include <manchester.h>
 
 #include "GNSS.h"
 #include "../protocol/radio/Legacy.h"
@@ -118,6 +121,15 @@ typedef struct Slots_descr_struct {
   uint8_t       current;
 } Slots_descr_t;
 
+#if defined(USE_LR1110)
+typedef struct {
+  uint8_t len;
+  uint8_t payload[MAX_PKT_SIZE];
+} RadioLib_DataPacket;
+
+static RadioLib_DataPacket RL_txPacket;
+static RadioLib_DataPacket RL_rxPacket;
+#endif
 String Bin2Hex(byte *, size_t);
 uint8_t parity(uint32_t);
 

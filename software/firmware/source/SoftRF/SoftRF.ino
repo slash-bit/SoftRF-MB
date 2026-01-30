@@ -707,21 +707,24 @@ if (rx_success) which_rx_try = 1;
           && (relay_waiting == NULL || RF_current_slot == 0)
           && settings->relay < RELAY_ONLY) {
           // Don't bother with the encode() if can't transmit right now
-#if !defined(SOFTRF_NRF52_T1000E)
           // DEBUG: Disabled loop debug (kept for future use if needed)
-  // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Entering RF_Encode()");
+  // if (settings->debug_flags & DEBUG_DEEPER2) 
+  Serial.println("[LOOP_DEBUG] Entering RF_Encode()");
           size_t s = RF_Encode(&ThisAircraft, true);  // returns 0 if implausible data
-          // if (settings->debug_flags & DEBUG_DEEPER2) Serial.printf("[LOOP_DEBUG] RF_Encode() returned: %u\r\n", s);
+          // if (settings->debug_flags & DEBUG_DEEPER2) 
+  Serial.printf("[LOOP_DEBUG] RF_Encode() returned: %u\r\n", s);
           if (s != 0) {
               // DEBUG: Disabled loop debug (kept for future use if needed)
-  // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Entering RF_Transmit()");
-              RF_Transmit(s, true);
-              // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Exiting RF_Transmit()");
+  // if (settings->debug_flags & DEBUG_DEEPER2) 
+  Serial.println("[LOOP_DEBUG] Entering RF_Transmit()");
+  RF_Transmit(s, true);
+  
+            // if (settings->debug_flags & DEBUG_DEEPER2) 
+  Serial.println("[LOOP_DEBUG] Exiting RF_Transmit()");
               // if actually transmitted, time-slot is then locked out
               if (RF_Transmit_Happened())
                 tx_success = true;
           }
-#endif /* SOFTRF_NRF52_T1000E */
       }
       /* - this only actually transmits when some preset random time is reached */
 
@@ -750,10 +753,8 @@ if (rx_success) which_rx_try = 1;
 // - but with this code included it only happens in try2?
 // - note that the "try1" will be reached again in about 1-2 ms around the loop
     // ensure receiver is re-activated
-// #if !defined(SOFTRF_NRF52_T1000E)
     if (!rx_tried || tx_success)
       rx_success = RF_Receive();
-// #endif /* SOFTRF_NRF52_T1000E */
 if (rx_success) which_rx_try = 2;
 #endif
 
