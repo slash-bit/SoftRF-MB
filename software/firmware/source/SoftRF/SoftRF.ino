@@ -471,9 +471,11 @@ void shutparts()
 
 void shutdown(int reason)
 {
-//Serial.println("shutdown()...");
+// Serial.println("shutdown()...");
   shutparts();
+#if !defined(SOFTRF_NRF52_T1000E) || !defined(SOFTRF_NRF52_M3)
   SoC->Display_fini(reason);
+#endif
   SoC->Button_fini();
   SoC_fini(reason);
 }
@@ -702,7 +704,6 @@ SoC->Buzzer_GPSfix();
 if (rx_success) which_rx_try = 1;
       // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Exiting RF_Receive()");
       // if received a packet, postpone transmission until next time around the loop().
-
       if (!rx_success && RF_Transmit_Ready(true)
           && (relay_waiting == NULL || RF_current_slot == 0)
           && settings->relay < RELAY_ONLY) {

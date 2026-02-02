@@ -359,14 +359,21 @@ static void nRF52_system_off()
   uint8_t sd_en;
   (void) sd_softdevice_is_enabled(&sd_en);
 
+  // Disable all interrupts before powering off
+  __disable_irq();
+
   // Enter System OFF state
   if ( sd_en ) {
     sd_power_system_off();
   } else {
     NRF_POWER->SYSTEMOFF = 1;
   }
+
+  // Infinite loop - should never reach here after SYSTEMOFF is set
+  while(1);
 #else
   NRF_POWER->SYSTEMOFF = 1;
+  while(1);
 #endif /* ARDUINO_ARCH_MBED */
 }
 
@@ -1125,7 +1132,10 @@ static void nRF52_fini(int reason)
 //  usb_msc.end(); /* N/A */
   }
 
-  if (SPIFlash != NULL) SPIFlash->end();
+  if (SPIFlash != NULL) {
+    FlashTrans->runCommand(0xB9); /* DP */
+    SPIFlash->end();
+  }
 
 #if !defined(EXCLUDE_IMU)
   if (hw_info.imu == IMU_MPU9250) {
@@ -1265,6 +1275,36 @@ static void nRF52_fini(int reason)
       break;
   }
 
+  // Reset watchdog during cleanup to prevent timeout
+#if !defined(ARDUINO_ARCH_MBED) && !defined(ARDUINO_ARCH_ZEPHYR)
+  if (nrf_wdt_started(NRF_WDT)) {
+    Watchdog.reset();
+  }
+
+  // For button shutdown, enter system off immediately after board cleanup
+  // to avoid watchdog timeout during remaining pin/serial operations
+  if (reason == SOFTRF_SHUTDOWN_BUTTON || reason == SOFTRF_SHUTDOWN_LOWBAT) {
+    // Set button as wake-up source first
+    int mode_button_pin;
+    switch (nRF52_board) {
+      case NRF52_SEEED_T1000E:
+        mode_button_pin = SOC_GPIO_PIN_T1000_BUTTON;
+        break;
+      default:
+        mode_button_pin = SOC_GPIO_PIN_BUTTON;
+        break;
+    }
+
+    NRF_POWER->GPREGRET = DFU_MAGIC_SKIP;
+    pinMode(mode_button_pin, nRF52_board == NRF52_SEEED_T1000E ?
+                             INPUT_PULLDOWN_SENSE /* INPUT_SENSE_HIGH */ :
+                             INPUT_PULLUP_SENSE   /* INPUT_SENSE_LOW  */);
+
+    // Now enter system off immediately
+    nRF52_system_off();
+  }
+#endif
+
   Serial_GNSS_In.end();
 
   // pinMode(SOC_GPIO_PIN_GNSS_RX, INPUT);
@@ -1280,7 +1320,10 @@ static void nRF52_fini(int reason)
   // pinMode(SOC_GPIO_PIN_MOSI, INPUT);
   // pinMode(SOC_GPIO_PIN_MISO, INPUT);
   // pinMode(SOC_GPIO_PIN_SCK,  INPUT);
-  pinMode(SOC_GPIO_PIN_SS,   INPUT_PULLUP);
+  if (nRF52_board != NRF52_SEEED_T1000E &&
+      nRF52_board != NRF52_ELECROW_TN_M3) {
+    pinMode(SOC_GPIO_PIN_SS, INPUT_PULLUP);
+  }
   // pinMode(SOC_GPIO_PIN_BUSY, INPUT);
   pinMode(lmic_pins.rst,  INPUT);
 
@@ -1302,7 +1345,7 @@ static void nRF52_fini(int reason)
   pinMode(mode_button_pin, nRF52_board == NRF52_LILYGO_TECHO_REV_1 ? INPUT_PULLUP   :
                            nRF52_board == NRF52_SEEED_T1000E       ? INPUT_PULLDOWN :
                            INPUT);
-  // Don't wait for button release during shutdown to prevent blocking
+  // Don't wait for button release during shutdown to prevent blocking and watchdog reset
   // while (digitalRead(mode_button_pin) == (nRF52_board == NRF52_SEEED_T1000E ? HIGH : LOW));
   // delay(100);
   
@@ -1311,6 +1354,13 @@ static void nRF52_fini(int reason)
 
   // pinMode(SOC_GPIO_PIN_CONS_RX, INPUT);
   // pinMode(SOC_GPIO_PIN_CONS_TX, INPUT);
+#endif
+
+  // Reset watchdog again before final cleanup
+#if !defined(ARDUINO_ARCH_MBED) && !defined(ARDUINO_ARCH_ZEPHYR)
+  if (nrf_wdt_started(NRF_WDT)) {
+    Watchdog.reset();
+  }
 #endif
 
   // setup wake-up pins
@@ -1334,14 +1384,14 @@ static void nRF52_fini(int reason)
 
   Serial.end();
 
-  (void) sd_softdevice_is_enabled(&sd_en);
-
-  // Enter System OFF state
-  if ( sd_en ) {
-    sd_power_system_off();
-  } else {
-    NRF_POWER->SYSTEMOFF = 1;
+#if !defined(ARDUINO_ARCH_MBED) && !defined(ARDUINO_ARCH_ZEPHYR)
+  // Reset watchdog one more time before entering system off
+  if (nrf_wdt_started(NRF_WDT)) {
+    Watchdog.reset();
   }
+#endif
+
+  nRF52_system_off();
 }
 
 static void nRF52_reset()

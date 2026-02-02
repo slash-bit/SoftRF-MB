@@ -53,18 +53,26 @@
 #define maxof4(a,b,c,d)   maxof2(maxof2(a,b),maxof2(c,d))
 #define maxof5(a,b,c,d,e) maxof2(maxof2(a,b),maxof3(c,d,e))
 
-/* Max. paket's payload size for all supported RF protocols */
-//#define MAX_PKT_SIZE  32 /* 48 = UAT LONG_FRAME_DATA_BYTES */
-
-#if !defined(EXCLUDE_UAT978)
-#define MAX_PKT_SIZE  maxof5(LEGACY_PAYLOAD_SIZE+LEGACY_CRC_SIZE+3, OGNTP_PAYLOAD_SIZE, \
-                             P3I_PAYLOAD_SIZE, FANET_PAYLOAD_SIZE, \
-                             UAT978_PAYLOAD_SIZE)
-#else
-#define MAX_PKT_SIZE  maxof4(LEGACY_PAYLOAD_SIZE+LEGACY_CRC_SIZE+3, OGNTP_PAYLOAD_SIZE, \
-                             P3I_PAYLOAD_SIZE, FANET_PAYLOAD_SIZE)
-#endif
-
+/*
+ * Max. packet payload size for all supported RF protocols
+ *
+ * IMPORTANT: For LR1110 with RadioLib, Manchester-encoded protocols require
+ * double buffer space because RadioLib does NOT handle encoding internally
+ * (unlike LMIC which handles it transparently).
+ *
+ * Calculation for each protocol:
+ * - LEGACY:     24 bytes × 2 (Manchester) + CRC (2)           = 50 bytes
+ * - FLR_ADSL:   27 bytes × 2 (Manchester) + CRC (2)           = 56 bytes
+ * - OGNTP:      20 bytes × 2 (Manchester)                     = 40 bytes
+ * - P3I:        24 bytes (no Manchester) + headers (6)        = 30 bytes
+ * - FANET:      16 bytes (no Manchester, sizeof fanet_packet_t) = 16 bytes
+ * - UAT978:     34 bytes (no Manchester, LONG_FRAME_DATA_BYTES)= 34 bytes
+ * - ADSL:       21 bytes × 2 (Manchester) + CRC (2)           = 44 bytes
+ *
+ * Maximum required: 56 bytes (FLR_ADSL with Manchester encoding)
+ * Using 64 bytes for safety margin and future protocols.
+ */
+#define MAX_PKT_SIZE  64
 #define RXADDR {0x31, 0xfa , 0xb6} // Address of this device (4 bytes)
 #define TXADDR {0x31, 0xfa , 0xb6} // Address of device to send to (4 bytes)
 

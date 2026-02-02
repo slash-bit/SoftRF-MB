@@ -2647,8 +2647,9 @@ bool RF_Transmit_Happened()
 
 bool RF_Transmit_Ready(bool wait)
 {
-    if (TxTimeMarker == RF_OK_until)  // if RF_Transmit_Happened()
+    if (TxTimeMarker == RF_OK_until && TxTimeMarker != 0) {  // if RF_Transmit_Happened()
         return false;
+    }
     uint32_t now_ms = millis();
     if (! TxEndMarker)                     // for other protocols
         return (now_ms > TxTimeMarker);
@@ -2717,13 +2718,6 @@ void RF_chip_reset()
 
 bool RF_Transmit(size_t size, bool wait)   // only called with no-wait for air-relay
 {
-  Serial.println(F("[RF_Transmit] *** ENTRY ***"));
-  Serial.print(F("[RF_Transmit] RF_ready: "));
-  Serial.print(RF_ready);
-  Serial.print(F(", rf_chip: "));
-  Serial.print(rf_chip != NULL ? F("OK") : F("NULL"));
-  Serial.print(F(", size: "));
-  Serial.println(size);
 
   if (RF_ready && rf_chip && (size > 0)) {
 
@@ -2737,9 +2731,11 @@ bool RF_Transmit(size_t size, bool wait)   // only called with no-wait for air-r
 
     /* Experimental code by Moshe Braner, specific to Legacy Protocol */
     if (in_family(settings->rf_protocol)) {
+      Serial.println(F("[LR1110] In transmit family protocols!"));
       if (RF_Transmit_Ready(wait)) {
 
         if (current_RF_protocol != settings->rf_protocol) {
+          Serial.println(F("[LR1110] current RF prot NE settings RF proto, Entering chip reset"));
             // need to actually switch to the alt protocol
             RF_chip_reset();
             //Serial.println("transmitting in altprotocol...");
@@ -2758,24 +2754,22 @@ bool RF_Transmit(size_t size, bool wait)   // only called with no-wait for air-r
             delay(20);
             current_RF_protocol = settings->rf_protocol;
             RF_chip_reset();
-            //Serial.println("returned to normal protocol...");
         }
 
 //Serial.println(">");
 //Serial.printf("> tx at %d s + %d ms\r\n", OurTime, millis()-ref_time_ms);
-#if 0
-if ((settings->debug_flags & (DEBUG_DEEPER | DEBUG_LEGACY)) == (DEBUG_DEEPER | DEBUG_LEGACY)) {
-uint32_t ms = millis();
-if (ms < ref_time_ms)  ms = 0;
-else   ms -= ref_time_ms;
-if (ms > 999)  ms = 999;
-Serial.printf("> tx %d s %3d ms (%02d:%02d) timebits %2d chan %2d\r\n",
-OurTime, ms, (int)gnss.time.minute(), (int)gnss.time.second(), (RF_time & 0x0F), RF_current_chan);
-}
-#endif
+// #if 0
+// if ((settings->debug_flags & (DEBUG_DEEPER | DEBUG_LEGACY)) == (DEBUG_DEEPER | DEBUG_LEGACY)) {
+// uint32_t ms = millis();
+// if (ms < ref_time_ms)  ms = 0;
+// else   ms -= ref_time_ms;
+// if (ms > 999)  ms = 999;
+// Serial.printf("> tx %d s %3d ms (%02d:%02d) timebits %2d chan %2d\r\n",
+// OurTime, ms, (int)gnss.time.minute(), (int)gnss.time.second(), (RF_time & 0x0F), RF_current_chan);
+// }
+// #endif
         return true;
       }
-
       return false;
     }
 
@@ -3310,13 +3304,8 @@ static void lr11xx_setup()
       break;
   }
 
-  Serial.print(F("[LR11XX] setOutputPower(22): "));
-  Serial.println(state);
-
   /* Enable boosted RX gain and set packet received handler */
   state = lr11xx_radio->setRxBoostedGainMode(true);
-  Serial.print(F("[LR11XX] setRxBoostedGainMode(true): "));
-  Serial.println(state);
 
   lr11xx_radio->setPacketReceivedAction(lr11xx_receive_handler);
 
@@ -3335,13 +3324,7 @@ static void lr11xx_transmit()
   Serial.print("[LR1110] lr11xx_transmit called, RF_tx_size = ");
   Serial.println(RF_tx_size);
 
-  Serial.print("[LR1110] Protocol type = ");
-  Serial.print(cc13xx_protocol->type);
 
-  Serial.print("[LR1110] _proto_desc whitening = ");
-  Serial.println(cc13xx_protocol->whitening);
-  Serial.print("), RF_tx_size=");
-  Serial.print(RF_tx_size);
 
 
   if (RF_tx_size <= 0) {
@@ -3481,22 +3464,7 @@ static void lr11xx_transmit()
   if (state == RADIOLIB_ERR_NONE) {
 
     success = true;
-
     memset(RL_txPacket.payload, 0, sizeof(RL_txPacket.payload));
-#if USE_SX1262 && (RADIOLIB_GODMODE || RADIOLIB_LOW_LEVEL)
-    lr11xx_radio->setBufferBaseAddress();
-    lr11xx_radio->writeBuffer(RL_txPacket.payload, RL_txPacket.len);
-    lr11xx_radio->setBufferBaseAddress();
-#endif
-
-#if 1
-    // the packet was successfully transmitted
-    Serial.println(F("[LR1110] Transmit success!"));
-
-    // print measured data rate
-    Serial.print(F("[LR11XX] Datarate:\t"));
-    Serial.print((unsigned int) lr11xx_radio->getDataRate());
-    Serial.println(F(" bps"));
 
   } else if (state == RADIOLIB_ERR_PACKET_TOO_LONG) {
     // the supplied packet was longer than 256 bytes
@@ -3510,10 +3478,10 @@ static void lr11xx_transmit()
     // some other error occurred
     Serial.print(F("failed, code "));
     Serial.println((int16_t) state);
-#endif
   }
 
   // return success;
+  Serial.println(F("[LR1110] End of lr11xx_transmit!"));
 }
 
 static void lr11xx_shutdown()
