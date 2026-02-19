@@ -104,12 +104,16 @@ struct rst_info reset_info = {
 
 static uint32_t bootCount __attribute__ ((section (".noinit")));
 
-static nRF52_board_id nRF52_board = NRF52_LILYGO_TECHO_REV_2; /* default */
+/* Default board - will be updated by nRF52_board_detect() in setup */
+/* NOTE: For Seeed T1000E/CARD without proper bootloader marker, set to NRF52_SEEED_T1000E */
+static nRF52_board_id nRF52_board = NRF52_SEEED_T1000E; /* Changed from NRF52_LILYGO_TECHO_REV_2 for CARD support */
 static nRF52_display_id nRF52_display = EP_UNKNOWN;
 
 const char *nRF52_Device_Manufacturer = SOFTRF_IDENT;
 const char *nRF52_Device_Model = "Badge Edition";
 const uint16_t nRF52_Device_Version = SOFTRF_USB_FW_VERSION;
+static uint16_t nRF52_USB_VID = 0x239A; /* Adafruit Industries */
+static uint16_t nRF52_USB_PID = 0x8029; /* Feather nRF52840 Express */
 
 const char *Hardware_Rev[] = {
   [0] = "2020-8-6",
@@ -182,15 +186,16 @@ GxEPD2_BW<GxEPD2_150_BN, GxEPD2_150_BN::HEIGHT>   epd_bn (GxEPD2_150_BN(
 GxEPD2_GFX *display;
 #endif /* USE_EPAPER */
 
-Adafruit_FlashTransport_QSPI HWFlashTransport(SOC_GPIO_PIN_SFL_SCK,
-                                              SOC_GPIO_PIN_SFL_SS,
-                                              SOC_GPIO_PIN_SFL_MOSI,
-                                              SOC_GPIO_PIN_SFL_MISO,
-                                              SOC_GPIO_PIN_SFL_WP,
-                                              SOC_GPIO_PIN_SFL_HOLD);
+// Adafruit_FlashTransport_QSPI HWFlashTransport(SOC_GPIO_PIN_SFL_SCK,
+//                                               SOC_GPIO_PIN_SFL_SS,
+//                                               SOC_GPIO_PIN_SFL_MOSI,
+//                                               SOC_GPIO_PIN_SFL_MISO,
+//                                               SOC_GPIO_PIN_SFL_WP,
+//                                               SOC_GPIO_PIN_SFL_HOLD);
 
-Adafruit_SPIFlash QSPIFlash (&HWFlashTransport);
+// Adafruit_SPIFlash QSPIFlash (&HWFlashTransport);
 
+static Adafruit_FlashTransport_QSPI *FlashTrans = NULL;
 static Adafruit_SPIFlash *SPIFlash = NULL;
 
 #define SFLASH_CMD_READ_CONFIG  0x15
@@ -202,6 +207,7 @@ static uint8_t mx25_status_config[3] = {0x00, 0x00, 0x00};
 enum {
   MX25R1635F_INDEX,
   ZD25WQ16B_INDEX,
+  GD25Q64C_INDEX,
   EXTERNAL_FLASH_DEVICE_COUNT
 };
 
@@ -209,7 +215,9 @@ enum {
 static SPIFlash_Device_t possible_devices[] = {
   // LilyGO T-Echo
   [MX25R1635F_INDEX] = MX25R1635F,
-  [ZD25WQ16B_INDEX]  = ZD25WQ16B
+  [ZD25WQ16B_INDEX]  = ZD25WQ16B,
+  // Seeed T1000-E
+  [GD25Q64C_INDEX]   = GD25Q64C,
 };
 
 // USB Mass Storage object
@@ -279,7 +287,9 @@ MPU9250 imu;
 static bool nRF52_has_imu = false;
 static unsigned long IMU_Time_Marker = 0;
 
+#if defined(USE_EPAPER)
 extern float IMU_g;
+#endif
 #endif /* EXCLUDE_IMU */
 
 // Callback invoked when received READ10 command.
@@ -317,10 +327,89 @@ static void nRF52_msc_flush_cb (void)
   ledOff(SOC_GPIO_LED_USBMSC);
 }
 
+static bool nRF52_bl_check(const char* signature)
+{
+  int  i, j;
+  bool match    = false;
+  uint8_t* data = (uint8_t*) 0x000F4000UL;
+  int length    = 0xFE000 - 0xF4000 - 2048 ; /* 38 KB */
+  int str_len   = strlen(signature);
+
+  for (i = 0; i < length - str_len; i++) {
+    if (data[i] == signature[0]) {
+      match = true;
+      for (j = 1; j < str_len; j++) {
+        if (data[i + j] != signature[j]) {
+            match = false;
+            break;
+        }
+      }
+      if (match) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+static void nRF52_system_off()
+{
+
+#if !defined(ARDUINO_ARCH_MBED) && !defined(ARDUINO_ARCH_ZEPHYR)
+  uint8_t sd_en;
+  (void) sd_softdevice_is_enabled(&sd_en);
+
+  // Disable all interrupts before powering off
+  __disable_irq();
+
+  // Enter System OFF state
+  if ( sd_en ) {
+    sd_power_system_off();
+  } else {
+    NRF_POWER->SYSTEMOFF = 1;
+  }
+
+  // Infinite loop - should never reach here after SYSTEMOFF is set
+  while(1);
+#else
+  NRF_POWER->SYSTEMOFF = 1;
+  while(1);
+#endif /* ARDUINO_ARCH_MBED */
+}
+
+  static nRF52_board_id nRF52_board_detect() {
+  /* Detect T1000E by bootloader marker */
+  if (nRF52_bl_check("T1000-E")) {
+    Serial.println("[BOARD] Detected Seeed Studio T1000-E board - LR1110 enabled");
+    return NRF52_SEEED_T1000E;
+  }
+  if (nRF52_bl_check("TECHOBOOT")) {
+    Serial.println("[BOARD] Detected LILYGO T-Echo board");
+    return NRF52_LILYGO_TECHO_REV_2;
+  }
+  /* Detect ELECROW boards by bootloader marker */
+  if (nRF52_bl_check("ELECROWBOOT")) {
+    Serial.println("[BOARD] Detected Elecrow ThinkNode M3 board - LR1110 enabled");
+    /* Differentiate M3 from M1 by checking for AHT20 sensor */
+    Wire.setPins(SOC_GPIO_PIN_M3_SDA, SOC_GPIO_PIN_M3_SCL);
+    Wire.begin();
+    Wire.beginTransmission(0x38);  /* AHT20 I2C address */
+    if (Wire.endTransmission() == 0) {
+      return NRF52_ELECROW_TN_M3;  /* M3 has AHT20 */
+    }
+    /* M1 would be here, but we only target M3 */
+  }
+  Serial.println("[BOARD] No bootloader marker found - defaulting to LILYGO T-Echo (WRONG for T1000E!)");
+  Serial.println("[BOARD] WARNING: If this is a T1000E/CARD, battery will read wrong pin!");
+  return NRF52_LILYGO_TECHO_REV_2;
+  }
+
+/* Forward declaration for SPI initialization */
+static void nRF52_SPI_begin();
+
 static void nRF52_setup()
 {
   // ui = &ui_settings;
-
   uint32_t reset_reason = readResetReason();
 
   if      (reset_reason & POWER_RESETREAS_RESETPIN_Msk)
@@ -366,10 +455,33 @@ static void nRF52_setup()
   pinMode(PIN_LED3, INPUT);
   pinMode(PIN_LED4, INPUT);
 
+  static nRF52_board_id nRF52_board = nRF52_board_detect();
+
+  /* Set hardware model based on detected board */
+  switch (nRF52_board) {
+    case NRF52_SEEED_T1000E:
+      hw_info.model = SOFTRF_MODEL_CARD;
+      Serial.println("[SETUP] T1000-E board detected and configured");
+      break;
+    case NRF52_ELECROW_TN_M3:
+      hw_info.model = SOFTRF_MODEL_POCKET;
+      Serial.println("[SETUP] Elecrow M3 board detected and configured");
+      break;
+    case NRF52_LILYGO_TECHO_REV_2:
+      hw_info.model = SOFTRF_MODEL_BADGE;
+      Serial.println("[SETUP] LilyGO T-Echo board detected and configured");
+      break;
+    default:
+      hw_info.model = SOFTRF_MODEL_BADGE;  /* fallback */
+      Serial.println("[SETUP] Unknown board - defaulting to BADGE");
+      break;
+  }
   USBDevice.setManufacturerDescriptor(nRF52_Device_Manufacturer);
   USBDevice.setProductDescriptor(nRF52_Device_Model);
   USBDevice.setDeviceVersion(nRF52_Device_Version);
 
+  switch (hw_info.model) {
+    case SOFTRF_MODEL_BADGE:
 #if defined(USE_TINYUSB)
   Serial1.setPins(SOC_GPIO_PIN_CONS_RX, SOC_GPIO_PIN_CONS_TX);
   Serial1.begin(SERIAL_OUT_BR, SERIAL_OUT_BITS);
@@ -403,7 +515,10 @@ static void nRF52_setup()
 #endif /* EXCLUDE_IMU */
 
   //Wire.end();   // <<< leave active, for baro chip
-
+  break;
+  default:
+    break;
+  }
   for (int i=0; i < sizeof(techo_prototype_boards) / sizeof(prototype_entry_t); i++) {
     if (techo_prototype_boards[i].id == ((uint64_t) DEVICE_ID_HIGH << 32 | (uint64_t) DEVICE_ID_LOW)) {
       nRF52_board   = techo_prototype_boards[i].rev;
@@ -468,6 +583,138 @@ static void nRF52_setup()
       hw_info.revision = 2;
       break;
 
+    case NRF52_SEEED_T1000E:
+      hw_info.model      = SOFTRF_MODEL_CARD;
+      hw_info.display    = DISPLAY_NONE;
+      nRF52_Device_Model = "Card Edition";
+      nRF52_USB_VID      = 0x2886; /* Seeed Technology */
+      nRF52_USB_PID      = 0x0057; /* SenseCAP T1000-E */
+      Serial.println("[SETUP] Initializing T1000-E GPIO pins...");
+
+      if (reset_reason & POWER_RESETREAS_VBUS_Msk ||
+          reset_reason & POWER_RESETREAS_RESETPIN_Msk) {
+        NRF_POWER->GPREGRET = DFU_MAGIC_SKIP;
+        pinMode(SOC_GPIO_PIN_IO_PWR, INPUT);
+        pinMode(SOC_GPIO_PIN_T1000_BUTTON, INPUT_PULLDOWN_SENSE /* INPUT_SENSE_HIGH */);
+
+        nRF52_system_off();
+      }
+
+      pinMode(SOC_GPIO_PIN_SFL_T1000_EN, OUTPUT);
+      digitalWrite(SOC_GPIO_PIN_SFL_T1000_EN, HIGH);
+      delay(100);  // Wait for flash chip to power up
+      Serial.println("[SETUP] SPI Flash enabled (P1.13)");
+
+  #if defined(USE_TINYUSB)
+      Serial1.setPins(SOC_GPIO_PIN_CONS_T1000_RX, SOC_GPIO_PIN_CONS_T1000_TX);
+  #endif /* USE_TINYUSB */
+      pinMode(SOC_GPIO_PIN_T1000_3V3_EN, OUTPUT);
+      digitalWrite(SOC_GPIO_PIN_T1000_3V3_EN, HIGH);
+      Serial.println("[SETUP] 3.3V sensor power enabled (P1.6)");
+
+      pinMode(SOC_GPIO_PIN_T1000_BUZZER_EN, OUTPUT);
+      digitalWrite(SOC_GPIO_PIN_T1000_BUZZER_EN, HIGH);
+      // tone(SOC_GPIO_PIN_BUZZER, 840, 200);
+      // delay(100);
+      // noTone(SOC_GPIO_PIN_BUZZER);
+      Serial.println("[SETUP] Buzzer enabled (P1.5)");
+
+      pinMode(SOC_GPIO_PIN_GNSS_T1000_EN, OUTPUT);
+      digitalWrite(SOC_GPIO_PIN_GNSS_T1000_EN, HIGH);
+      Serial.println("[SETUP] GNSS module enabled (P1.11)");
+
+      pinMode(SOC_GPIO_PIN_GNSS_T1000_VRTC, OUTPUT);
+      digitalWrite(SOC_GPIO_PIN_GNSS_T1000_VRTC, HIGH);
+      Serial.println("[SETUP] GNSS VRTC enabled (P0.8)");
+
+      pinMode(SOC_GPIO_PIN_GNSS_T1000_RST, OUTPUT);
+      digitalWrite(SOC_GPIO_PIN_GNSS_T1000_RST, LOW);
+      Serial.println("[SETUP] GNSS reset initialized (P1.15)");
+
+      pinMode(SOC_GPIO_PIN_GNSS_T1000_SINT, OUTPUT);
+      digitalWrite(SOC_GPIO_PIN_GNSS_T1000_SINT, HIGH);
+      Serial.println("[SETUP] GNSS sleep interrupt initialized (P1.12)");
+
+      pinMode(SOC_GPIO_PIN_GNSS_T1000_RINT, OUTPUT);
+      digitalWrite(SOC_GPIO_PIN_GNSS_T1000_RINT, LOW);
+      Serial.println("[SETUP] GNSS RTC interrupt initialized (P0.15)");
+
+      pinMode(SOC_GPIO_LED_T1000_GREEN, OUTPUT);
+      digitalWrite(SOC_GPIO_LED_T1000_GREEN, LED_STATE_ON);
+      Serial.println("[SETUP] Status LED ON (P0.24)");
+
+      lmic_pins.nss  = SOC_GPIO_PIN_T1000_SS;
+      lmic_pins.rst  = SOC_GPIO_PIN_T1000_RST;
+      lmic_pins.busy = SOC_GPIO_PIN_T1000_BUSY;
+      lmic_pins.dio[0] = SOC_GPIO_PIN_T1000_DIO9; /* LR1110 */
+
+
+      hw_info.revision = 3; /* Unknown */
+
+      break;
+
+    case NRF52_ELECROW_TN_M3:
+      hw_info.model      = SOFTRF_MODEL_POCKET;
+      nRF52_Device_Model = "Pocket Edition";
+      nRF52_USB_VID      = 0x2E8A; /* Elecrow Electronics */
+      nRF52_USB_PID      = 0x0006; /* ThinkNode M3 */
+
+      pinMode(SOC_GPIO_PIN_M3_TEMP_EN,    INPUT);
+      pinMode(SOC_GPIO_PIN_M3_EEPROM_EN,  INPUT);
+
+      if (reset_reason & POWER_RESETREAS_VBUS_Msk ||
+          reset_reason & POWER_RESETREAS_RESETPIN_Msk) {
+        NRF_POWER->GPREGRET = DFU_MAGIC_SKIP;
+        pinMode(SOC_GPIO_PIN_IO_PWR, INPUT);
+        pinMode(SOC_GPIO_PIN_M3_BUTTON, INPUT_PULLDOWN_SENSE /* INPUT_SENSE_HIGH */);
+
+        nRF52_system_off();
+      }
+
+      pinMode(SOC_GPIO_PIN_M3_TEMP_EN,      INPUT_PULLUP);
+      pinMode(SOC_GPIO_PIN_M3_EEPROM_EN,    INPUT_PULLUP);
+  #if defined(USE_TINYUSB)
+      Serial1.setPins(SOC_GPIO_PIN_CONS_M3_RX, SOC_GPIO_PIN_CONS_M3_TX);
+  #endif /* USE_TINYUSB */
+      digitalWrite(SOC_GPIO_PIN_M3_ADC_EN, HIGH);
+      pinMode(SOC_GPIO_PIN_M3_ADC_EN, OUTPUT);
+
+      digitalWrite(SOC_GPIO_PIN_M3_EN1, HIGH);
+      pinMode(SOC_GPIO_PIN_M3_EN1, OUTPUT);
+      digitalWrite(SOC_GPIO_PIN_M3_EN2, HIGH);
+      pinMode(SOC_GPIO_PIN_M3_EN2, OUTPUT);
+
+      pinMode(SOC_GPIO_PIN_M3_BUT_EN, INPUT_PULLUP);
+
+      digitalWrite(SOC_GPIO_PIN_GNSS_M3_EN, HIGH);
+      pinMode(SOC_GPIO_PIN_GNSS_M3_EN, OUTPUT);
+      digitalWrite(SOC_GPIO_PIN_GNSS_M3_RST, LOW);
+      pinMode(SOC_GPIO_PIN_GNSS_M3_RST, OUTPUT);
+      digitalWrite(SOC_GPIO_PIN_GNSS_M3_WKE, HIGH);
+      pinMode(SOC_GPIO_PIN_GNSS_M3_WKE, OUTPUT);
+
+      digitalWrite(SOC_GPIO_LED_M3_RGB_PWR, HIGH);
+      pinMode(SOC_GPIO_LED_M3_RGB_PWR,      OUTPUT);
+
+      pinMode(SOC_GPIO_LED_M3_RED,   OUTPUT);
+      pinMode(SOC_GPIO_LED_M3_GREEN, OUTPUT);
+      pinMode(SOC_GPIO_LED_M3_BLUE,  OUTPUT);
+
+      digitalWrite(SOC_GPIO_LED_M3_RED,   1-LED_STATE_ON);
+      digitalWrite(SOC_GPIO_LED_M3_GREEN, LED_STATE_ON);
+      digitalWrite(SOC_GPIO_LED_M3_BLUE,  1-LED_STATE_ON);
+
+      lmic_pins.nss  = SOC_GPIO_PIN_M3_SS;
+      lmic_pins.rst  = SOC_GPIO_PIN_M3_RST;
+      lmic_pins.busy = SOC_GPIO_PIN_M3_BUSY;
+#if defined(USE_RADIOLIB)
+      lmic_pins.dio[0] = SOC_GPIO_PIN_M3_DIO9; /* LR1110 */
+#endif /* USE_RADIOLIB */
+
+      hw_info.revision = 3; /* Unknown */
+
+      break;
+
     case NRF52_NORDIC_PCA10059:
     default:
       pinMode(SOC_GPIO_LED_PCA10059_STATUS, OUTPUT);
@@ -512,26 +759,63 @@ static void nRF52_setup()
       possible_devices[MX25R1635F_INDEX].max_clock_speed_mhz = 33;
       possible_devices[MX25R1635F_INDEX].supports_qspi = false;
       possible_devices[MX25R1635F_INDEX].supports_qspi_writes = false;
-      SPIFlash = &QSPIFlash;
-      break;
     case NRF52_LILYGO_TECHO_REV_1:
     case NRF52_LILYGO_TECHO_REV_2:
-      SPIFlash = &QSPIFlash;
+      FlashTrans = new Adafruit_FlashTransport_QSPI(SOC_GPIO_PIN_SFL_SCK,
+                                                    SOC_GPIO_PIN_SFL_SS,
+                                                    SOC_GPIO_PIN_SFL_MOSI,
+                                                    SOC_GPIO_PIN_SFL_MISO,
+                                                    SOC_GPIO_PIN_SFL_WP,
+                                                    SOC_GPIO_PIN_SFL_HOLD);
+      break;
+    case NRF52_SEEED_T1000E:
+      // Initialize QSPI control pins
+      pinMode(SOC_GPIO_PIN_SFL_T1000_WP, OUTPUT);
+      pinMode(SOC_GPIO_PIN_SFL_T1000_HOLD, OUTPUT);
+      digitalWrite(SOC_GPIO_PIN_SFL_T1000_WP, HIGH);    // WP inactive (HIGH)
+      digitalWrite(SOC_GPIO_PIN_SFL_T1000_HOLD, HIGH);  // HOLD inactive (HIGH)
+
+      FlashTrans = new Adafruit_FlashTransport_QSPI(SOC_GPIO_PIN_SFL_T1000_SCK,
+                                              SOC_GPIO_PIN_SFL_T1000_SS,
+                                              SOC_GPIO_PIN_SFL_T1000_MOSI,
+                                              SOC_GPIO_PIN_SFL_T1000_MISO,
+                                              SOC_GPIO_PIN_SFL_T1000_WP,
+                                              SOC_GPIO_PIN_SFL_T1000_HOLD);
       break;
     case NRF52_NORDIC_PCA10059:
+    case NRF52_ELECROW_TN_M3:
     default:
       break;
   }
 
-  if (SPIFlash != NULL) {
+  /* Configure SPI pins BEFORE accessing the flash */
+  nRF52_SPI_begin();
+
+  if (FlashTrans != NULL) {
+    Serial.println("[SETUP] SPI Flash transport object created");
+    FlashTrans->begin();
+    Serial.println("[SETUP] SPI Flash transport started");
+    FlashTrans->runCommand(0xAB); /* RDP/RES */
+    FlashTrans->end();
+    Serial.println("[SETUP] SPI Flash wake-up command sent");
+
+    SPIFlash = new Adafruit_SPIFlash(FlashTrans);
+    Serial.println("[SETUP] SPI Flash object created");
     nRF52_has_spiflash = SPIFlash->begin(possible_devices,
                                          EXTERNAL_FLASH_DEVICE_COUNT);
+    if (nRF52_has_spiflash) {
+      Serial.println("[SETUP] SPI Flash initialized successfully");
+    } else {
+      Serial.println("[SETUP] WARNING: SPI Flash initialization failed");
+    }
   }
 
   hw_info.storage = nRF52_has_spiflash ? STORAGE_FLASH : STORAGE_NONE;
 
   if (nRF52_has_spiflash) {
     spiflash_id = SPIFlash->getJEDECID();
+    Serial.print("[SETUP] SPI Flash JEDEC ID: 0x");
+    Serial.println(spiflash_id, HEX);
 
     //mx25_status_config[0] = SPIFlash->readStatus();
     //HWFlashTransport.readCommand(SFLASH_CMD_READ_CONFIG,   mx25_status_config + 1, 2);
@@ -614,7 +898,10 @@ static void nRF52_post_init()
 #endif
 
     Serial.println();
-    Serial.print  (F("LilyGO T-Echo (v"));
+    Serial.print  (hw_info.model == SOFTRF_MODEL_BADGE  ? F("Board: LILYGO T-Echo ") :
+                   hw_info.model == SOFTRF_MODEL_CARD   ? F("Board: Seeed T1000-E ") :
+                   hw_info.model == SOFTRF_MODEL_POCKET ? F("Board: Elecrow ThinkNode M3 ") :
+                                                          F("Board: Unknown Model "));
     Serial.print  (hw_info.revision);
     Serial.print  (":");
     Serial.print  (hw_info.revision > 2 ?
@@ -631,8 +918,9 @@ static void nRF52_post_init()
     Serial.flush();
     Serial.print(F("GNSS    : "));
     Serial.println(hw_info.gnss == ((hw_info.revision == 0 || hw_info.revision == 1) ?
-                                   GNSS_MODULE_GOKE : GNSS_MODULE_AT65)
-                                   ? F("PASS") : F("FAIL"));
+                                   GNSS_MODULE_GOKE :
+                                   hw_info.gnss == GNSS_MODULE_AG33) ?
+                                   F("PASS") : F("FAIL"));
     Serial.flush();
     Serial.print(F("DISPLAY : "));
     Serial.println(hw_info.display == DISPLAY_EPD_1_54 ? F("PASS") : F("FAIL"));
@@ -826,7 +1114,9 @@ static void nRF52_loop()
       float a_y = imu.getAccY();
       float a_z = imu.getAccZ();
 
+#if defined(USE_EPAPER)
       IMU_g = sqrtf(a_x*a_x + a_y*a_y + a_z*a_z);
+#endif
     }
     IMU_Time_Marker = millis();
   }
@@ -842,7 +1132,10 @@ static void nRF52_fini(int reason)
 //  usb_msc.end(); /* N/A */
   }
 
-  if (SPIFlash != NULL) SPIFlash->end();
+  if (SPIFlash != NULL) {
+    FlashTrans->runCommand(0xB9); /* DP */
+    SPIFlash->end();
+  }
 
 #if !defined(EXCLUDE_IMU)
   if (hw_info.imu == IMU_MPU9250) {
@@ -926,7 +1219,48 @@ static void nRF52_fini(int reason)
       /* Cut 3.3V power off on REV_2 board */
       pinMode(SOC_GPIO_PIN_3V3_PWR, INPUT_PULLDOWN);
       break;
+    case NRF52_SEEED_T1000E:
+      pinMode(SOC_GPIO_PIN_GNSS_T1000_RINT, INPUT_PULLDOWN);
+      pinMode(SOC_GPIO_PIN_GNSS_T1000_SINT, INPUT_PULLDOWN);
+      pinMode(SOC_GPIO_PIN_GNSS_T1000_RST,  INPUT_PULLDOWN);
+      pinMode(SOC_GPIO_PIN_GNSS_T1000_VRTC, INPUT_PULLUP);
+      pinMode(SOC_GPIO_PIN_GNSS_T1000_EN,   INPUT_PULLDOWN);
 
+#if !defined(EXCLUDE_IMU)
+      pinMode(SOC_GPIO_PIN_T1000_ACC_EN,    INPUT_PULLDOWN);
+#endif /* EXCLUDE_IMU */
+      pinMode(SOC_GPIO_PIN_T1000_BUZZER_EN, INPUT_PULLDOWN);
+      pinMode(SOC_GPIO_PIN_T1000_3V3_EN,    INPUT_PULLDOWN);
+
+      pinMode(SOC_GPIO_PIN_T1000_SS,        INPUT_PULLUP);
+
+      digitalWrite(SOC_GPIO_LED_T1000_GREEN, 1-LED_STATE_ON);
+      pinMode(SOC_GPIO_PIN_SFL_T1000_EN,    INPUT);
+      pinMode(SOC_GPIO_LED_T1000_GREEN,     INPUT);
+      break;
+    case NRF52_ELECROW_TN_M3:
+      digitalWrite(SOC_GPIO_PIN_GNSS_M3_WKE, LOW);
+      digitalWrite(SOC_GPIO_LED_M3_RGB_PWR,  LOW);
+
+      digitalWrite(SOC_GPIO_LED_M3_RED,  1-LED_STATE_ON);
+      digitalWrite(SOC_GPIO_LED_M3_GREEN,1-LED_STATE_ON);
+      digitalWrite(SOC_GPIO_LED_M3_BLUE, 1-LED_STATE_ON);
+
+      pinMode(SOC_GPIO_LED_M3_RED,       INPUT);
+      pinMode(SOC_GPIO_LED_M3_GREEN,     INPUT);
+      pinMode(SOC_GPIO_LED_M3_BLUE,      INPUT);
+      pinMode(SOC_GPIO_LED_M3_RGB_PWR,   INPUT);
+
+//      pinMode(SOC_GPIO_PIN_GNSS_M3_WKE,  INPUT);
+      pinMode(SOC_GPIO_PIN_GNSS_M3_RST,  INPUT);
+      pinMode(SOC_GPIO_PIN_GNSS_M3_EN,   INPUT);
+      pinMode(SOC_GPIO_PIN_M3_EEPROM_EN, INPUT);
+      pinMode(SOC_GPIO_PIN_M3_EN1,       INPUT);
+      pinMode(SOC_GPIO_PIN_M3_EN2,       INPUT);
+      pinMode(SOC_GPIO_PIN_M3_ADC_EN,    INPUT);
+      pinMode(SOC_GPIO_PIN_M3_ACC_EN,    INPUT);
+      pinMode(SOC_GPIO_PIN_M3_TEMP_EN,   INPUT);
+      break;
     case NRF52_NORDIC_PCA10059:
     default:
 //      ledOff(SOC_GPIO_LED_PCA10059_GREEN);
@@ -940,6 +1274,36 @@ static void nRF52_fini(int reason)
       pinMode(SOC_GPIO_LED_PCA10059_STATUS, INPUT);
       break;
   }
+
+  // Reset watchdog during cleanup to prevent timeout
+#if !defined(ARDUINO_ARCH_MBED) && !defined(ARDUINO_ARCH_ZEPHYR)
+  if (nrf_wdt_started(NRF_WDT)) {
+    Watchdog.reset();
+  }
+
+  // For button shutdown, enter system off immediately after board cleanup
+  // to avoid watchdog timeout during remaining pin/serial operations
+  if (reason == SOFTRF_SHUTDOWN_BUTTON || reason == SOFTRF_SHUTDOWN_LOWBAT) {
+    // Set button as wake-up source first
+    int mode_button_pin;
+    switch (nRF52_board) {
+      case NRF52_SEEED_T1000E:
+        mode_button_pin = SOC_GPIO_PIN_T1000_BUTTON;
+        break;
+      default:
+        mode_button_pin = SOC_GPIO_PIN_BUTTON;
+        break;
+    }
+
+    NRF_POWER->GPREGRET = DFU_MAGIC_SKIP;
+    pinMode(mode_button_pin, nRF52_board == NRF52_SEEED_T1000E ?
+                             INPUT_PULLDOWN_SENSE /* INPUT_SENSE_HIGH */ :
+                             INPUT_PULLUP_SENSE   /* INPUT_SENSE_LOW  */);
+
+    // Now enter system off immediately
+    nRF52_system_off();
+  }
+#endif
 
   Serial_GNSS_In.end();
 
@@ -956,20 +1320,47 @@ static void nRF52_fini(int reason)
   // pinMode(SOC_GPIO_PIN_MOSI, INPUT);
   // pinMode(SOC_GPIO_PIN_MISO, INPUT);
   // pinMode(SOC_GPIO_PIN_SCK,  INPUT);
-  pinMode(SOC_GPIO_PIN_SS,   INPUT_PULLUP);
+  if (nRF52_board != NRF52_SEEED_T1000E &&
+      nRF52_board != NRF52_ELECROW_TN_M3) {
+    pinMode(SOC_GPIO_PIN_SS, INPUT_PULLUP);
+  }
   // pinMode(SOC_GPIO_PIN_BUSY, INPUT);
   pinMode(lmic_pins.rst,  INPUT);
 
+  int mode_button_pin;
   // pinMode(SOC_GPIO_PIN_PAD,    INPUT);
-  pinMode(SOC_GPIO_PIN_BUTTON, nRF52_board == NRF52_LILYGO_TECHO_REV_1 ? INPUT_PULLUP : INPUT);
-  while (digitalRead(SOC_GPIO_PIN_BUTTON) == LOW);
-  delay(100);
-
+    switch (nRF52_board)
+  {
+      case NRF52_SEEED_T1000E:
+        mode_button_pin = SOC_GPIO_PIN_T1000_BUTTON;
+        break;
+      case NRF52_LILYGO_TECHO_REV_0:
+      case NRF52_LILYGO_TECHO_REV_1:
+      case NRF52_LILYGO_TECHO_REV_2:
+      case NRF52_NORDIC_PCA10059:
+      default:
+        mode_button_pin = SOC_GPIO_PIN_BUTTON;
+        break;
+  }
+  pinMode(mode_button_pin, nRF52_board == NRF52_LILYGO_TECHO_REV_1 ? INPUT_PULLUP   :
+                           nRF52_board == NRF52_SEEED_T1000E       ? INPUT_PULLDOWN :
+                           INPUT);
+  // Don't wait for button release during shutdown to prevent blocking and watchdog reset
+  // while (digitalRead(mode_button_pin) == (nRF52_board == NRF52_SEEED_T1000E ? HIGH : LOW));
+  // delay(100);
+  
 #if defined(USE_TINYUSB)
   Serial1.end();
 
   // pinMode(SOC_GPIO_PIN_CONS_RX, INPUT);
   // pinMode(SOC_GPIO_PIN_CONS_TX, INPUT);
+#endif
+
+  // Reset watchdog again before final cleanup
+#if !defined(ARDUINO_ARCH_MBED) && !defined(ARDUINO_ARCH_ZEPHYR)
+  if (nrf_wdt_started(NRF_WDT)) {
+    Watchdog.reset();
+  }
 #endif
 
   // setup wake-up pins
@@ -978,7 +1369,9 @@ static void nRF52_fini(int reason)
   case SOFTRF_SHUTDOWN_BUTTON:
   case SOFTRF_SHUTDOWN_LOWBAT:
     NRF_POWER->GPREGRET = DFU_MAGIC_SKIP;
-    pinMode(SOC_GPIO_PIN_BUTTON, INPUT_PULLUP_SENSE /* INPUT_SENSE_LOW */);
+    pinMode(mode_button_pin, nRF52_board == NRF52_SEEED_T1000E ?
+                             INPUT_PULLDOWN_SENSE /* INPUT_SENSE_HIGH */ :
+                             INPUT_PULLUP_SENSE   /* INPUT_SENSE_LOW  */);
     break;
 #if defined(USE_SERIAL_DEEP_SLEEP)
   case SOFTRF_SHUTDOWN_NMEA:
@@ -991,14 +1384,14 @@ static void nRF52_fini(int reason)
 
   Serial.end();
 
-  (void) sd_softdevice_is_enabled(&sd_en);
-
-  // Enter System OFF state
-  if ( sd_en ) {
-    sd_power_system_off();
-  } else {
-    NRF_POWER->SYSTEMOFF = 1;
+#if !defined(ARDUINO_ARCH_MBED) && !defined(ARDUINO_ARCH_ZEPHYR)
+  // Reset watchdog one more time before entering system off
+  if (nrf_wdt_started(NRF_WDT)) {
+    Watchdog.reset();
   }
+#endif
+
+  nRF52_system_off();
 }
 
 static void nRF52_reset()
@@ -1120,6 +1513,93 @@ extern BLEMidi blemidi;
 extern midi::MidiInterface<BLEMidi> MIDI_BLE;
 #endif /* USE_BLE_MIDI */
 
+static void nRF52_RFModeBeeps(int mode) {
+  #if defined(USE_PWM_SOUND)
+  uint8_t v = settings->volume;
+  switch (mode) {
+    case RF_PROTOCOL_FANET:
+      SoC->Buzzer_tone(840, v); delay(100); SoC->Buzzer_tone(0, v); delay(100);
+      SoC->Buzzer_tone(840, v); delay(100); SoC->Buzzer_tone(0, v); delay(100);
+     
+      break;
+    case RF_PROTOCOL_LATEST:
+      SoC->Buzzer_tone(840, v); delay(400); SoC->Buzzer_tone(0, v); delay(100);
+      SoC->Buzzer_tone(840, v); delay(400); SoC->Buzzer_tone(0, v); delay(100);
+       break;
+    case RF_PROTOCOL_ADSL:
+      SoC->Buzzer_tone(840, v); delay(100); SoC->Buzzer_tone(0, v); delay(100);
+      SoC->Buzzer_tone(840, v); delay(100); SoC->Buzzer_tone(0, v); delay(100);
+      SoC->Buzzer_tone(840, v); delay(100); SoC->Buzzer_tone(0, v); delay(100);
+       break;
+    default:
+      tone(SOC_GPIO_PIN_BUZZER, 1000,  500); delay(300);
+      break;
+  }
+  #endif /* USE_PWM_SOUND */
+}
+
+
+static void nRF52_Batt_beeps(int var, float batt)
+{
+#if defined(USE_PWM_SOUND)
+  if (SOC_GPIO_PIN_BUZZER != SOC_UNUSED_PIN && settings->volume != BUZZER_OFF) {
+    uint8_t v = settings->volume;
+    uint8_t beeps = 0;
+    //Check battery voltage and play n number of tones based on voltage
+    if (batt > 4.00) {
+      beeps = 5; //95% or more
+    }
+    else if (batt > 3.80 && batt <= 4.00) {beeps = 4;} //75% or more
+    
+    else if (batt > 3.70 && batt <= 3.80) {beeps = 3;} //55% or more
+    
+    else if (batt > 3.60 && batt <= 3.70) {beeps = 2;} //35% or more
+    
+    else if (batt > 3.40 && batt <= 3.60) {beeps = 1;} //15% or ore
+    
+    else {beeps = 0;}
+    //Play beeps
+    if (beeps == 0) {
+      SoC->Buzzer_tone(640, v); delay(400); SoC->Buzzer_tone(0, v); delay(100);
+    }
+    else {
+    for (int i = 0; i < beeps; i++) {
+      SoC->Buzzer_tone(1000, v); delay(100); SoC->Buzzer_tone(0, v); delay(100);
+    }
+  }
+    delay(1000);
+    //Beeps confirming RF protocol
+    nRF52_RFModeBeeps(settings->rf_protocol);
+    
+  }
+#endif /* USE_PWM_SOUND */
+}  
+static void nRF52_BuzzerVolume(uint8_t state)
+{
+  #if defined(USE_PWM_SOUND)
+  if (SOC_GPIO_PIN_BUZZER != SOC_UNUSED_PIN) {
+  switch (state)
+  {
+    case BUZZER_VOLUME_FULL:
+      tone(SOC_GPIO_PIN_BUZZER, 640,  500); delay(500);
+      tone(SOC_GPIO_PIN_BUZZER, 840,  500); delay(500);
+      break;
+    case BUZZER_VOLUME_LOW:
+      tone(SOC_GPIO_PIN_BUZZER, 740,  500); delay(700);
+      tone(SOC_GPIO_PIN_BUZZER, 740,  600); delay(500);
+      break;
+    case BUZZER_OFF:
+      tone(SOC_GPIO_PIN_BUZZER, 840,  500); delay(500);
+      tone(SOC_GPIO_PIN_BUZZER, 640,  500); delay(500);
+      break;
+    default:
+
+      break;
+  }
+  }
+#endif /* USE_PWM_SOUND */
+}
+
 static void nRF52_Buzzer_tone(int hz, uint8_t volume)
 {
 #if defined(USE_PWM_SOUND)
@@ -1153,6 +1633,18 @@ static void nRF52_Buzzer_tone(int hz, uint8_t volume)
     }
   }
 #endif /* USE_BLE_MIDI */
+}
+
+static void nRF52_Buzzer_GPSfix() {
+      uint8_t v = settings->volume;
+
+    SoC->Buzzer_tone(1046, v); delay(200); SoC->Buzzer_tone(0, v);
+    SoC->Buzzer_tone(1175, v); delay(200); SoC->Buzzer_tone(0, v);
+    SoC->Buzzer_tone(1318, v); delay(200); SoC->Buzzer_tone(0, v);
+    SoC->Buzzer_tone(1397, v); delay(400); SoC->Buzzer_tone(0, v);
+                              delay(200);
+    SoC->Buzzer_tone(1046, v); delay(200); SoC->Buzzer_tone(0, v);
+    SoC->Buzzer_tone(1397, v); delay(400); SoC->Buzzer_tone(0, v);
 }
 
 static void nRF52_WiFi_set_param(int ndx, int value)
@@ -1257,14 +1749,31 @@ static void nRF52_EEPROM_extension(int cmd)
 
 static void nRF52_SPI_begin()
 {
-  if (nRF52_board == NRF52_NORDIC_PCA10059) {
-    SPI.setPins(SOC_GPIO_PIN_PCA10059_MISO,
-                SOC_GPIO_PIN_PCA10059_SCK,
-                SOC_GPIO_PIN_PCA10059_MOSI);
-  } else {
-    SPI.setPins(SOC_GPIO_PIN_TECHO_REV_0_MISO,
-                SOC_GPIO_PIN_TECHO_REV_0_SCK,
-                SOC_GPIO_PIN_TECHO_REV_0_MOSI);
+  switch (nRF52_board)
+  {
+    case NRF52_SEEED_T1000E:
+      SPI.setPins(SOC_GPIO_PIN_T1000_MISO,
+                  SOC_GPIO_PIN_T1000_SCK,
+                  SOC_GPIO_PIN_T1000_MOSI);
+      break;
+    case NRF52_ELECROW_TN_M3:
+      SPI.setPins(SOC_GPIO_PIN_M3_MISO,
+                  SOC_GPIO_PIN_M3_SCK,
+                  SOC_GPIO_PIN_M3_MOSI);
+      break;
+    case NRF52_NORDIC_PCA10059:
+      SPI.setPins(SOC_GPIO_PIN_PCA10059_MISO,
+                  SOC_GPIO_PIN_PCA10059_SCK,
+                  SOC_GPIO_PIN_PCA10059_MOSI);
+      break;
+    case NRF52_LILYGO_TECHO_REV_0:
+    case NRF52_LILYGO_TECHO_REV_1:
+    case NRF52_LILYGO_TECHO_REV_2:
+    default:
+      SPI.setPins(SOC_GPIO_PIN_TECHO_REV_0_MISO,
+                  SOC_GPIO_PIN_TECHO_REV_0_SCK,
+                  SOC_GPIO_PIN_TECHO_REV_0_MOSI);
+      break;
   }
 
   SPI.begin();
@@ -1272,7 +1781,25 @@ static void nRF52_SPI_begin()
 
 static void nRF52_swSer_begin(unsigned long baud)
 {
-  Serial_GNSS_In.setPins(SOC_GPIO_PIN_GNSS_RX, SOC_GPIO_PIN_GNSS_TX);
+  Serial_GNSS_In.flush();
+  while (Serial_GNSS_In.available() > 0) { Serial_GNSS_In.read(); }
+
+  switch (nRF52_board)
+  {
+    case NRF52_SEEED_T1000E:
+      Serial_GNSS_In.setPins(SOC_GPIO_PIN_GNSS_T1000_RX, SOC_GPIO_PIN_GNSS_T1000_TX);
+      break;
+    case NRF52_ELECROW_TN_M3:
+      Serial_GNSS_In.setPins(SOC_GPIO_PIN_GNSS_M3_RX, SOC_GPIO_PIN_GNSS_M3_TX);
+      break;
+    case NRF52_LILYGO_TECHO_REV_0:
+    case NRF52_LILYGO_TECHO_REV_1:
+    case NRF52_LILYGO_TECHO_REV_2:
+    case NRF52_NORDIC_PCA10059:
+    default:
+      Serial_GNSS_In.setPins(SOC_GPIO_PIN_GNSS_RX, SOC_GPIO_PIN_GNSS_TX);
+      break;
+  }
   Serial_GNSS_In.begin(baud);
 }
 
@@ -1504,17 +2031,23 @@ static void nRF52_Battery_setup()
 
 static float nRF52_Battery_param(uint8_t param)
 {
-  float rval, voltage;
+  uint32_t bat_adc_pin;
+  float rval, voltage, mult;
 
   switch (param)
   {
   case BATTERY_PARAM_THRESHOLD:
     rval = hw_info.model == SOFTRF_MODEL_BADGE ? BATTERY_THRESHOLD_LIPO   :
+        hw_info.model == SOFTRF_MODEL_CARD     ? BATTERY_THRESHOLD_LIPO   :
+        hw_info.model == SOFTRF_MODEL_POCKET   ? BATTERY_THRESHOLD_LIPO   :
                                                  BATTERY_THRESHOLD_NIMHX2;
     break;
 
   case BATTERY_PARAM_CUTOFF:
     rval = hw_info.model == SOFTRF_MODEL_BADGE ? BATTERY_CUTOFF_LIPO   :
+    hw_info.model == SOFTRF_MODEL_CARD     ? BATTERY_CUTOFF_LIPO   :
+    hw_info.model == SOFTRF_MODEL_POCKET   ? BATTERY_CUTOFF_LIPO   :
+    hw_info.model == SOFTRF_MODEL_POCKET   ? BATTERY_CUTOFF_LIPO   :
                                                  BATTERY_CUTOFF_NIMHX2;
     break;
 
@@ -1544,9 +2077,34 @@ static float nRF52_Battery_param(uint8_t param)
 
     // Let the ADC settle
     delay(1);
-
+    switch (nRF52_board)
+    {
+      case NRF52_SEEED_T1000E:
+        bat_adc_pin = SOC_GPIO_PIN_T1000_BATTERY;
+        mult        = SOC_ADC_T1000_VOLTAGE_DIV;
+        break;
+      case NRF52_ELECROW_TN_M3:
+        bat_adc_pin = SOC_GPIO_PIN_M3_BATTERY;
+        mult        = SOC_ADC_M3_VOLTAGE_DIV;
+        break;
+      case NRF52_LILYGO_TECHO_REV_0:
+      case NRF52_LILYGO_TECHO_REV_1:
+      case NRF52_LILYGO_TECHO_REV_2:
+      case NRF52_NORDIC_PCA10059:
+      default:
+        bat_adc_pin = SOC_GPIO_PIN_BATTERY;
+        mult        = SOC_ADC_VOLTAGE_DIV;
+        break;
+    }
     // Get the raw 12-bit, 0..3000mV ADC value
-    voltage = analogRead(SOC_GPIO_PIN_BATTERY);
+    // DEBUG: Log ADC read attempt
+    // Serial.printf("[ADC_DEBUG] About to read battery ADC pin %d\r\n", bat_adc_pin);
+    // Serial.flush();
+    uint32_t adc_start = millis();
+    voltage = analogRead(bat_adc_pin);
+    uint32_t adc_elapsed = millis() - adc_start;
+    // Serial.printf("[ADC_DEBUG] ADC read completed in %lu ms, raw value: %f\r\n", adc_elapsed, voltage);
+    // Serial.flush();
 
     // Set the ADC back to the default settings
     analogReference(AR_DEFAULT);
@@ -1555,7 +2113,9 @@ static float nRF52_Battery_param(uint8_t param)
     // Convert the raw value to compensated mv, taking the resistor-
     // divider into account (providing the actual LIPO voltage)
     // ADC range is 0..3000mV and resolution is 12-bit (0..4095)
-    rval = voltage * REAL_VBAT_MV_PER_LSB * 0.001;
+    voltage *= (mult * VBAT_MV_PER_LSB);
+    rval = voltage  * 0.001;
+    // Serial.printf("[ADC_DEBUG] Final voltage: %f V\r\n", rval);
     break;
   }
 
@@ -1617,24 +2177,37 @@ void handleEvent(AceButton* button, uint8_t eventType,
 
     case AceButton::kEventClicked:
     // case AceButton::kEventReleased:
-#if defined(USE_EPAPER)
+
       if (button == &button_1) {
-#if 0
+#if defined(SOFTRF_MODEL_T1000E) || defined(SOFTRF_MODEL_M3)
         if (eventType == AceButton::kEventClicked) {
-          Serial.println(F("kEventClicked."));
+          if (nRF52_board == NRF52_SEEED_T1000E ) {
+            if (settings->volume == BUZZER_OFF) {
+              nRF52_BuzzerVolume(BUZZER_VOLUME_FULL);
+              settings->volume = BUZZER_VOLUME_FULL;
+            } else if (settings->volume == BUZZER_VOLUME_FULL) {
+              nRF52_BuzzerVolume(BUZZER_VOLUME_LOW);
+              settings->volume = BUZZER_VOLUME_LOW;
+            } else {
+              nRF52_BuzzerVolume(BUZZER_OFF);
+              settings->volume = BUZZER_OFF;
+            }
+          }
         } else if (eventType == AceButton::kEventReleased) {
           Serial.println(F("kEventReleased."));
         }
-#endif
+#elif defined(USE_EPAPER)
         if (FlightLogOpen)
             completeFlightLog();   // manually ensure complete flight log
         EPD_Mode(screen_saver);    // if screen_saver then redraws current page/mode
         screen_saver = false;
+#endif
       } else if (button == &button_2) {    // touch
+#if defined(USE_EPAPER)
         if (! screen_saver)
             EPD_Up();
-      }
 #endif
+      }
       break;
 
     case AceButton::kEventDoubleClicked:
@@ -1662,6 +2235,10 @@ void handleEvent(AceButton* button, uint8_t eventType,
       } else if (button == &button_2) {    // touch
         if (! screen_saver)
             EPD_Down();
+#else
+        if (eventType == AceButton::kEventDoubleClicked) {
+          Serial.println(F("kEventDoubleClicked."));
+        }
 #endif
       }
       break;
@@ -1704,15 +2281,34 @@ void onUpButtonEvent() {
 
 static void nRF52_Button_setup()
 {
-  int mode_button_pin = SOC_GPIO_PIN_BUTTON;
-  int up_button_pin   = SOC_GPIO_PIN_PAD;
+  int mode_button_pin;
+  int up_button_pin   = -1;
 
+  switch (nRF52_board)
+  {
+    case NRF52_SEEED_T1000E:
+      mode_button_pin = SOC_GPIO_PIN_T1000_BUTTON;
+      break;
+    case NRF52_ELECROW_TN_M3:
+      mode_button_pin = SOC_GPIO_PIN_M3_BUTTON;
+      break;
+    case NRF52_LILYGO_TECHO_REV_0:
+    case NRF52_LILYGO_TECHO_REV_1:
+    case NRF52_LILYGO_TECHO_REV_2:
+    case NRF52_NORDIC_PCA10059:
+      up_button_pin   = SOC_GPIO_PIN_PAD;
+    default:
+      mode_button_pin = SOC_GPIO_PIN_BUTTON;
+      break;
+  }
   // Button(s) uses external pull up resistor.
-  pinMode(mode_button_pin, nRF52_board == NRF52_LILYGO_TECHO_REV_1 ? INPUT_PULLUP : INPUT);
-  pinMode(up_button_pin, INPUT);
+  pinMode(mode_button_pin, nRF52_board == NRF52_LILYGO_TECHO_REV_1 ? INPUT_PULLUP : 
+                          nRF52_board == NRF52_SEEED_T1000E       ? INPUT_PULLDOWN :
+                          INPUT);
+  if (up_button_pin >= 0) { pinMode(up_button_pin, INPUT); }
 
-  button_1.init(mode_button_pin);
-  button_2.init(up_button_pin);
+   button_1.init(mode_button_pin, nRF52_board == NRF52_SEEED_T1000E ? LOW : HIGH);
+  if (up_button_pin >= 0) { button_2.init(up_button_pin); }
 
   // Configure the ButtonConfig with the event handler, and enable all higher
   // level events.
@@ -1752,13 +2348,35 @@ static void nRF52_Button_setup()
 static void nRF52_Button_loop()
 {
   button_1.check();
-  button_2.check();
+  switch (nRF52_board)
+  {
+    case NRF52_LILYGO_TECHO_REV_0:
+    case NRF52_LILYGO_TECHO_REV_1:
+    case NRF52_LILYGO_TECHO_REV_2:
+    case NRF52_NORDIC_PCA10059:
+      button_2.check();
+      break;
+    default:
+      break;
+  }
 }
 
 static void nRF52_Button_fini()
 {
 //  detachInterrupt(digitalPinToInterrupt(SOC_GPIO_PIN_BUTTON));
-  detachInterrupt(digitalPinToInterrupt(SOC_GPIO_PIN_PAD));
+   switch (nRF52_board)
+  {
+    case NRF52_LILYGO_TECHO_REV_0:
+    case NRF52_LILYGO_TECHO_REV_1:
+    case NRF52_LILYGO_TECHO_REV_2:
+    case NRF52_NORDIC_PCA10059:
+      detachInterrupt(digitalPinToInterrupt(SOC_GPIO_PIN_PAD));
+      break;
+
+    default:
+      detachInterrupt(digitalPinToInterrupt(SOC_GPIO_PIN_PAD));
+      break;
+  }
 }
 
 #if defined(USE_WEBUSB_SERIAL) && !defined(USE_WEBUSB_SETTINGS)
@@ -1983,8 +2601,10 @@ const SoC_ops_t nRF52_ops = {
   nRF52_getResetReason,
   nRF52_getFreeHeap,
   nRF52_random,
+  nRF52_Batt_beeps,
   nRF52_Buzzer_test,
   nRF52_Buzzer_tone,
+  nRF52_Buzzer_GPSfix,
   NULL,
   nRF52_WiFi_set_param,
   nRF52_WiFi_transmit_UDP,

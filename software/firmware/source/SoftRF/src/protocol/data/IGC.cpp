@@ -141,8 +141,10 @@ bool decompressfile(char *filename)
     sfn[3]='_';
     sfn[4]=filename[8];
     sfn[5]='\0';
+#if defined(USE_EPAPER)
     EPD_Message("DECOMP", sfn);
     delay(500);
+#endif
     char outfilename[24];
     strcpy(outfilename,filename);
     outfilename[strlen(outfilename)-1] = 'C';   // overwriting 'X'
@@ -351,9 +353,11 @@ void FlightLog_decomp()
     }
     file.close();
     root.close();
+#if defined(USE_EPAPER)
     if (any_decomp)
         EPD_Message("DECOMP", "DONE");
     delay(500);
+#endif
 }
 #endif
 

@@ -251,11 +251,13 @@ settings->id_method, settings->aircraft_id, ThisAircraft.addr);
   ESP32_charge_mode();  // if both battery & USB power, shut down and just charge
 #endif
 
-Serial.println(F("calling Baro_setup()..."));
+#if !defined(SOFTRF_NRF52_T1000E) && !defined(SOFTRF_NRF52_M3)
+Serial.println(F("calling test Baro_setup()..."));
   // do this before Filesys_setup since this tickles pins 13,2
   if (! (settings->debug_flags & DEBUG_SIMULATE))
       hw_info.baro = Baro_setup();
 Serial.println(F("... Baro_setup() returned"));
+#endif
 
 //#if defined(USE_SD_CARD)
   //if (hw_info.model == SOFTRF_MODEL_PRIME_MK2) {
@@ -279,9 +281,10 @@ Serial.println(ESP.getFreePsram());
 
   hw_info.rf = RF_setup();
   delay(100);
-
   Buzzer_setup();
+#if !defined(SOFTRF_NRF52_T1000E) && !defined(SOFTRF_NRF52_M3)
   Strobe_setup();
+#endif
 
 #if defined(ENABLE_AHRS)
   hw_info.imu = AHRS_setup();
@@ -291,7 +294,7 @@ Serial.println(ESP.getFreePsram());
   if (settings->mode == SOFTRF_MODE_UAV) {
     Serial.begin(57600);
     MAVLink_setup();
-    ThisAircraft.aircraft_type = AIRCRAFT_TYPE_UAV;  
+    ThisAircraft.aircraft_type = AIRCRAFT_TYPE_UAV;
   }  else
 #endif /* EXCLUDE_MAVLINK */
   {
@@ -325,20 +328,21 @@ Serial.println(ESP.getFreePsram());
   if (settings->rx1090 == ADSB_RX_GNS5892)
       gns5892_setup();
 #endif
-
+#if !defined(SOFTRF_NRF52_T1000E)
   LED_setup();   // moved here to allow Serial2 to grab pin 4
-
+#endif
 #if defined(ENABLE_TTN)
   TTN_setup();
 #endif
 
   delay(1000);
-
+#if !defined(SOFTRF_NRF52_T1000E)
+  Serial1.print("[MAIN]  LED test...");
   /* expedite restart on WDT reset */
   if (resetInfo->reason != REASON_WDT_RST) {
     LED_test();
   }
-
+#endif // !SOFTRF_NRF52_T1000E
 #if !defined(EXCLUDE_VOICE)
 #if defined(ESP32)
   Voice_setup();
@@ -362,7 +366,8 @@ Serial.println(ESP.getFreePsram());
   }
 
 //Serial.println("calling Buzzer_test()");
-  SoC->Buzzer_test(resetInfo->reason);
+  // SoC->Buzzer_test(resetInfo->reason);
+  SoC->Batt_beeps(resetInfo->reason, Battery_voltage()); /* VB008: Pass battery for status beeps */
 
 #if defined(USE_SD_CARD)
   MD5_test();
@@ -439,7 +444,9 @@ void shutdown(int reason)
 {
 //Serial.println("shutdown()...");
   shutparts();
+#if !defined(SOFTRF_NRF52_T1000E) || !defined(SOFTRF_NRF52_M3)
   SoC->Display_fini(reason);
+#endif
   SoC->Button_fini();
   SoC_fini(reason);
 }
@@ -463,7 +470,13 @@ void normal()
   bool rx_success = false;
   bool tx_success = false;
 
+
+#if !defined(EXCLUDE_BMP180) || !defined(EXCLUDE_BMP280) || !defined(EXCLUDE_MPL3115A2)
+  // DEBUG: Disabled loop debug (kept for future use if needed)
+  // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Entering Baro_loop()");
   Baro_loop();
+  // if (settings->debug_flags & DEBUG_DEEPER2) Serial.println("[LOOP_DEBUG] Exiting Baro_loop()");
+#endif
 
 #if defined(ENABLE_AHRS)
   AHRS_loop();
@@ -541,6 +554,7 @@ Serial.printf("Stable GNSS fix:\r\n\
 gnss.location.lat(), gnss.location.lng(),
 gnss.date.year(), gnss.date.month(), gnss.date.day(),
 gnss.time.hour(), gnss.time.minute(), gnss.time.second());
+SoC->Buzzer_GPSfix();
         (void) leap_seconds_valid();    // computes leap_seconds_correction
       } else {
         validfix = false;          // do not transmit yet
@@ -752,9 +766,9 @@ if (rx_success) which_rx_try = 2;
   }
 
   Buzzer_loop();   /* may sound collision alarms */
-
+#if !defined(SOFTRF_NRF52_T1000E)
   Strobe_loop();
-
+#endif
 #if !defined(EXCLUDE_VOICE)
 #if defined(ESP32)
   Voice_loop();   /* may sound collision alarms */

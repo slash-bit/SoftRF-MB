@@ -49,8 +49,10 @@ typedef struct SoC_ops_struct {
   String (*getResetReason)();
   uint32_t (*getFreeHeap)();
   long (*random)(long, long);
+  void (*Batt_beeps)(int, float);  /* VB008: Added battery voltage parameter */
   void (*Buzzer_test)(int);
   void (*Buzzer_tone)(int, uint8_t);
+  void (*Buzzer_GPSfix)();
   uint32_t (*maxSketchSpace)();
   void (*WiFi_set_param)(int, int);
   void (*WiFi_transmit_UDP)(int, byte *, size_t);

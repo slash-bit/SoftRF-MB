@@ -26,15 +26,23 @@
 #include "../TrafficHelper.h"
 #include "Settings.h"
 #include "Battery.h"
+
 #include "../ui/Web.h"
 #if !defined(EXCLUDE_MAVLINK)
 #include "../protocol/data/MAVLink.h"
 #endif /* EXCLUDE_MAVLINK */
 #include <fec.h>
-
+#if defined(USE_RADIOLIB)
+#ifndef RadioSPI
+#define RadioSPI        SPI
+#endif
+#endif /* USE_RADIOLIB */
 #if LOGGER_IS_ENABLED
 #include "../system/Log.h"
 #endif /* LOGGER_IS_ENABLED */
+#define DEBUG_RADIO_BASIC
+// #define DEBUG
+#define USE_LR1110
 
 byte RxBuffer[MAX_PKT_SIZE] __attribute__((aligned(sizeof(uint32_t))));
 
@@ -149,6 +157,25 @@ extern const gnss_chip_ops_t *gnss_chip;
 
 #define RF_CHANNEL_NONE 0xFF
 
+static bool memeqzero(const uint8_t *data, size_t length)
+{
+	const uint8_t *p = data;
+	size_t len;
+
+	/* Check first 16 bytes manually */
+	for (len = 0; len < 16; len++) {
+		if (!length)
+			return true;
+		if (*p)
+			return false;
+		p++;
+		length--;
+	}
+
+	/* Now we know that's zero, memcmp with self. */
+	return memcmp((void *) data, (void *) p, length) == 0;
+}
+
 static bool nrf905_probe(void);
 static void nrf905_setup(void);
 static void nrf905_channel(uint8_t);
@@ -186,6 +213,14 @@ static bool ognrf_receive(void);
 static void ognrf_transmit(void);
 static void ognrf_shutdown(void);
 
+/* LR1110 radio driver declarations */
+static bool lr11xx_probe();
+static void lr11xx_setup();
+static void lr11xx_channel(uint8_t);
+static bool lr11xx_receive();
+static void lr11xx_transmit();
+static void lr11xx_resetup(void);
+static void lr11xx_shutdown();
 #if !defined(EXCLUDE_NRF905)
 const rfchip_ops_t nrf905_ops = {
   RF_IC_NRF905,
@@ -246,6 +281,20 @@ const rfchip_ops_t cc13xx_ops = {
   cc13xx_shutdown
 };
 #endif /* EXCLUDE_CC13XX */
+
+#if defined(USE_LR1110)
+const rfchip_ops_t lr1110_ops = {
+  RF_IC_LR1110,
+  "LR1110",
+  lr11xx_probe,
+  lr11xx_setup,
+  lr11xx_channel,
+  lr11xx_receive,
+  lr11xx_transmit,
+  lr11xx_shutdown
+};
+#endif /* USE_LR1110 */
+
 #if defined(USE_OGN_RF_DRIVER)
 
 #define vTaskDelay  delay
@@ -566,6 +615,40 @@ static uint8_t sx1262_ReadReg (uint16_t addr) {
     sx1262_ReadRegs(addr, &val, 1);
     return val;
 }
+
+#if defined(USE_LR1110)
+static void lr11xx_GetVersion (uint8_t* hw, uint8_t* device,
+                               uint8_t* major, uint8_t* minor) {
+    uint8_t buf[4] = { 0 };
+
+    hal_pin_busy_wait();
+    hal_spi_select(1);
+
+    hal_spi((uint8_t)((RADIOLIB_LR11X0_CMD_GET_VERSION & 0xFF00) >> 8));
+    hal_spi((uint8_t) (RADIOLIB_LR11X0_CMD_GET_VERSION & 0x00FF));
+    hal_spi_select(0);
+
+    hal_pin_busy_wait();
+    hal_spi_select(1);
+
+    hal_spi(RADIOLIB_LR11X0_CMD_NOP);
+    for (uint8_t i = 0; i < sizeof(buf); i++) {
+        buf[i] = hal_spi(0x00);
+    }
+    hal_spi_select(0);
+
+    if (hw)     { *hw     = buf[0]; }
+    if (device) { *device = buf[1]; }
+    if (major)  { *major  = buf[2]; }
+    if (minor)  { *minor  = buf[3]; }
+#if 0
+    Serial.print("hw     = "); Serial.println(*hw, HEX);
+    Serial.print("device = "); Serial.println(*device, HEX);
+    Serial.print("major  = "); Serial.println(*major, HEX);
+    Serial.print("minor  = "); Serial.println(*minor, HEX);
+#endif
+}
+#endif /* USE_LR1110 */
 
 static bool sx1262_probe()
 {
@@ -1355,6 +1438,7 @@ static void uatm_shutdown()
   /* Nothing to do */
 }
 #endif /* EXCLUDE_UATM */
+const rf_proto_desc_t  *cc13xx_protocol = &uat978_proto_desc;
 
 #if !defined(EXCLUDE_CC13XX)
 /*
@@ -1373,7 +1457,7 @@ static void uatm_shutdown()
 
 #define MAX_SYNCWORD_SIZE       4
 
-const rf_proto_desc_t  *cc13xx_protocol = &uat978_proto_desc;
+
 
 EasyLink myLink;
 #if !defined(EXCLUDE_OGLEP3)
@@ -2142,6 +2226,18 @@ byte RF_setup(void)
 
   if (rf_chip == NULL) {
 #if !defined(USE_OGN_RF_DRIVER)
+#if defined(USE_LR1110)
+    /* LR1110-only configuration */
+    Serial.println(F("[RF_setup] Attempting LR1110 probe..."));
+    if (lr1110_ops.probe()) {
+      rf_chip = &lr1110_ops;
+      Serial.println(F("[RF_setup] LR1110 probe SUCCESS"));
+      Serial.flush();
+    } else {
+      Serial.println(F("[RF_setup] LR1110 probe FAILED"));
+    }
+#else
+    /* Standard multi-radio probe sequence */
 #if !defined(EXCLUDE_SX12XX)
 #if !defined(EXCLUDE_SX1276)
     if (sx1276_ops.probe()) {
@@ -2179,6 +2275,7 @@ byte RF_setup(void)
     } else {
       Serial.println(F("WARNING! None of supported RFICs is detected!"));
     }
+#endif /* USE_LR1110 */
 #else /* USE_OGN_RF_DRIVER */
     if (ognrf_ops.probe()) {
       rf_chip = &ognrf_ops;
@@ -2347,6 +2444,12 @@ void RF_chip_reset(uint8_t protocol)
 #if !defined(EXCLUDE_SX12XX)
     if (rf_chip == &sx1276_ops || rf_chip == &sx1262_ops)
         sx12xx_resetup();
+#endif
+#endif
+#if defined(USE_RADIOLIB)
+#if defined(USE_LR1110)
+    if (rf_chip == &lr1110_ops || rf_chip == &lr1110_ops)
+        lr11xx_resetup();
 #endif
 #endif
     RF_chip_channel(protocol);
@@ -2971,6 +3074,1157 @@ void RF_Shutdown(void)
     rf_chip->shutdown();
   }
 }
+
+#if defined(USE_LR1110)
+/*
+ * LR1110 radio driver implementation
+ * Semtech LR1110 LoRa/GFSK transceiver
+ */
+
+/* LR11XX transceiver state variables */
+// static Module *lr11xx_mod = nullptr;
+// static LR1110 *lr11xx_radio = nullptr;
+
+Module *mod;
+LR11x0  *lr11xx_radio;
+static int8_t lr11xx_channel_prev    = (int8_t) -1;
+
+static volatile bool lr11xx_receive_complete = false;
+static bool lr11xx_receive_active = false;
+static bool lr11xx_transmit_complete = false;
+static uint32_t lr11xx_last_check = 0;
+
+/* Packet buffer for ISR */
+static uint8_t lr11xx_isr_pkt_data[MAX_PKT_SIZE];
+static volatile size_t lr11xx_isr_pkt_len = 0;
+
+// static uint64_t lr11xx_eui_be = 0xdeadbeefdeadbeef;
+
+/* setDioAsRfSwitch(0x0f, 0x0, 0x09, 0x0B, 0x0A, 0x0, 0x4, 0x0) */
+static const uint32_t rfswitch_dio_pins_seeed[] = {
+    RADIOLIB_LR11X0_DIO5, RADIOLIB_LR11X0_DIO6,
+    RADIOLIB_LR11X0_DIO7, RADIOLIB_LR11X0_DIO8,
+    RADIOLIB_NC
+};
+
+static const Module::RfSwitchMode_t rfswitch_table_seeed[] = {
+    // mode                  DIO5  DIO6  DIO7  DIO8
+    { LR11x0::MODE_STBY,   { LOW,  LOW,  LOW,  LOW  } },
+    // SKY13373
+    { LR11x0::MODE_RX,     { HIGH, LOW,  LOW,  HIGH } },
+    { LR11x0::MODE_TX,     { HIGH, HIGH, LOW,  HIGH } },
+    { LR11x0::MODE_TX_HP,  { LOW,  HIGH, LOW,  HIGH } },
+    { LR11x0::MODE_TX_HF,  { LOW,  LOW,  LOW,  LOW  } },
+    // BGA524N6
+    { LR11x0::MODE_GNSS,   { LOW,  LOW,  HIGH, LOW  } },
+    // LC
+    { LR11x0::MODE_WIFI,   { LOW,  LOW,  LOW,  LOW  } },
+    END_OF_MODE_TABLE,
+};
+
+static const uint32_t rfswitch_dio_pins_elecrow[] = {
+    RADIOLIB_LR11X0_DIO5, RADIOLIB_LR11X0_DIO6,
+    RADIOLIB_NC, RADIOLIB_NC, RADIOLIB_NC
+};
+
+static const Module::RfSwitchMode_t rfswitch_table_elecrow[] = {
+    // mode                  DIO5  DIO6
+    { LR11x0::MODE_STBY,   { LOW,  LOW  } },
+    { LR11x0::MODE_RX,     { HIGH, LOW  } },
+    { LR11x0::MODE_TX,     { HIGH, HIGH } },
+    { LR11x0::MODE_TX_HP,  { LOW,  HIGH } },
+    { LR11x0::MODE_TX_HF,  { LOW,  LOW  } },
+    { LR11x0::MODE_GNSS,   { LOW,  LOW  } },
+    { LR11x0::MODE_WIFI,   { LOW,  LOW  } },
+    END_OF_MODE_TABLE,
+};
+
+void lr11xx_receive_handler(void) {
+  /* ISR - keep it minimal, no Serial calls */
+  lr11xx_receive_complete = true;
+}
+
+static bool lr11xx_probe()
+{
+
+  u1_t device, device_reset;
+  u1_t hw, major, minor;
+
+  SoC->SPI_begin();
+
+  hal_init_softrf (nullptr);
+
+  // manually reset radio
+  hal_pin_rst(0); // drive RST pin low
+  hal_waitUntil(os_getTime()+ms2osticks(1)); // wait >100us
+
+  lr11xx_GetVersion(&hw, &device_reset, &major, &minor);
+
+  hal_pin_rst(2); // configure RST pin floating!
+  hal_waitUntil(os_getTime()+ms2osticks(300)); // wait 300 ms
+
+  lr11xx_GetVersion(&hw, &device, &major, &minor);
+
+  pinMode(lmic_pins.nss, INPUT);
+  RadioSPI.end();
+
+  if (device == RADIOLIB_LR11X0_DEVICE_LR1110) {
+
+    if (device_reset == RADIOLIB_LR11X0_DEVICE_LR1110) {
+      RF_SX12XX_RST_is_connected = false;
+    }
+#if 1
+    char buf[8];
+    snprintf(buf, sizeof(buf), "%d.%d", major, minor);
+    Serial.print("INFO: LR1110 base FW version ");
+    Serial.println(buf);
+#endif
+    return true;
+  } else {
+    return false;
+  }
+
+}
+
+static void lr11xx_channel(uint8_t channel)
+{
+  if (channel != -1 && channel != lr11xx_channel_prev) {
+    uint32_t frequency = RF_FreqPlan.getChanFrequency((uint8_t) channel);
+    int8_t fc = settings->freq_corr;
+
+    if (settings->rf_protocol == RF_PROTOCOL_LEGACY) {
+      nRF905_band_t nrf_band;
+      uint32_t nrf_freq_resolution;
+
+      nrf_band = (frequency >= 844800000UL ? NRF905_BAND_868 : NRF905_BAND_433);
+      nrf_freq_resolution = (nrf_band == NRF905_BAND_433 ? 100000UL : 200000UL);
+      frequency -= (frequency % nrf_freq_resolution);
+    }
+
+    if (fc > 30) {
+      fc = 30;
+    } else if (fc < -30) {
+      fc = -30;
+    };
+
+    int state = lr11xx_radio->setFrequency((frequency + (fc * 1000)) / 1000000.0);
+
+#if RADIOLIB_DEBUG_BASIC
+    if (state == RADIOLIB_ERR_INVALID_FREQUENCY) {
+      Serial.println(F("[LR11XX] Selected frequency is invalid for this module!"));
+      while (true) { delay(10); }
+    } esle {
+      Serial.print("[LR11XX] Selected frequency: ");
+      Serial.print(frequency / 1000000.0);
+    }
+#endif
+
+    lr11xx_channel_prev = channel;
+    /* restart Rx upon a channel switch */
+    lr11xx_receive_active = false;
+  }
+}
+
+static void lr11xx_setup()
+{
+  /* Initialize SPI and LR1110 module */
+  int state;
+  SoC->SPI_begin();
+
+  /* Ensure module is created */
+  if (mod == nullptr) {
+    Serial.println(lmic_pins.dio[0]);
+    Serial.println(lmic_pins.busy);
+    uint32_t irq = lmic_pins.dio[0] == LMIC_UNUSED_PIN ?
+                   RADIOLIB_NC : lmic_pins.dio[0];
+    uint32_t busy = lmic_pins.busy == LMIC_UNUSED_PIN ?
+                    RADIOLIB_NC : lmic_pins.busy;
+
+    mod = new Module(
+      lmic_pins.nss,
+      irq,
+      lmic_pins.rst,
+      busy,
+      RadioSPI
+    );
+  }
+
+  /* Ensure radio instance is created */
+  if (lr11xx_radio == nullptr) {
+    lr11xx_radio = new LR1110(mod);
+  }
+
+  Serial.print(F("[LR1110] Configuring protocol: "));
+  Serial.println(current_RX_protocol);
+
+  /* Set protocol-specific parameters */
+  switch (current_RX_protocol) {
+    case RF_PROTOCOL_OGNTP:
+      Serial.println(F("[LR1110] Protocol: OGNTP"));
+      cc13xx_protocol = &ogntp_proto_desc;
+      protocol_encode = &ogntp_encode;
+      protocol_decode = &ogntp_decode;
+      break;
+    case RF_PROTOCOL_P3I:
+      Serial.println(F("[LR1110] Protocol: P3I"));
+      cc13xx_protocol = &p3i_proto_desc;
+      protocol_encode = &p3i_encode;
+      protocol_decode = &p3i_decode;
+      break;
+    case RF_PROTOCOL_FANET:
+      Serial.println(F("[LR1110] Protocol: FANET"));
+      cc13xx_protocol = &fanet_proto_desc;
+      protocol_encode = &fanet_encode;
+      protocol_decode = &fanet_decode;
+      break;
+    case RF_PROTOCOL_ADSL:
+      Serial.println(F("[LR1110] Protocol: ADSL"));
+      cc13xx_protocol = &adsl_proto_desc;
+      protocol_encode = &adsl_encode;
+      protocol_decode = &adsl_decode;
+      break;
+    case RF_PROTOCOL_LEGACY:
+      Serial.println(F("[LR1110] Protocol: LEGACY"));
+      cc13xx_protocol = &legacy_proto_desc;
+      protocol_encode = &legacy_encode;
+      protocol_decode = &legacy_decode;
+      settings->rf_protocol = RF_PROTOCOL_LEGACY;
+      break;
+    case RF_PROTOCOL_LATEST:
+    default:
+      Serial.println(F("[LR1110] Protocol: LATEST"));
+      cc13xx_protocol = &legacy_proto_desc;
+      protocol_encode = &legacy_encode;
+      protocol_decode = &legacy_decode;
+      settings->rf_protocol = RF_PROTOCOL_LATEST;
+      break;
+  }
+
+  if (dual_protocol == RF_FLR_ADSL) {
+    protocol_decode = &flr_adsl_decode;
+  }
+
+
+
+  RF_FreqPlan.setPlan(settings->band, settings->rf_protocol);
+
+  /* Configure TCXO voltage based on hardware model */
+  float Vtcxo = 1.6;  /* Default for Seeed T1000E */
+  if (hw_info.model == SOFTRF_MODEL_POCKET) {
+    Vtcxo = 3.3;  /* Elecrow TN-M3 */
+  }
+  Serial.print(F("[LR1110] TCXO Voltage: "));
+  Serial.println(Vtcxo);
+
+  uint32_t frequency = RF_FreqPlan.getChanFrequency(0);
+  bool high = (frequency > 1000000000); /* above 1GHz */
+
+  /* Initialize based on modulation type from protocol descriptor */
+  Serial.print(F("[LR1110] Modulation type: "));
+  Serial.println(cc13xx_protocol->modulation_type == RF_MODULATION_TYPE_LORA ? F("LoRa") : F("2-FSK"));
+
+  float br, fdev, bw;
+  switch (cc13xx_protocol->modulation_type) 
+  {
+  case RF_MODULATION_TYPE_LORA:
+    /* Initialize LoRa mode */
+    Serial.println(F("[LR1110] Initializing LoRa mode..."));
+
+    /* Switch to LoRa packet type */
+    state = lr11xx_radio->begin(125.0, 9, 7,
+                                 RADIOLIB_LR11X0_LORA_SYNC_WORD_PRIVATE,
+                                 8, Vtcxo);
+#if 1
+    if (state == RADIOLIB_ERR_NONE) {
+      Serial.println(F("success!"));
+    } else {
+      Serial.print(F("failed, code "));
+      Serial.println((int16_t) state);
+      while (true) { delay(10); }
+    }
+#endif
+    /* Get bandwidth from frequency plan */
+    float bw;
+    switch (RF_FreqPlan.Bandwidth)
+    {
+    case RF_RX_BANDWIDTH_SS_62KHZ:
+      bw = high ? 203.125 : 125.0; /* BW_125 */
+      break;
+    case RF_RX_BANDWIDTH_SS_250KHZ:
+      bw = high ? 812.5   : 500.0; /* BW_500 */
+      break;
+    case RF_RX_BANDWIDTH_SS_125KHZ:
+    default:
+      bw = high ? 406.25  : 250.0; /* BW_250 */
+      break;
+    }
+
+    state = lr11xx_radio->setBandwidth(bw, high);
+#if RADIOLIB_DEBUG_BASIC
+    if (state == RADIOLIB_ERR_INVALID_BANDWIDTH) {
+      Serial.println(F("[LR11XX] Selected bandwidth is invalid for this module!"));
+      while (true) { delay(10); }
+    } else {
+      Serial.print(F("[LR11XX] setBandwidth("));
+      Serial.print(bw);
+      Serial.println((int16_t)state);
+    }
+#endif
+    /* Configure LoRa modulation parameters from protocol descriptor */
+    state = lr11xx_radio->setSpreadingFactor(7);
+#if RADIOLIB_DEBUG_BASIC
+    Serial.print(F("[LR11XX] setSpreadingFactor(7): "));
+    Serial.println((int16_t)state);
+#endif
+    state = lr11xx_radio->setCodingRate(5);
+    Serial.print(F("[LR11XX] setCodingRate(5): "));
+    Serial.println((int16_t)state);
+
+    state = lr11xx_radio->setSyncWord((uint8_t) cc13xx_protocol->syncword[0]);
+    Serial.print(F("[LR11XX] setSyncWord(0x"));
+    Serial.print(cc13xx_protocol->syncword[0], HEX);
+    Serial.print(F("): "));
+    Serial.println((int16_t)state);
+
+    state = lr11xx_radio->setPreambleLength(8);
+
+    state = lr11xx_radio->explicitHeader();
+    state = lr11xx_radio->setCRC(true);
+    break;
+
+    //FSK Configuration
+  case RF_MODULATION_TYPE_2FSK:
+  case RF_MODULATION_TYPE_PPM: /* TBD */
+  default:
+    /* Initialize FSK mode */
+    Serial.println(F("[LR11XX] Initializing FSK mode..."));
+    state = lr11xx_radio->beginGFSK(4.8, 5.0, 156.2, 16, Vtcxo);
+    Serial.print(F("[LR11XX] FSK begin(): "));
+    Serial.println(state);
+
+    switch (cc13xx_protocol->bitrate)
+    {
+    case RF_BITRATE_38400:
+      br = high ? 125.0 :  38.4; /* SX128x minimum is 125 kbps */
+      break;
+    case RF_BITRATE_100KBPS:
+    default:
+      br = high ? 125.0 : 100.0; /* SX128x minimum is 125 kbps */
+      break;
+    }
+    state = lr11xx_radio->setBitRate(br);
+#if RADIOLIB_DEBUG_BASIC
+  if (state == RADIOLIB_ERR_INVALID_BIT_RATE) {
+    Serial.println(F("[LR11XX] Selected bit rate is invalid for this module!"));
+    while (true) { delay(10); }
+  } else if (state == RADIOLIB_ERR_INVALID_BIT_RATE_BW_RATIO) {
+    Serial.println(F("[LR11XX] Selected bit rate to bandwidth ratio is invalid!"));
+    Serial.println(F("[LR11XX] Increase receiver bandwidth to set this bit rate."));
+    while (true) { delay(10); }
+  }
+#endif
+    fdev = high ? 62.5 : 50.0;
+    state = lr11xx_radio->setFrequencyDeviation(fdev);
+
+#if RADIOLIB_DEBUG_BASIC
+  if (state == RADIOLIB_ERR_INVALID_FREQUENCY_DEVIATION) {
+    Serial.println(F("[LR11XX] Selected frequency deviation is invalid for this module!"));
+    while (true) { delay(10); }
+  }
+#endif
+
+    switch (cc13xx_protocol->bandwidth)
+    {
+    case RF_RX_BANDWIDTH_SS_50KHZ:
+      bw = 117.3;
+      break;
+    case RF_RX_BANDWIDTH_SS_62KHZ:
+      bw = 156.2;
+      break;
+    case RF_RX_BANDWIDTH_SS_100KHZ:
+      bw = 234.3;
+      break;
+    case RF_RX_BANDWIDTH_SS_166KHZ:
+      bw = 312.0;
+      break;
+    case RF_RX_BANDWIDTH_SS_200KHZ:
+    case RF_RX_BANDWIDTH_SS_250KHZ:  /* TBD */
+    case RF_RX_BANDWIDTH_SS_1567KHZ: /* TBD */
+      bw = 467.0;
+      break;
+    case RF_RX_BANDWIDTH_SS_125KHZ:
+    default:
+      bw = 234.3;
+      break;
+    }
+    state = lr11xx_radio->setRxBandwidth(bw);
+
+    state = lr11xx_radio->setPreambleLength(cc13xx_protocol->preamble_size * 8);
+    state = lr11xx_radio->setDataShaping(RADIOLIB_SHAPING_0_5);
+    state = lr11xx_radio->setCRC(0, 0);
+
+
+    size_t pkt_size = cc13xx_protocol->payload_offset + cc13xx_protocol->payload_size +
+                  cc13xx_protocol->crc_size;
+
+    switch (cc13xx_protocol->whitening)
+    {
+    case RF_WHITENING_MANCHESTER:
+      pkt_size += pkt_size;
+      break;
+    case RF_WHITENING_PN9:
+    case RF_WHITENING_NONE:
+    case RF_WHITENING_NICERF:
+    default:
+      break;
+    }
+
+    state = lr11xx_radio->setWhitening(false, 0x0001 /* default SX128x value */);
+
+    state = lr11xx_radio->fixedPacketLengthMode(pkt_size);
+
+    state = lr11xx_radio->disableAddressFiltering();
+
+    /* Work around premature P3I syncword detection */
+    if (cc13xx_protocol->syncword_size == 2) {
+      uint8_t preamble = cc13xx_protocol->preamble_type == RF_PREAMBLE_TYPE_AA ?
+                         0xAA : 0x55;
+      uint8_t sword[4] = { preamble,
+                           preamble,
+                           cc13xx_protocol->syncword[0],
+                           cc13xx_protocol->syncword[1]
+                         };
+      state = lr11xx_radio->setSyncWord(sword, 4);
+    } else {
+      state = lr11xx_radio->setSyncWord((uint8_t *) cc13xx_protocol->syncword,
+                                         (size_t)    cc13xx_protocol->syncword_size);
+    }
+    break; /*End of GFSK config*/
+  }
+
+
+    if (high) {
+    state = lr11xx_radio->setFrequency(frequency / 1000000.0);
+
+#if RADIOLIB_DEBUG_BASIC
+    if (state == RADIOLIB_ERR_INVALID_FREQUENCY) {
+      Serial.println(F("[LR11XX] Selected frequency is invalid for this module!"));
+      while (true) { delay(10); }
+    }
+#endif 
+  }
+  /* Configure RF switch and output power based on hardware */
+  Serial.println(F("[LR11XX] Configuring RF switch and power..."));
+
+  switch (hw_info.model) {
+    case SOFTRF_MODEL_CARD:
+      /* Seeed T1000E Card */
+#if RADIOLIB_VERSION_MAJOR >= 7 && RADIOLIB_VERSION_MINOR > 1
+      lr11xx_radio->setRfSwitchTable(rfswitch_dio_pins_seeed, rfswitch_table_seeed);
+      state = lr11xx_radio->setOutputPower(22);
+#else
+      lr11xx_radio->setDioAsRfSwitch(0x0f, 0x0, 0x09, 0x0B, 0x0A, 0x0, 0x4, 0x0);
+      state = lr11xx_radio->setOutputPower(22, false);
+#endif
+      break;
+
+    case SOFTRF_MODEL_POCKET:
+      /* Elecrow ThinkNode M3 */
+      // lr11xx_radio->setRfSwitchTable(rfswitch_dio_pins_elecrow, rfswitch_table_elecrow);
+#if RADIOLIB_VERSION_MAJOR >= 7 && RADIOLIB_VERSION_MINOR > 1
+      state = lr11xx_radio->setOutputPower(22);
+#else
+      state = lr11xx_radio->setOutputPower(22, false);
+#endif
+      break;
+
+    default:
+      state = lr11xx_radio->setOutputPower(22);
+      break;
+  }
+
+  /* Enable boosted RX gain and set packet received handler */
+  state = lr11xx_radio->setRxBoostedGainMode(true);
+
+  lr11xx_radio->setPacketReceivedAction(lr11xx_receive_handler);
+
+  Serial.println(F("[LR1110] Setup COMPLETE!"));
+}
+
+
+static void lr11xx_transmit()
+{
+  u1_t crc8;
+  u2_t crc16;
+  u1_t i;
+
+  bool success = false;
+
+  Serial.print("[LR1110] lr11xx_transmit called, RF_tx_size = ");
+  Serial.println(RF_tx_size);
+
+
+
+
+  if (RF_tx_size <= 0) {
+    // return success;
+    Serial.println("[LR1110] TX TF_TX = 0 exiting TX");
+    return;
+  }
+
+  lr11xx_receive_active = false;
+  lr11xx_transmit_complete = false;
+
+  size_t PayloadLen = 0;
+
+  switch (cc13xx_protocol->crc_type)
+  {
+  case RF_CHECKSUM_TYPE_GALLAGER:
+  case RF_CHECKSUM_TYPE_CRC_MODES:
+  case RF_CHECKSUM_TYPE_NONE:
+     /* crc16 left not initialized */
+    break;
+  case RF_CHECKSUM_TYPE_CRC8_107:
+    crc8 = 0x71;     /* seed value */
+    break;
+  case RF_CHECKSUM_TYPE_CCITT_0000:
+    crc16 = 0x0000;  /* seed value */
+    break;
+  case RF_CHECKSUM_TYPE_CCITT_FFFF:
+  default:
+    crc16 = 0xffff;  /* seed value */
+    break;
+  }
+
+  switch (cc13xx_protocol->type)
+  {
+  case RF_PROTOCOL_LEGACY:
+    /* take in account NRF905/FLARM "address" bytes */
+    crc16 = update_crc_ccitt(crc16, 0x31);
+    crc16 = update_crc_ccitt(crc16, 0xFA);
+    crc16 = update_crc_ccitt(crc16, 0xB6);
+    break;
+  case RF_PROTOCOL_P3I:
+    /* insert Net ID */
+    RL_txPacket.payload[PayloadLen++] = (u1_t) ((cc13xx_protocol->net_id >> 24) & 0x000000FF);
+    RL_txPacket.payload[PayloadLen++] = (u1_t) ((cc13xx_protocol->net_id >> 16) & 0x000000FF);
+    RL_txPacket.payload[PayloadLen++] = (u1_t) ((cc13xx_protocol->net_id >>  8) & 0x000000FF);
+    RL_txPacket.payload[PayloadLen++] = (u1_t) ((cc13xx_protocol->net_id >>  0) & 0x000000FF);
+    /* insert byte with payload size */
+    RL_txPacket.payload[PayloadLen++] = cc13xx_protocol->payload_size;
+
+    /* insert byte with CRC-8 seed value when necessary */
+    if (cc13xx_protocol->crc_type == RF_CHECKSUM_TYPE_CRC8_107) {
+      RL_txPacket.payload[PayloadLen++] = crc8;
+    }
+
+    break;
+  case RF_PROTOCOL_OGNTP:
+  case RF_PROTOCOL_ADSL:
+  default:
+    break;
+  }
+
+  for (i=0; i < RF_tx_size; i++) {
+
+    switch (cc13xx_protocol->whitening)
+    {
+    case RF_WHITENING_NICERF:
+      RL_txPacket.payload[PayloadLen] = TxBuffer[i] ^ pgm_read_byte(&whitening_pattern[i]);
+      break;
+    case RF_WHITENING_MANCHESTER:
+      RL_txPacket.payload[PayloadLen] = pgm_read_byte(&ManchesterEncode[(TxBuffer[i] >> 4) & 0x0F]);
+      PayloadLen++;
+      RL_txPacket.payload[PayloadLen] = pgm_read_byte(&ManchesterEncode[(TxBuffer[i]     ) & 0x0F]);
+      break;
+    case RF_WHITENING_NONE:
+    default:
+      RL_txPacket.payload[PayloadLen] = TxBuffer[i];
+      break;
+    }
+
+    switch (cc13xx_protocol->crc_type)
+    {
+    case RF_CHECKSUM_TYPE_GALLAGER:
+    case RF_CHECKSUM_TYPE_CRC_MODES:
+    case RF_CHECKSUM_TYPE_NONE:
+      break;
+    case RF_CHECKSUM_TYPE_CRC8_107:
+      update_crc8(&crc8, (u1_t)(RL_txPacket.payload[PayloadLen]));
+      break;
+    case RF_CHECKSUM_TYPE_CCITT_FFFF:
+    case RF_CHECKSUM_TYPE_CCITT_0000:
+    default:
+      if (cc13xx_protocol->whitening == RF_WHITENING_MANCHESTER) {
+        crc16 = update_crc_ccitt(crc16, (u1_t)(TxBuffer[i]));
+      } else {
+        crc16 = update_crc_ccitt(crc16, (u1_t)(RL_txPacket.payload[PayloadLen]));
+      }
+      break;
+    }
+
+    PayloadLen++;
+  }
+
+  switch (cc13xx_protocol->crc_type)
+  {
+  case RF_CHECKSUM_TYPE_GALLAGER:
+  case RF_CHECKSUM_TYPE_CRC_MODES:
+  case RF_CHECKSUM_TYPE_NONE:
+    break;
+  case RF_CHECKSUM_TYPE_CRC8_107:
+    RL_txPacket.payload[PayloadLen++] = crc8;
+    break;
+  case RF_CHECKSUM_TYPE_CCITT_FFFF:
+  case RF_CHECKSUM_TYPE_CCITT_0000:
+  default:
+    if (cc13xx_protocol->whitening == RF_WHITENING_MANCHESTER) {
+      RL_txPacket.payload[PayloadLen++] = pgm_read_byte(&ManchesterEncode[(((crc16 >>  8) & 0xFF) >> 4) & 0x0F]);
+      RL_txPacket.payload[PayloadLen++] = pgm_read_byte(&ManchesterEncode[(((crc16 >>  8) & 0xFF)     ) & 0x0F]);
+      RL_txPacket.payload[PayloadLen++] = pgm_read_byte(&ManchesterEncode[(((crc16      ) & 0xFF) >> 4) & 0x0F]);
+      RL_txPacket.payload[PayloadLen++] = pgm_read_byte(&ManchesterEncode[(((crc16      ) & 0xFF)     ) & 0x0F]);
+      PayloadLen++;
+    } else {
+      RL_txPacket.payload[PayloadLen++] = (crc16 >>  8) & 0xFF;
+      RL_txPacket.payload[PayloadLen++] = (crc16      ) & 0xFF;
+    }
+    break;
+  }
+
+  RL_txPacket.len = PayloadLen;
+
+  Serial.print("[LR1110] TX: RL_txPacket.len = ");
+  Serial.println(RL_txPacket.len);
+
+  int state = lr11xx_radio->transmit((uint8_t *) &RL_txPacket.payload, (size_t) RL_txPacket.len);
+  Serial.print("[LR1110] transmit() returned state = ");
+  Serial.println(state);
+
+  if (state == RADIOLIB_ERR_NONE) {
+
+    success = true;
+    memset(RL_txPacket.payload, 0, sizeof(RL_txPacket.payload));
+
+  } else if (state == RADIOLIB_ERR_PACKET_TOO_LONG) {
+    // the supplied packet was longer than 256 bytes
+    Serial.println(F("too long!"));
+
+  } else if (state == RADIOLIB_ERR_TX_TIMEOUT) {
+    // timeout occured while transmitting packet
+    Serial.println(F("timeout!"));
+
+  } else {
+    // some other error occurred
+    Serial.print(F("failed, code "));
+    Serial.println((int16_t) state);
+  }
+
+
+  // return success;
+  Serial.println(F("[LR1110] End of lr11xx_transmit!"));
+}
+
+static void lr11xx_resetup()
+{
+  int state;
+  unsigned long t0, t1;
+  t0 = millis();
+  Serial.println("[LR11XX] Reconfiguring for new protocol");
+  // Switch to Standby RC mode first
+  t1 = millis();
+  state = lr11xx_radio->standby(RADIOLIB_LR11X0_STANDBY_RC);
+  Serial.print("[LR11XX] → Changed to StandBy RC mode: ");
+  Serial.print(millis() - t1);
+  Serial.println(" ms");
+  // ===== UPDATE PROTOCOL DESCRIPTORS =====
+  switch (current_RX_protocol) {
+    case RF_PROTOCOL_OGNTP:
+      Serial.println(F("[LR1110] Protocol: OGNTP"));
+      cc13xx_protocol = &ogntp_proto_desc;
+      protocol_encode = &ogntp_encode;
+      protocol_decode = &ogntp_decode;
+      break;
+    case RF_PROTOCOL_P3I:
+      Serial.println(F("[LR1110] Protocol: P3I"));
+      cc13xx_protocol = &p3i_proto_desc;
+      protocol_encode = &p3i_encode;
+      protocol_decode = &p3i_decode;
+      break;
+    case RF_PROTOCOL_FANET:
+      Serial.println(F("[LR1110] Protocol: FANET"));
+      cc13xx_protocol = &fanet_proto_desc;
+      protocol_encode = &fanet_encode;
+      protocol_decode = &fanet_decode;
+      break;
+    case RF_PROTOCOL_ADSL:
+      Serial.println(F("[LR1110] Protocol: ADSL"));
+      cc13xx_protocol = &adsl_proto_desc;
+      protocol_encode = &adsl_encode;
+      protocol_decode = &adsl_decode;
+      break;
+    case RF_PROTOCOL_LEGACY:
+      Serial.println(F("[LR1110] Protocol: LEGACY"));
+      cc13xx_protocol = &legacy_proto_desc;
+      protocol_encode = &legacy_encode;
+      protocol_decode = &legacy_decode;
+      settings->rf_protocol = RF_PROTOCOL_LEGACY;
+      break;
+    case RF_PROTOCOL_LATEST:
+    default:
+      Serial.println(F("[LR1110] Protocol: LATEST"));
+      cc13xx_protocol = &legacy_proto_desc;
+      protocol_encode = &legacy_encode;
+      protocol_decode = &legacy_decode;
+      settings->rf_protocol = RF_PROTOCOL_LATEST;
+      break;
+  }
+
+  // Update frequency plan
+  RF_FreqPlan.setPlan(settings->band, settings->rf_protocol);
+
+  // Get TCXO voltage (needed for begin() calls)
+  float Vtcxo;
+  // uint64_t eui_le = __builtin_bswap64(lr11xx_eui_be);
+
+  switch (hw_info.model)
+  {
+  case SOFTRF_MODEL_BADGE:
+  case SOFTRF_MODEL_PRIME_MK3:
+    Vtcxo = 3.0;
+    break;
+  case SOFTRF_MODEL_CARD:
+  default:
+    Vtcxo = 1.6;
+    break;
+  }
+  Serial.println("[RadioLib] Get channel frequency");
+  uint32_t frequency = RF_FreqPlan.getChanFrequency(0);
+  bool high = (frequency > 1000000000);
+
+  // ===== CONFIGURE MODULATION TYPE AND PROTOCOL-SPECIFIC PARAMETERS =====
+  float bw;
+  
+  switch (cc13xx_protocol->modulation_type)
+  {
+  case RF_MODULATION_TYPE_LORA:
+    Serial.println("[LR11XX] → LoRa mode");
+    t1 = millis();
+    // // Switch to LoRa mode
+    // state = lr11xx_radio->begin(125.0, 9, 7,
+    //                              RADIOLIB_LR11X0_LORA_SYNC_WORD_PRIVATE,
+    //                              8, Vtcxo);
+    state = lr11xx_radio->setPacketType(RADIOLIB_LR11X0_PACKET_TYPE_LORA);
+    Serial.print("[LR11XX] Changed to LoRa mode: ");
+    Serial.print(millis() - t1);
+    Serial.println(" ms");
+    // Set bandwidth (from RF_FreqPlan for LoRa)
+    switch (RF_FreqPlan.Bandwidth)
+    {
+    case RF_RX_BANDWIDTH_SS_62KHZ:
+      bw = high ? 203.125 : 125.0;
+      break;
+    case RF_RX_BANDWIDTH_SS_250KHZ:
+      bw = high ? 812.5   : 500.0;
+      break;
+    case RF_RX_BANDWIDTH_SS_125KHZ:
+    default:
+      bw = high ? 406.25  : 250.0;
+      break;
+    }
+    state = lr11xx_radio->setBandwidth(bw, high);
+    
+    // LoRa-specific parameters
+    state = lr11xx_radio->setSpreadingFactor(7);
+    state = lr11xx_radio->setCodingRate(5);
+    state = lr11xx_radio->setSyncWord((uint8_t) cc13xx_protocol->syncword[0]);
+
+    state = lr11xx_radio->setPreambleLength(8);
+    state = lr11xx_radio->explicitHeader();
+    state = lr11xx_radio->setCRC(true);
+    
+    break;
+    
+  case RF_MODULATION_TYPE_2FSK:
+  default:
+
+    Serial.println("[LR11XX] → Set packet to FSK mode");
+    // Switch to FSK mode
+    t1 = millis();
+    // state = lr11xx_radio->beginGFSK(4.8, 5.0, 156.2, 16, Vtcxo); // this task take 300ms
+    state = lr11xx_radio->setPacketType(RADIOLIB_LR11X0_PACKET_TYPE_GFSK);
+    Serial.print("[LR11XX] Changed to FSK mode: ");
+    Serial.print(millis() - t1);
+    Serial.println(" ms");
+    // Set bitrate
+    float br = high ? 125.0 : (cc13xx_protocol->bitrate == RF_BITRATE_38400 ? 38.4 : 100.0);
+    state = lr11xx_radio->setBitRate(br);
+    Serial.println("[LR11XX] → set bitrate");
+    // Set frequency deviation
+    float fdev;
+    switch (cc13xx_protocol->deviation)
+    {
+    // case RF_FREQUENCY_DEVIATION_10KHZ:
+    //   fdev = high ? 62.5 : 10.0;
+    //   break;
+    // case RF_FREQUENCY_DEVIATION_19_2KHZ:
+    //   fdev = 19.2;
+    //   break;
+    // case RF_FREQUENCY_DEVIATION_25KHZ:
+    //   fdev = 25.0;
+    //   break;
+    case RF_FREQUENCY_DEVIATION_50KHZ:
+    default:
+      fdev = high ? 62.5 : 50.0;
+      break;
+    }
+    state = lr11xx_radio->setFrequencyDeviation(fdev);
+    Serial.println("[LR11XX] set freq deviation");
+    // Set RX bandwidth
+    switch (cc13xx_protocol->bandwidth)
+    {
+    case RF_RX_BANDWIDTH_SS_50KHZ:
+      bw = 117.3;
+      break;
+    case RF_RX_BANDWIDTH_SS_62KHZ:
+      bw = 156.2;
+      break;
+    case RF_RX_BANDWIDTH_SS_100KHZ:
+      bw = 234.3;
+      break;
+    case RF_RX_BANDWIDTH_SS_166KHZ:
+      bw = 312.0;
+      break;
+    case RF_RX_BANDWIDTH_SS_200KHZ:
+    case RF_RX_BANDWIDTH_SS_250KHZ:
+    case RF_RX_BANDWIDTH_SS_1567KHZ:
+      bw = 467.0;
+      break;
+    case RF_RX_BANDWIDTH_SS_125KHZ:
+    default:
+      bw = 234.3;
+      break;
+    }
+    state = lr11xx_radio->setRxBandwidth(bw);
+    Serial.println("[LR11XX] → Set Bandwidth");
+    // Set preamble
+    state = lr11xx_radio->setPreambleLength(cc13xx_protocol->preamble_size * 8);
+    Serial.println("[LR11XX] → Set Preamble Length");
+    // Data shaping
+    state = lr11xx_radio->setDataShaping(RADIOLIB_SHAPING_0_5);
+    
+    Serial.println("[LR11XX] → Set Data Shaping");
+    // CRC (handled by software for Legacy)
+    state = lr11xx_radio->setCRC(0, 0);
+    
+    // Calculate packet size (Manchester doubles it)
+    size_t pkt_size = cc13xx_protocol->payload_offset + cc13xx_protocol->payload_size + cc13xx_protocol->crc_size;
+    if (cc13xx_protocol->whitening == RF_WHITENING_MANCHESTER) {
+      pkt_size += pkt_size;
+    }
+    
+    // Whitening
+    state = lr11xx_radio->setWhitening(false, 0x0001);
+    Serial.println("[LR11XX] → Set Whitening");
+  
+    // Packet mode
+    state = lr11xx_radio->fixedPacketLengthMode(pkt_size);
+    state = lr11xx_radio->disableAddressFiltering();
+    Serial.println("[LR11XX] → Set Packet Mode");
+    // Syncword (with preamble workaround)
+    if (cc13xx_protocol->syncword_size == 2) {
+      uint8_t preamble = (cc13xx_protocol->preamble_type == RF_PREAMBLE_TYPE_AA) ? 0xAA : 0x55;
+      uint8_t sword[4] = { preamble, preamble, cc13xx_protocol->syncword[0], cc13xx_protocol->syncword[1] };
+      state = lr11xx_radio->setSyncWord(sword, 4);
+    } else {
+      state = lr11xx_radio->setSyncWord((uint8_t *) cc13xx_protocol->syncword,
+                                         (size_t) cc13xx_protocol->syncword_size);
+    }
+    
+    break;
+  }
+  state = rf_chip->receive();
+  Serial.print("[LR11XX] Protocol reconfiguration complete: ");
+  Serial.print(millis() - t0);
+  Serial.println(" ms");
+}
+
+static void lr11xx_standby()
+{
+#if USE_LR11XX
+  int state = lr11xx_radio->standby(RADIOLIB_LR11X0_STANDBY_RC);
+#endif
+  // DO NOT call RadioSPI.end() here!
+}
+
+static void lr11xx_shutdown()
+{
+  /* Shutdown LR1110 radio */
+  if (lr11xx_radio != nullptr) {
+    /* Enter standby/sleep mode */
+    lr11xx_radio->standby();
+    lr11xx_radio->sleep();
+  }
+
+  RadioSPI.end();
+}
+
+static bool lr11xx_receive()
+{
+  /* Check for incoming packets from LR1110 */
+  bool success = false;
+  int state;
+
+  // static uint32_t last_call_print = 0;
+  // if (millis() - last_call_print > 2000) {
+  //   Serial.println(F("[LR1110] lr11xx_receive() called"));
+  //   last_call_print = millis();
+  // }
+
+  if (lr11xx_radio == nullptr) {
+    return success;
+  }
+
+  /* Skip if power saving is enabled */
+  if (settings->power_save & POWER_SAVE_NORECEIVE) {
+    return success;
+  }
+
+  /* Start receive if not already active */
+  if (!lr11xx_receive_active) {
+    state = lr11xx_radio->startReceive();
+    if (state == RADIOLIB_ERR_NONE) {
+      lr11xx_receive_active = true;
+    } else {
+      Serial.print(F("[LR11XX] startReceive() FAILED: "));
+      Serial.println(state);
+    }
+  }
+
+  /* Poll DIO9 pin as fallback if interrupt doesn't work */
+  // if (lmic_pins.dio[0] != LMIC_UNUSED_PIN && !lr11xx_receive_complete) {
+  //   if (digitalRead(lmic_pins.dio[0]) == HIGH) {
+  //     /* Manually trigger if pin goes high */
+  //     lr11xx_receive_complete = true;
+  //   }
+  // }
+
+  // /* Periodic check every 5 seconds to detect packets if interrupt fails */
+  // if (!lr11xx_receive_complete && (millis() - lr11xx_last_check > 1000)) {
+  //   lr11xx_last_check = millis();
+
+  //   size_t pkt_len = lr11xx_radio->getPacketLength();
+  //   if (pkt_len > 0) {
+  //     Serial.print(F("[LR1110] Timeout poll detected packet, length: "));
+  //     Serial.println(pkt_len);
+  //     lr11xx_receive_complete = true;
+  //   }
+  // }
+
+  // static uint32_t last_print = 0;
+  // if (millis() - last_print > 1000) {  // Print every second
+  //   Serial.print("[LR1110] lr11xx_receive_complete = ");
+  //   Serial.print(lr11xx_receive_complete ? "true" : "false");
+  //   Serial.print(", DIO9_pin_state = ");
+  //   if (lmic_pins.dio[0] != LMIC_UNUSED_PIN) {
+  //     Serial.print(digitalRead(lmic_pins.dio[0]));
+  //   } else {
+  //     Serial.print("UNUSED");
+  //   }
+  //   Serial.print(", lr11xx_receive_active = ");
+  //   Serial.println(lr11xx_receive_active);
+  //   last_print = millis();
+  // }
+
+if (lr11xx_receive_complete == true) {
+
+    RL_rxPacket.len = lr11xx_radio->getPacketLength();
+    Serial.print("[LR1110] Received packet length: ");
+    Serial.println(RL_rxPacket.len);
+
+    if (RL_rxPacket.len > 0) {
+
+      if (RL_rxPacket.len > sizeof(RL_rxPacket.payload)) {
+        RL_rxPacket.len = sizeof(RL_rxPacket.payload);
+      }
+
+      state = lr11xx_radio->readData(RL_rxPacket.payload, RL_rxPacket.len);
+      lr11xx_receive_active = false;
+
+      if (state == RADIOLIB_ERR_NONE &&
+         !memeqzero(RL_rxPacket.payload, RL_rxPacket.len)) {
+        size_t size = 0;
+        uint8_t offset;
+
+        u1_t crc8, pkt_crc8;
+        u2_t crc16, pkt_crc16;
+
+        RadioLib_DataPacket *RL_rxPacket_ptr = &RL_rxPacket;
+
+        switch (cc13xx_protocol->crc_type)
+        {
+        case RF_CHECKSUM_TYPE_GALLAGER:
+        case RF_CHECKSUM_TYPE_CRC_MODES:
+        case RF_CHECKSUM_TYPE_NONE:
+           /* crc16 left not initialized */
+          break;
+        case RF_CHECKSUM_TYPE_CRC8_107:
+          crc8 = 0x71;     /* seed value */
+          break;
+        case RF_CHECKSUM_TYPE_CCITT_0000:
+          crc16 = 0x0000;  /* seed value */
+          break;
+        case RF_CHECKSUM_TYPE_CCITT_FFFF:
+        default:
+          crc16 = 0xffff;  /* seed value */
+          break;
+        }
+
+        switch (cc13xx_protocol->type)
+        {
+        case RF_PROTOCOL_LEGACY:
+          /* take in account NRF905/FLARM "address" bytes */
+          crc16 = update_crc_ccitt(crc16, 0x31);
+          crc16 = update_crc_ccitt(crc16, 0xFA);
+          crc16 = update_crc_ccitt(crc16, 0xB6);
+          break;
+        case RF_PROTOCOL_P3I:
+        case RF_PROTOCOL_OGNTP:
+        case RF_PROTOCOL_ADSL:
+        default:
+          break;
+        }
+
+        uint8_t i;
+
+        switch (cc13xx_protocol->type)
+        {
+        case RF_PROTOCOL_P3I:
+          offset = cc13xx_protocol->payload_offset;
+          for (i = 0; i < cc13xx_protocol->payload_size; i++)
+          {
+            update_crc8(&crc8, (u1_t)(RL_rxPacket_ptr->payload[i + offset]));
+            if (i < sizeof(RxBuffer)) {
+              RxBuffer[i] = RL_rxPacket_ptr->payload[i + offset] ^
+                            pgm_read_byte(&whitening_pattern[i]);
+            }
+          }
+
+          pkt_crc8 = RL_rxPacket_ptr->payload[i + offset];
+
+          if (crc8 == pkt_crc8) {
+            success = true;
+          }
+          break;
+        case RF_PROTOCOL_FANET:
+          offset = cc13xx_protocol->payload_offset;
+          size   = cc13xx_protocol->payload_size + cc13xx_protocol->crc_size;
+          for (i = 0; i < size; i++)
+          {
+            if (i < sizeof(RxBuffer)) {
+              RxBuffer[i] = RL_rxPacket_ptr->payload[i + offset];
+            }
+          }
+          success = true;
+          break;
+        case RF_PROTOCOL_OGNTP:
+        case RF_PROTOCOL_ADSL:
+        case RF_PROTOCOL_LEGACY:
+        default:
+          Serial.print("[LR1110] LEGACY RX: actual RL_rxPacket.len=");
+          Serial.print(RL_rxPacket_ptr->len);
+          Serial.print(", calculated size=");
+          Serial.println(cc13xx_protocol->payload_offset +
+                          cc13xx_protocol->payload_size +
+                          cc13xx_protocol->payload_size +
+                          cc13xx_protocol->crc_size +
+                          cc13xx_protocol->crc_size);
+          offset = 0;
+          size   = cc13xx_protocol->payload_offset +
+                   cc13xx_protocol->payload_size +
+                   cc13xx_protocol->payload_size +
+                   cc13xx_protocol->crc_size +
+                   cc13xx_protocol->crc_size;
+          if (RL_rxPacket_ptr->len >= (size + offset)) {
+            uint8_t val1, val2;
+            for (i = 0; i < size; i++) {
+              val1 = pgm_read_byte(&ManchesterDecode[RL_rxPacket_ptr->payload[i + offset]]);
+              i++;
+              val2 = pgm_read_byte(&ManchesterDecode[RL_rxPacket_ptr->payload[i + offset]]);
+              if ((i>>1) < sizeof(RxBuffer)) {
+                RxBuffer[i>>1] = ((val1 & 0x0F) << 4) | (val2 & 0x0F);
+
+                if (i < size - (cc13xx_protocol->crc_size + cc13xx_protocol->crc_size)) {
+                  switch (cc13xx_protocol->crc_type)
+                  {
+                  case RF_CHECKSUM_TYPE_GALLAGER:
+                  case RF_CHECKSUM_TYPE_CRC_MODES:
+                  case RF_CHECKSUM_TYPE_NONE:
+                    break;
+                  case RF_CHECKSUM_TYPE_CCITT_FFFF:
+                  case RF_CHECKSUM_TYPE_CCITT_0000:
+                  default:
+                    crc16 = update_crc_ccitt(crc16, (u1_t)(RxBuffer[i>>1]));
+                    break;
+                  }
+                }
+              }
+            }
+
+            size = size>>1;
+
+            switch (cc13xx_protocol->crc_type)
+            {
+            case RF_CHECKSUM_TYPE_GALLAGER:
+              if (LDPC_Check((uint8_t  *) &RxBuffer[0]) == 0) {
+                success = true;
+              }
+              break;
+            case RF_CHECKSUM_TYPE_CRC_MODES:
+#if defined(ENABLE_ADSL)
+              if (ADSL_Packet::checkPI((uint8_t  *) &RxBuffer[0], size) == 0) {
+                success = true;
+              }
+#endif /* ENABLE_ADSL */
+              break;
+            case RF_CHECKSUM_TYPE_CCITT_FFFF:
+            case RF_CHECKSUM_TYPE_CCITT_0000:
+              offset = cc13xx_protocol->payload_offset + cc13xx_protocol->payload_size;
+              if (offset + 1 < sizeof(RxBuffer)) {
+                pkt_crc16 = (RxBuffer[offset] << 8 | RxBuffer[offset+1]);
+                if (crc16 == pkt_crc16) {
+
+                  success = true;
+                }
+              }
+              break;
+            default:
+              break;
+            }
+          }
+          break;
+        }
+
+        if (success) {
+          RF_last_rssi = lr11xx_radio->getRSSI();
+          rx_packets_counter++;
+        }
+      }
+
+      memset(RL_rxPacket.payload, 0, sizeof(RL_rxPacket.payload));
+#if USE_SX1262 && (RADIOLIB_GODMODE || RADIOLIB_LOW_LEVEL)
+      lr11xx_radio->writeBuffer(RL_rxPacket.payload, RL_rxPacket.len);
+      lr11xx_radio->setBufferBaseAddress();
+#endif
+      RL_rxPacket.len = 0;
+    }
+
+    lr11xx_receive_complete = false;
+  }
+
+  return success;
+}
+
+#endif /* USE_LR1110 */
 
 uint8_t RF_Payload_Size(uint8_t protocol)
 {

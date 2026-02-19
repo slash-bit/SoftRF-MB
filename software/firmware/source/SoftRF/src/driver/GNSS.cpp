@@ -134,7 +134,8 @@ const char *GNSS_name[] = {
   [GNSS_MODULE_SONY]    = "SONY",
   [GNSS_MODULE_AT65]    = "AT65",
   [GNSS_MODULE_MT33]    = "MT33",
-  [GNSS_MODULE_GOKE]    = "GOKE"
+  [GNSS_MODULE_GOKE]    = "GOKE",
+  [GNSS_MODULE_AG33]    = "AG33"
 };
 
 #if defined(ENABLE_GNSS_STATS)
@@ -145,6 +146,8 @@ const char *GNSS_name[] = {
  * Goke: GGA - 185+, RMC - 265+
  * Neo6: GGA - 138 , RMC -  67
  * MT33: GGA -  48 , RMC - 175
+ * UC65: GGA -  35 , RMC -  29
+ * AG33: GGA - TBD , RMC - TBD
  */
 
 gnss_stat_t gnss_stats;
@@ -1434,6 +1437,162 @@ const gnss_chip_ops_t at65_ops = {
 };
 #endif /* EXCLUDE_GNSS_AT65 */
 
+#if !defined(EXCLUDE_GNSS_AG33)
+static gnss_id_t ag33_probe()
+{
+  /* Firmware version request */
+  return nmea_handshake("$PAIR021*39\r\n", "$PAIR001,021", false) ?
+                        GNSS_MODULE_AG33 : GNSS_MODULE_NMEA;
+}
+
+extern gnss_chip_ops_t ag33_ops;
+
+static bool ag33_setup()
+{
+#if !defined(EXCLUDE_LOG_GNSS_VERSION)
+  int i=0;
+  char c;
+  unsigned long timeout_ms = 2000 ;
+
+  while (Serial_GNSS_In.available() > 0) { Serial_GNSS_In.read(); }
+
+  unsigned long start_time = millis();
+
+  while ((millis() - start_time) < timeout_ms) {
+    c = Serial_GNSS_In.read();
+    if (c == '\n') break;
+  }
+
+  Serial_GNSS_Out.write("$PAIR021*39\r\n");
+
+  start_time = millis();
+
+  while ((millis() - start_time) < timeout_ms) {
+    c = Serial_GNSS_In.read();
+    if (c == '\n') break;
+  }
+
+  /* take response into buffer */
+  while ((millis() - start_time) < timeout_ms) {
+
+    c = Serial_GNSS_In.read();
+
+    if (isPrintable(c) || c == '\r' || c == '\n') {
+      if (i >= sizeof(GNSSbuf) - 1) break;
+      GNSSbuf[i++] = c;
+    } else {
+      /* ignore */
+      continue;
+    }
+
+    if (c == '\n') break;
+  }
+
+  GNSSbuf[i] = 0;
+
+  size_t len = strlen((char *) &GNSSbuf[0]);
+
+  if (len > 9) {
+    for (int i=9; i < len; i++) {
+      if (GNSSbuf[i] == ',' && GNSSbuf[i-1] == ',' && GNSSbuf[i-2] == ',') {
+        GNSSbuf[i-2] = 0;
+        break;
+      }
+    }
+    Serial.print(F("INFO: GNSS ident - "));
+    Serial.println((char *) &GNSSbuf[9]);
+  }
+
+  delay(250);
+#endif
+
+  // Serial_GNSS_Out.write("$PAIR002*38\r\n"); /* Powers on the GNSS system */
+  // delay(250);
+
+#if 0
+  // test why RMC is missing with SoftRF Tool over BLE (other software is fine)
+  Serial_GNSS_Out.write("$PAIR100,2,0*39\r\n"); /* NMEA 3.01 */ delay(250);
+  Serial_GNSS_Out.write("$PAIR400,0*22\r\n");   /* No DGPS   */ delay(250);
+#else
+  /* NMEA 0183 V4.10 and SBAS DGPS are enabled by default */
+#endif
+
+  if (settings->band == RF_BAND_IN) {
+    /* GPS + GLONASS + Galileo + NAVIC  + QZSS */
+    Serial_GNSS_Out.write("$PAIR066,1,1,1,0,1,1*3B\r\n");       delay(250);
+  } else {
+    /* GPS + GLONASS + Galileo + BeiDou + QZSS */
+    Serial_GNSS_Out.write("$PAIR066,1,1,1,1,1,0*3B\r\n");       delay(250);
+  }
+
+  Serial_GNSS_Out.write("$PAIR062,0,1*3F\r\n");   /* GGA 1s */  delay(250);
+  Serial_GNSS_Out.write("$PAIR062,4,1*3B\r\n");   /* RMC 1s */  delay(250);
+
+  Serial_GNSS_Out.write("$PAIR062,1,0*3F\r\n");   /* GLL OFF */ delay(250);
+  Serial_GNSS_Out.write("$PAIR062,3,0*3D\r\n");   /* GSV OFF */ delay(250);
+  Serial_GNSS_Out.write("$PAIR062,5,0*3B\r\n");   /* VTG OFF */ delay(250);
+  Serial_GNSS_Out.write("$PAIR062,6,0*38\r\n");   /* ZDA OFF */ delay(250);
+#if defined(NMEA_TCP_SERVICE)
+  if (settings->nmea_out == NMEA_TCP ||       // SD
+      settings->nmea_out == NMEA_BLUETOOTH) { // SD
+    Serial_GNSS_Out.write("$PAIR062,2,1*3D\r\n"); /* GSA 1s */
+  }
+  else
+#endif /* NMEA_TCP_SERVICE */
+  {
+    Serial_GNSS_Out.write("$PAIR062,2,0*3C\r\n"); /* GSA OFF */
+  }
+  delay(250);
+
+  /*
+   * 0 = Normal mode
+   * For general purposes.
+   *
+   * 3 = Balloon mode
+   * Used for high-altitude balloon scenario where
+   * the vertical movement has a greater impact on the position
+   * calculation.
+   *
+   * 5 = Drone mode
+   * Used for drone applications with equivalent
+   * dynamic range and vertical acceleration at different flight phases
+   * (for example, hovering and cruising)
+   */
+  Serial_GNSS_Out.write("$PAIR080,0*2E\r\n"); /* Normal Mode */ delay(250);
+
+#if 0
+  if (hw_info.model == SOFTRF_MODEL_CARD) {
+    /* Synchronizes PPS pulse with NMEA */
+    Serial_GNSS_Out.write("$PAIR751,1*3D\r\n"); delay(250);
+
+    ag33_ops.gga_ms = 350;
+    ag33_ops.rmc_ms = 360;
+  }
+#endif
+
+  return true;
+}
+
+static void ag33_loop()
+{
+
+}
+
+static void ag33_fini()
+{
+  Serial_GNSS_Out.write("$PAIR003*39\r\n"); /* Powers off the GNSS system */
+  delay(250);
+}
+
+/* const */ gnss_chip_ops_t ag33_ops = {
+  ag33_probe,
+  ag33_setup,
+  ag33_loop,
+  ag33_fini,
+  90 /* GGA */, 100 /* RMC */
+};
+#endif /* EXCLUDE_GNSS_AG33 */
+
 static bool GNSS_fix_cache = false;
 static bool badGGA = true;
 
@@ -1613,6 +1772,8 @@ byte GNSS_setup() {
       hw_info.model == SOFTRF_MODEL_PRIME_MK3 ||
       hw_info.model == SOFTRF_MODEL_UNI       ||
       hw_info.model == SOFTRF_MODEL_BADGE     ||
+      hw_info.model == SOFTRF_MODEL_CARD      ||
+      hw_info.model == SOFTRF_MODEL_POCKET    ||
       hw_info.model == SOFTRF_MODEL_LEGO)
   {
     // power on by wakeup call
@@ -1624,14 +1785,19 @@ byte GNSS_setup() {
               (gnss_chip = &sony_ops,         gnss_chip->probe()) : gnss_id);
 #endif /* EXCLUDE_GNSS_SONY */
 
+#if !defined(EXCLUDE_GNSS_AG33)
+  gnss_id = GNSS_MODULE_AG33;
+  gnss_chip = &ag33_ops;
+#else
   if (gnss_id == GNSS_MODULE_NONE) {               // not Sony, listen for $G sentences
       gnss_id = generic_nmea_ops.probe();
       if (gnss_id == GNSS_MODULE_NONE) {           // no NMEA sentences seen
           Serial.println(F("No GNSS NMEA at 9600 baud"));
           delay(500);
-          gnss_id = probe_baud_rates();       // try other baud rates, ending with 9600 
+          gnss_id = probe_baud_rates();       // try other baud rates, ending with 9600
       }
   }
+#endif /* EXCLUDE_GNSS_AG33 */
 
   if (gnss_id == GNSS_MODULE_NONE) {               // no NMEA sentences seen at any baud rate
 
@@ -1694,6 +1860,10 @@ byte GNSS_setup() {
   gnss_id = (gnss_id == GNSS_MODULE_NMEA ?
               (gnss_chip = &mtk_ops,    gnss_chip->probe()) : gnss_id);
 #endif /* EXCLUDE_GNSS_MTK */
+// #if !defined(EXCLUDE_GNSS_AG33)
+//   gnss_id = (gnss_id == GNSS_MODULE_NMEA ?
+//               (gnss_chip = &ag33_ops,   gnss_chip->probe()) : gnss_id);
+// #endif /* EXCLUDE_GNSS_AG33 */
 #if !defined(EXCLUDE_GNSS_GOKE)
   gnss_id = (gnss_id == GNSS_MODULE_NMEA ?
               (gnss_chip = &goke_ops,   gnss_chip->probe()) : gnss_id);

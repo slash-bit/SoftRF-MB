@@ -35,7 +35,7 @@
 #include <raspi/raspi.h>
 #endif /* RASPBERRY_PI */
 
-#define SOFTRF_FIRMWARE_VERSION "MB174"
+#define SOFTRF_FIRMWARE_VERSION "MB174-VB008"
 #define SOFTRF_IDENT            "SoftRF"
 #define SOFTRF_USB_FW_VERSION   0x0101
 
@@ -94,7 +94,7 @@
  * for most of GNSS modules
  * being used in SoftRF project
  */
-#define SERIAL_IN_BR      9600
+#define SERIAL_IN_BR      115200
 #endif
 #if !defined(SERIAL_IN_BITS)
 #define SERIAL_IN_BITS    SERIAL_8N1
@@ -313,6 +313,8 @@ enum
 	SOFTRF_MODEL_ES,
 	SOFTRF_MODEL_BRACELET,
 	SOFTRF_MODEL_ACADEMY,
+    SOFTRF_MODEL_CARD,
+    SOFTRF_MODEL_POCKET,    
 	SOFTRF_MODEL_LEGO,
 	SOFTRF_MODEL_WEBTOP_USB,
 	SOFTRF_MODEL_PRIME_MK3,
