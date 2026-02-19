@@ -68,6 +68,10 @@ uint8_t current_TX_protocol;
 uint8_t dual_protocol = RF_SINGLE_PROTOCOL;
 bool flr_adsl = false;
 
+#if defined(USE_LR1110)
+static uint8_t lr11xx_current_protocol = RF_PROTOCOL_NONE;  /* Tracks last configured protocol for LR1110 */
+#endif
+
 FreqPlan RF_FreqPlan;
 static bool RF_ready = false;
 
@@ -2440,6 +2444,8 @@ void RF_chip_channel(uint8_t protocol)
 
 void RF_chip_reset(uint8_t protocol)
 {
+Serial.printf("[RF] chip_reset called, protocol = %d\r\n", protocol);
+
 #if defined(USE_BASICMAC)
 #if !defined(EXCLUDE_SX12XX)
     if (rf_chip == &sx1276_ops || rf_chip == &sx1262_ops)
@@ -2453,8 +2459,8 @@ void RF_chip_reset(uint8_t protocol)
 #endif
 #endif
     RF_chip_channel(protocol);
-//Serial.printf("reset to Prot %d at millis %d, tx ok %d - %d, gd to %d\r\n",
-//current_RX_protocol, millis(), TxTimeMarker, TxEndMarker, RF_OK_until);
+Serial.printf("reset to Prot %d at millis %d, tx ok %d - %d, gd to %d\r\n",
+current_RX_protocol, millis(), TxTimeMarker, TxEndMarker, RF_OK_until);
 }
 
 /* original code, now only called for protocols other than Legacy: */
@@ -2689,12 +2695,30 @@ void set_protocol_for_slot()
   //if (current_RX_protocol != prev_protocol)
   //    RF_FreqPlan.setPlan(settings->band, current_RX_protocol);
 
-  if (LMIC.protocol != curr_rx_protocol_ptr) {
+  /* Protocol switching */
+#if defined(USE_LR1110)
+  if (rf_chip && rf_chip->type == RF_IC_LR1110) {
+    /* LR1110 uses RadioLib, not LMIC */
+    if (lr11xx_current_protocol != current_RX_protocol) {
+      /* Protocol has changed, need full reconfiguration */
       RF_FreqPlan.setPlan(settings->band, current_RX_protocol);
-      LMIC.protocol = curr_rx_protocol_ptr;    // tx will switch to curr_tx_protocol_ptr
       RF_chip_reset(current_RX_protocol);
-  } else {
+      lr11xx_current_protocol = current_RX_protocol;
+    } else {
+      /* Protocol unchanged, just update frequency/channel */
       RF_chip_channel(current_RX_protocol);
+    }
+  } else
+#endif
+  {
+    /* LMIC-based chips (SX1276, SX1262, etc.) */
+    if (LMIC.protocol != curr_rx_protocol_ptr) {
+        RF_FreqPlan.setPlan(settings->band, current_RX_protocol);
+        LMIC.protocol = curr_rx_protocol_ptr;    // tx will switch to curr_tx_protocol_ptr
+        RF_chip_reset(current_RX_protocol);
+    } else {
+        RF_chip_channel(current_RX_protocol);
+    }
   }
 
   if (dual_protocol == RF_SINGLE_PROTOCOL && current_TX_protocol != settings->rf_protocol) {
@@ -2954,7 +2978,7 @@ bool RF_Transmit(size_t size, bool wait)   // only called with no-wait for air-r
         if (settings->txpower != RF_TX_POWER_OFF)
             rf_chip->transmit();
 
-Serial.printf("TX in protocol %d size=%d\r\n", current_TX_protocol, RF_tx_size);
+// Serial.printf("TX in protocol %d size=%d\r\n", current_TX_protocol, RF_tx_size);
 
         if (RF_tx_size == 0)   // tx timed out
             return false;
@@ -3560,8 +3584,8 @@ static void lr11xx_transmit()
 
   bool success = false;
 
-  Serial.print("[LR1110] lr11xx_transmit called, RF_tx_size = ");
-  Serial.println(RF_tx_size);
+  // Serial.print("[LR1110] lr11xx_transmit called, RF_tx_size = ");
+  // Serial.println(RF_tx_size);
 
 
 
@@ -3693,12 +3717,12 @@ static void lr11xx_transmit()
 
   RL_txPacket.len = PayloadLen;
 
-  Serial.print("[LR1110] TX: RL_txPacket.len = ");
-  Serial.println(RL_txPacket.len);
+  // Serial.print("[LR1110] TX: RL_txPacket.len = ");
+  // Serial.println(RL_txPacket.len);
 
   int state = lr11xx_radio->transmit((uint8_t *) &RL_txPacket.payload, (size_t) RL_txPacket.len);
-  Serial.print("[LR1110] transmit() returned state = ");
-  Serial.println(state);
+  // Serial.print("[LR1110] transmit() returned state = ");
+  // Serial.println(state);
 
   if (state == RADIOLIB_ERR_NONE) {
 
@@ -3721,7 +3745,7 @@ static void lr11xx_transmit()
 
 
   // return success;
-  Serial.println(F("[LR1110] End of lr11xx_transmit!"));
+  // Serial.println(F("[LR1110] End of lr11xx_transmit!"));
 }
 
 static void lr11xx_resetup()
@@ -3729,11 +3753,11 @@ static void lr11xx_resetup()
   int state;
   unsigned long t0, t1;
   t0 = millis();
-  Serial.println("[LR11XX] Reconfiguring for new protocol");
+  Serial.println("[LR11XX] Reseting for new protocol");
   // Switch to Standby RC mode first
   t1 = millis();
   state = lr11xx_radio->standby(RADIOLIB_LR11X0_STANDBY_RC);
-  Serial.print("[LR11XX] → Changed to StandBy RC mode: ");
+  Serial.print("[LR11XX] → CChip Stanby called: ");
   Serial.print(millis() - t1);
   Serial.println(" ms");
   // ===== UPDATE PROTOCOL DESCRIPTORS =====
@@ -4038,8 +4062,8 @@ static bool lr11xx_receive()
 if (lr11xx_receive_complete == true) {
 
     RL_rxPacket.len = lr11xx_radio->getPacketLength();
-    Serial.print("[LR1110] Received packet length: ");
-    Serial.println(RL_rxPacket.len);
+    // Serial.print("[LR1110] Received packet length: ");
+    // Serial.println(RL_rxPacket.len);
 
     if (RL_rxPacket.len > 0) {
 
@@ -4206,6 +4230,7 @@ if (lr11xx_receive_complete == true) {
 
         if (success) {
           RF_last_rssi = lr11xx_radio->getRSSI();
+          RF_last_protocol = current_RX_protocol;
           rx_packets_counter++;
         }
       }
