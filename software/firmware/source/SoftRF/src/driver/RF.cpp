@@ -2369,7 +2369,7 @@ byte RF_setup(void)
   if (settings->altprotocol == settings->rf_protocol
         //|| ! in_family(settings->rf_protocol)
         //|| ! in_family(settings->altprotocol)
-        || (rf_chip != &sx1276_ops && rf_chip != &sx1262_ops && rf_chip != &lr11xx_ops)) {
+        || (rf_chip != &sx1276_ops && rf_chip != &sx1262_ops && rf_chip != &lr1110_ops)) {
       settings->altprotocol = RF_PROTOCOL_NONE;
   }
 
@@ -2774,10 +2774,10 @@ void set_protocol_for_slot()
     /* LR1110 uses RadioLib, not LMIC */
     if (lr11xx_current_protocol_ptr != curr_rx_protocol_ptr) {
       /* Protocol has changed, need full reconfiguration */
-      Serial.print("[Protocol Switch] LR1110: ");
-      Serial.print(lr11xx_current_protocol_ptr ? lr11xx_current_protocol_ptr->name : "NULL");
-      Serial.print(" -> ");
-      Serial.println(curr_rx_protocol_ptr ? curr_rx_protocol_ptr->name : "NULL");
+      // Serial.print("[Protocol Switch] LR1110: ");
+      // Serial.print(lr11xx_current_protocol_ptr ? lr11xx_current_protocol_ptr->name : "NULL");
+      // Serial.print(" -> ");
+      // Serial.println(curr_rx_protocol_ptr ? curr_rx_protocol_ptr->name : "NULL");
       RF_FreqPlan.setPlan(settings->band, current_RX_protocol);
       lr11xx_current_protocol_ptr = curr_rx_protocol_ptr;
       lr11xx_resetup();
@@ -2879,8 +2879,10 @@ void RF_loop()
 
   if (ms_since_pps >= 380 && ms_since_pps < 800) {
 
-    RF_current_slot = 0;
-    set_protocol_for_slot();
+    if (RF_current_slot != 0) {
+      RF_current_slot = 0;
+      set_protocol_for_slot();
+    }
     RF_OK_from  = slot_base_ms + 405;
     RF_OK_until = slot_base_ms + 800;
     TxEndMarker = slot_base_ms + 795;
@@ -2895,8 +2897,10 @@ void RF_loop()
 
   } else if (ms_since_pps >= 800 && ms_since_pps < 1300) {
 
-    RF_current_slot = 1;
-    set_protocol_for_slot();
+    if (RF_current_slot != 1) {
+      RF_current_slot = 1;
+      set_protocol_for_slot();
+    }
     /* channel does _NOT_ change at PPS rollover in middle of slot 1 */
     RF_OK_from  = slot_base_ms + 805;
     RF_OK_until = slot_base_ms + 1380;
@@ -3366,31 +3370,31 @@ static void lr11xx_setup()
   switch (current_RX_protocol) {
     case RF_PROTOCOL_OGNTP:
       Serial.println(F("[LR1110] Protocol: OGNTP"));
-      cc13xx_protocol = &ogntp_proto_desc;
+      curr_rx_protocol_ptr = &ogntp_proto_desc;
       protocol_encode = &ogntp_encode;
       protocol_decode = &ogntp_decode;
       break;
     case RF_PROTOCOL_P3I:
       Serial.println(F("[LR1110] Protocol: P3I"));
-      cc13xx_protocol = &p3i_proto_desc;
+      curr_rx_protocol_ptr = &p3i_proto_desc;
       protocol_encode = &p3i_encode;
       protocol_decode = &p3i_decode;
       break;
     case RF_PROTOCOL_FANET:
       Serial.println(F("[LR1110] Protocol: FANET"));
-      cc13xx_protocol = &fanet_proto_desc;
+      curr_rx_protocol_ptr = &fanet_proto_desc;
       protocol_encode = &fanet_encode;
       protocol_decode = &fanet_decode;
       break;
     case RF_PROTOCOL_ADSL:
       Serial.println(F("[LR1110] Protocol: ADSL"));
-      cc13xx_protocol = &adsl_proto_desc;
+      curr_rx_protocol_ptr = &adsl_proto_desc;
       protocol_encode = &adsl_encode;
       protocol_decode = &adsl_decode;
       break;
     case RF_PROTOCOL_LEGACY:
       Serial.println(F("[LR1110] Protocol: LEGACY"));
-      cc13xx_protocol = &legacy_proto_desc;
+      curr_rx_protocol_ptr = &legacy_proto_desc;
       protocol_encode = &legacy_encode;
       protocol_decode = &legacy_decode;
       settings->rf_protocol = RF_PROTOCOL_LEGACY;
@@ -3398,7 +3402,7 @@ static void lr11xx_setup()
     case RF_PROTOCOL_LATEST:
     default:
       Serial.println(F("[LR1110] Protocol: LATEST"));
-      cc13xx_protocol = &legacy_proto_desc;
+      curr_rx_protocol_ptr = &legacy_proto_desc;
       protocol_encode = &legacy_encode;
       protocol_decode = &legacy_decode;
       settings->rf_protocol = RF_PROTOCOL_LATEST;
@@ -3426,10 +3430,10 @@ static void lr11xx_setup()
 
   /* Initialize based on modulation type from protocol descriptor */
   Serial.print(F("[LR1110] Modulation type: "));
-  Serial.println(cc13xx_protocol->modulation_type == RF_MODULATION_TYPE_LORA ? F("LoRa") : F("2-FSK"));
+  Serial.println(curr_rx_protocol_ptr->modulation_type == RF_MODULATION_TYPE_LORA ? F("LoRa") : F("2-FSK"));
 
   float br, fdev, bw;
-  switch (cc13xx_protocol->modulation_type) 
+  switch (curr_rx_protocol_ptr->modulation_type) 
   {
   case RF_MODULATION_TYPE_LORA:
     /* Initialize LoRa mode */
@@ -3485,9 +3489,9 @@ static void lr11xx_setup()
     Serial.print(F("[LR11XX] setCodingRate(5): "));
     Serial.println((int16_t)state);
 
-    state = lr11xx_radio->setSyncWord((uint8_t) cc13xx_protocol->syncword[0]);
+    state = lr11xx_radio->setSyncWord((uint8_t) curr_rx_protocol_ptr->syncword[0]);
     Serial.print(F("[LR11XX] setSyncWord(0x"));
-    Serial.print(cc13xx_protocol->syncword[0], HEX);
+    Serial.print(curr_rx_protocol_ptr->syncword[0], HEX);
     Serial.print(F("): "));
     Serial.println((int16_t)state);
 
@@ -3507,7 +3511,7 @@ static void lr11xx_setup()
     Serial.print(F("[LR11XX] FSK begin(): "));
     Serial.println(state);
 
-    switch (cc13xx_protocol->bitrate)
+    switch (curr_rx_protocol_ptr->bitrate)
     {
     case RF_BITRATE_38400:
       br = high ? 125.0 :  38.4; /* SX128x minimum is 125 kbps */
@@ -3538,7 +3542,7 @@ static void lr11xx_setup()
   }
 #endif
 
-    switch (cc13xx_protocol->bandwidth)
+    switch (curr_rx_protocol_ptr->bandwidth)
     {
     case RF_RX_BANDWIDTH_SS_50KHZ:
       bw = 117.3;
@@ -3564,15 +3568,15 @@ static void lr11xx_setup()
     }
     state = lr11xx_radio->setRxBandwidth(bw);
 
-    state = lr11xx_radio->setPreambleLength(cc13xx_protocol->preamble_size * 8);
+    state = lr11xx_radio->setPreambleLength(curr_rx_protocol_ptr->preamble_size * 8);
     state = lr11xx_radio->setDataShaping(RADIOLIB_SHAPING_0_5);
     state = lr11xx_radio->setCRC(0, 0);
 
 
-    size_t pkt_size = cc13xx_protocol->payload_offset + cc13xx_protocol->payload_size +
-                  cc13xx_protocol->crc_size;
+    size_t pkt_size = curr_rx_protocol_ptr->payload_offset + curr_rx_protocol_ptr->payload_size +
+                  curr_rx_protocol_ptr->crc_size;
 
-    switch (cc13xx_protocol->whitening)
+    switch (curr_rx_protocol_ptr->whitening)
     {
     case RF_WHITENING_MANCHESTER:
       pkt_size += pkt_size;
@@ -3591,18 +3595,18 @@ static void lr11xx_setup()
     state = lr11xx_radio->disableAddressFiltering();
 
     /* Work around premature P3I syncword detection */
-    if (cc13xx_protocol->syncword_size == 2) {
-      uint8_t preamble = cc13xx_protocol->preamble_type == RF_PREAMBLE_TYPE_AA ?
+    if (curr_rx_protocol_ptr->syncword_size == 2) {
+      uint8_t preamble = curr_rx_protocol_ptr->preamble_type == RF_PREAMBLE_TYPE_AA ?
                          0xAA : 0x55;
       uint8_t sword[4] = { preamble,
                            preamble,
-                           cc13xx_protocol->syncword[0],
-                           cc13xx_protocol->syncword[1]
+                           curr_rx_protocol_ptr->syncword[0],
+                           curr_rx_protocol_ptr->syncword[1]
                          };
       state = lr11xx_radio->setSyncWord(sword, 4);
     } else {
-      state = lr11xx_radio->setSyncWord((uint8_t *) cc13xx_protocol->syncword,
-                                         (size_t)    cc13xx_protocol->syncword_size);
+      state = lr11xx_radio->setSyncWord((uint8_t *) curr_rx_protocol_ptr->syncword,
+                                         (size_t)    curr_rx_protocol_ptr->syncword_size);
     }
     break; /*End of GFSK config*/
   }
@@ -3682,7 +3686,7 @@ static void lr11xx_transmit()
 
   size_t PayloadLen = 0;
 
-  switch (cc13xx_protocol->crc_type)
+  switch (curr_rx_protocol_ptr->crc_type)
   {
   case RF_CHECKSUM_TYPE_GALLAGER:
   case RF_CHECKSUM_TYPE_CRC_MODES:
@@ -3701,7 +3705,7 @@ static void lr11xx_transmit()
     break;
   }
 
-  switch (cc13xx_protocol->type)
+  switch (curr_rx_protocol_ptr->type)
   {
   case RF_PROTOCOL_LEGACY:
     /* take in account NRF905/FLARM "address" bytes */
@@ -3711,15 +3715,15 @@ static void lr11xx_transmit()
     break;
   case RF_PROTOCOL_P3I:
     /* insert Net ID */
-    RL_txPacket.payload[PayloadLen++] = (u1_t) ((cc13xx_protocol->net_id >> 24) & 0x000000FF);
-    RL_txPacket.payload[PayloadLen++] = (u1_t) ((cc13xx_protocol->net_id >> 16) & 0x000000FF);
-    RL_txPacket.payload[PayloadLen++] = (u1_t) ((cc13xx_protocol->net_id >>  8) & 0x000000FF);
-    RL_txPacket.payload[PayloadLen++] = (u1_t) ((cc13xx_protocol->net_id >>  0) & 0x000000FF);
+    RL_txPacket.payload[PayloadLen++] = (u1_t) ((curr_rx_protocol_ptr->net_id >> 24) & 0x000000FF);
+    RL_txPacket.payload[PayloadLen++] = (u1_t) ((curr_rx_protocol_ptr->net_id >> 16) & 0x000000FF);
+    RL_txPacket.payload[PayloadLen++] = (u1_t) ((curr_rx_protocol_ptr->net_id >>  8) & 0x000000FF);
+    RL_txPacket.payload[PayloadLen++] = (u1_t) ((curr_rx_protocol_ptr->net_id >>  0) & 0x000000FF);
     /* insert byte with payload size */
-    RL_txPacket.payload[PayloadLen++] = cc13xx_protocol->payload_size;
+    RL_txPacket.payload[PayloadLen++] = curr_rx_protocol_ptr->payload_size;
 
     /* insert byte with CRC-8 seed value when necessary */
-    if (cc13xx_protocol->crc_type == RF_CHECKSUM_TYPE_CRC8_107) {
+    if (curr_rx_protocol_ptr->crc_type == RF_CHECKSUM_TYPE_CRC8_107) {
       RL_txPacket.payload[PayloadLen++] = crc8;
     }
 
@@ -3732,7 +3736,7 @@ static void lr11xx_transmit()
 
   for (i=0; i < RF_tx_size; i++) {
 
-    switch (cc13xx_protocol->whitening)
+    switch (curr_rx_protocol_ptr->whitening)
     {
     case RF_WHITENING_NICERF:
       RL_txPacket.payload[PayloadLen] = TxBuffer[i] ^ pgm_read_byte(&whitening_pattern[i]);
@@ -3748,7 +3752,7 @@ static void lr11xx_transmit()
       break;
     }
 
-    switch (cc13xx_protocol->crc_type)
+    switch (curr_rx_protocol_ptr->crc_type)
     {
     case RF_CHECKSUM_TYPE_GALLAGER:
     case RF_CHECKSUM_TYPE_CRC_MODES:
@@ -3760,7 +3764,7 @@ static void lr11xx_transmit()
     case RF_CHECKSUM_TYPE_CCITT_FFFF:
     case RF_CHECKSUM_TYPE_CCITT_0000:
     default:
-      if (cc13xx_protocol->whitening == RF_WHITENING_MANCHESTER) {
+      if (curr_rx_protocol_ptr->whitening == RF_WHITENING_MANCHESTER) {
         crc16 = update_crc_ccitt(crc16, (u1_t)(TxBuffer[i]));
       } else {
         crc16 = update_crc_ccitt(crc16, (u1_t)(RL_txPacket.payload[PayloadLen]));
@@ -3771,7 +3775,7 @@ static void lr11xx_transmit()
     PayloadLen++;
   }
 
-  switch (cc13xx_protocol->crc_type)
+  switch (curr_rx_protocol_ptr->crc_type)
   {
   case RF_CHECKSUM_TYPE_GALLAGER:
   case RF_CHECKSUM_TYPE_CRC_MODES:
@@ -3783,7 +3787,7 @@ static void lr11xx_transmit()
   case RF_CHECKSUM_TYPE_CCITT_FFFF:
   case RF_CHECKSUM_TYPE_CCITT_0000:
   default:
-    if (cc13xx_protocol->whitening == RF_WHITENING_MANCHESTER) {
+    if (curr_rx_protocol_ptr->whitening == RF_WHITENING_MANCHESTER) {
       RL_txPacket.payload[PayloadLen++] = pgm_read_byte(&ManchesterEncode[(((crc16 >>  8) & 0xFF) >> 4) & 0x0F]);
       RL_txPacket.payload[PayloadLen++] = pgm_read_byte(&ManchesterEncode[(((crc16 >>  8) & 0xFF)     ) & 0x0F]);
       RL_txPacket.payload[PayloadLen++] = pgm_read_byte(&ManchesterEncode[(((crc16      ) & 0xFF) >> 4) & 0x0F]);
@@ -3834,19 +3838,19 @@ static void lr11xx_resetup()
   int state;
   unsigned long t0, t1;
   t0 = millis();
-  Serial.print("[LR11XX] Reseting for new protocol: ");
-  Serial.println(curr_rx_protocol_ptr ? curr_rx_protocol_ptr->name : "NULL");
+  // Serial.print("[LR11XX] Reseting for new protocol: ");
+  // Serial.println(curr_rx_protocol_ptr ? curr_rx_protocol_ptr->name : "NULL");
   // Switch to Standby RC mode first
-  t1 = millis();
+  // t1 = millis();
   state = lr11xx_radio->standby(RADIOLIB_LR11X0_STANDBY_RC);
-  Serial.print("[LR11XX] → CChip Stanby called: ");
-  Serial.print(millis() - t1);
-  Serial.println(" ms");
+  // Serial.print("[LR11XX] → CChip Stanby called: ");
+  // Serial.print(millis() - t1);
+  // Serial.println(" ms");
   // ===== UPDATE PROTOCOL DESCRIPTORS =====
   /* Use curr_rx_protocol_ptr to set up protocol configuration */
   if (curr_rx_protocol_ptr) {
-    Serial.print(F("[LR1110] Protocol: "));
-    Serial.println(curr_rx_protocol_ptr->name);
+    // Serial.print(F("[LR1110] Protocol: "));
+    // Serial.println(curr_rx_protocol_ptr->name);
     protocol_encode = get_protocol_encode_fn(curr_rx_protocol_ptr);
     protocol_decode = get_protocol_decode_fn(curr_rx_protocol_ptr);
   }
@@ -3869,26 +3873,26 @@ static void lr11xx_resetup()
     Vtcxo = 1.6;
     break;
   }
-  Serial.println("[RadioLib] Get channel frequency");
+  // Serial.println("[RadioLib] Get channel frequency");
   uint32_t frequency = RF_FreqPlan.getChanFrequency(0);
   bool high = (frequency > 1000000000);
 
   // ===== CONFIGURE MODULATION TYPE AND PROTOCOL-SPECIFIC PARAMETERS =====
   float bw;
   
-  switch (cc13xx_protocol->modulation_type)
+  switch (curr_rx_protocol_ptr->modulation_type)
   {
   case RF_MODULATION_TYPE_LORA:
-    Serial.println("[LR11XX] → LoRa mode");
+    // Serial.println("[LR11XX] → LoRa mode");
     t1 = millis();
     // // Switch to LoRa mode
     // state = lr11xx_radio->begin(125.0, 9, 7,
     //                              RADIOLIB_LR11X0_LORA_SYNC_WORD_PRIVATE,
     //                              8, Vtcxo);
     state = lr11xx_radio->setPacketType(RADIOLIB_LR11X0_PACKET_TYPE_LORA);
-    Serial.print("[LR11XX] Changed to LoRa mode: ");
-    Serial.print(millis() - t1);
-    Serial.println(" ms");
+    // Serial.print("[LR11XX] Changed to LoRa mode: ");
+    // Serial.print(millis() - t1);
+    // Serial.println(" ms");
     // Set bandwidth (from RF_FreqPlan for LoRa)
     switch (RF_FreqPlan.Bandwidth)
     {
@@ -3908,7 +3912,7 @@ static void lr11xx_resetup()
     // LoRa-specific parameters
     state = lr11xx_radio->setSpreadingFactor(7);
     state = lr11xx_radio->setCodingRate(5);
-    state = lr11xx_radio->setSyncWord((uint8_t) cc13xx_protocol->syncword[0]);
+    state = lr11xx_radio->setSyncWord((uint8_t) curr_rx_protocol_ptr->syncword[0]);
 
     state = lr11xx_radio->setPreambleLength(8);
     state = lr11xx_radio->explicitHeader();
@@ -3919,21 +3923,21 @@ static void lr11xx_resetup()
   case RF_MODULATION_TYPE_2FSK:
   default:
 
-    Serial.println("[LR11XX] → Set packet to FSK mode");
+    // Serial.println("[LR11XX] → Set packet to FSK mode");
     // Switch to FSK mode
     t1 = millis();
     // state = lr11xx_radio->beginGFSK(4.8, 5.0, 156.2, 16, Vtcxo); // this task take 300ms
     state = lr11xx_radio->setPacketType(RADIOLIB_LR11X0_PACKET_TYPE_GFSK);
-    Serial.print("[LR11XX] Changed to FSK mode: ");
-    Serial.print(millis() - t1);
-    Serial.println(" ms");
+    // Serial.print("[LR11XX] Changed to FSK mode: ");
+    // Serial.print(millis() - t1);
+    // Serial.println(" ms");
     // Set bitrate
-    float br = high ? 125.0 : (cc13xx_protocol->bitrate == RF_BITRATE_38400 ? 38.4 : 100.0);
+    float br = high ? 125.0 : (curr_rx_protocol_ptr->bitrate == RF_BITRATE_38400 ? 38.4 : 100.0);
     state = lr11xx_radio->setBitRate(br);
-    Serial.println("[LR11XX] → set bitrate");
+    // Serial.println("[LR11XX] → set bitrate");
     // Set frequency deviation
     float fdev;
-    switch (cc13xx_protocol->deviation)
+    switch (curr_rx_protocol_ptr->deviation)
     {
     // case RF_FREQUENCY_DEVIATION_10KHZ:
     //   fdev = high ? 62.5 : 10.0;
@@ -3950,9 +3954,9 @@ static void lr11xx_resetup()
       break;
     }
     state = lr11xx_radio->setFrequencyDeviation(fdev);
-    Serial.println("[LR11XX] set freq deviation");
+    // Serial.println("[LR11XX] set freq deviation");
     // Set RX bandwidth
-    switch (cc13xx_protocol->bandwidth)
+    switch (curr_rx_protocol_ptr->bandwidth)
     {
     case RF_RX_BANDWIDTH_SS_50KHZ:
       bw = 117.3;
@@ -3977,47 +3981,47 @@ static void lr11xx_resetup()
       break;
     }
     state = lr11xx_radio->setRxBandwidth(bw);
-    Serial.println("[LR11XX] → Set Bandwidth");
+    // Serial.println("[LR11XX] → Set Bandwidth");
     // Set preamble
-    state = lr11xx_radio->setPreambleLength(cc13xx_protocol->preamble_size * 8);
-    Serial.println("[LR11XX] → Set Preamble Length");
+    state = lr11xx_radio->setPreambleLength(curr_rx_protocol_ptr->preamble_size * 8);
+    // Serial.println("[LR11XX] → Set Preamble Length");
     // Data shaping
     state = lr11xx_radio->setDataShaping(RADIOLIB_SHAPING_0_5);
     
-    Serial.println("[LR11XX] → Set Data Shaping");
+    // Serial.println("[LR11XX] → Set Data Shaping");
     // CRC (handled by software for Legacy)
     state = lr11xx_radio->setCRC(0, 0);
     
     // Calculate packet size (Manchester doubles it)
-    size_t pkt_size = cc13xx_protocol->payload_offset + cc13xx_protocol->payload_size + cc13xx_protocol->crc_size;
-    if (cc13xx_protocol->whitening == RF_WHITENING_MANCHESTER) {
+    size_t pkt_size = curr_rx_protocol_ptr->payload_offset + curr_rx_protocol_ptr->payload_size + curr_rx_protocol_ptr->crc_size;
+    if (curr_rx_protocol_ptr->whitening == RF_WHITENING_MANCHESTER) {
       pkt_size += pkt_size;
     }
     
     // Whitening
     state = lr11xx_radio->setWhitening(false, 0x0001);
-    Serial.println("[LR11XX] → Set Whitening");
+    // Serial.println("[LR11XX] → Set Whitening");
   
     // Packet mode
     state = lr11xx_radio->fixedPacketLengthMode(pkt_size);
     state = lr11xx_radio->disableAddressFiltering();
-    Serial.println("[LR11XX] → Set Packet Mode");
+    // Serial.println("[LR11XX] → Set Packet Mode");
     // Syncword (with preamble workaround)
-    if (cc13xx_protocol->syncword_size == 2) {
-      uint8_t preamble = (cc13xx_protocol->preamble_type == RF_PREAMBLE_TYPE_AA) ? 0xAA : 0x55;
-      uint8_t sword[4] = { preamble, preamble, cc13xx_protocol->syncword[0], cc13xx_protocol->syncword[1] };
+    if (curr_rx_protocol_ptr->syncword_size == 2) {
+      uint8_t preamble = (curr_rx_protocol_ptr->preamble_type == RF_PREAMBLE_TYPE_AA) ? 0xAA : 0x55;
+      uint8_t sword[4] = { preamble, preamble, curr_rx_protocol_ptr->syncword[0], curr_rx_protocol_ptr->syncword[1] };
       state = lr11xx_radio->setSyncWord(sword, 4);
     } else {
-      state = lr11xx_radio->setSyncWord((uint8_t *) cc13xx_protocol->syncword,
-                                         (size_t) cc13xx_protocol->syncword_size);
+      state = lr11xx_radio->setSyncWord((uint8_t *) curr_rx_protocol_ptr->syncword,
+                                         (size_t) curr_rx_protocol_ptr->syncword_size);
     }
     
     break;
   }
   state = rf_chip->receive();
-  Serial.print("[LR11XX] Protocol reconfiguration complete: ");
-  Serial.print(millis() - t0);
-  Serial.println(" ms");
+  // Serial.print("[LR11XX] Protocol reconfiguration complete: ");
+  // Serial.print(millis() - t0);
+  // Serial.println(" ms");
 }
 
 static void lr11xx_standby()
@@ -4132,7 +4136,7 @@ if (lr11xx_receive_complete == true) {
 
         RadioLib_DataPacket *RL_rxPacket_ptr = &RL_rxPacket;
 
-        switch (cc13xx_protocol->crc_type)
+        switch (curr_rx_protocol_ptr->crc_type)
         {
         case RF_CHECKSUM_TYPE_GALLAGER:
         case RF_CHECKSUM_TYPE_CRC_MODES:
@@ -4151,7 +4155,7 @@ if (lr11xx_receive_complete == true) {
           break;
         }
 
-        switch (cc13xx_protocol->type)
+        switch (curr_rx_protocol_ptr->type)
         {
         case RF_PROTOCOL_LEGACY:
           /* take in account NRF905/FLARM "address" bytes */
@@ -4168,11 +4172,11 @@ if (lr11xx_receive_complete == true) {
 
         uint8_t i;
 
-        switch (cc13xx_protocol->type)
+        switch (curr_rx_protocol_ptr->type)
         {
         case RF_PROTOCOL_P3I:
-          offset = cc13xx_protocol->payload_offset;
-          for (i = 0; i < cc13xx_protocol->payload_size; i++)
+          offset = curr_rx_protocol_ptr->payload_offset;
+          for (i = 0; i < curr_rx_protocol_ptr->payload_size; i++)
           {
             update_crc8(&crc8, (u1_t)(RL_rxPacket_ptr->payload[i + offset]));
             if (i < sizeof(RxBuffer)) {
@@ -4188,8 +4192,8 @@ if (lr11xx_receive_complete == true) {
           }
           break;
         case RF_PROTOCOL_FANET:
-          offset = cc13xx_protocol->payload_offset;
-          size   = cc13xx_protocol->payload_size + cc13xx_protocol->crc_size;
+          offset = curr_rx_protocol_ptr->payload_offset;
+          size   = curr_rx_protocol_ptr->payload_size + curr_rx_protocol_ptr->crc_size;
           for (i = 0; i < size; i++)
           {
             if (i < sizeof(RxBuffer)) {
@@ -4205,17 +4209,17 @@ if (lr11xx_receive_complete == true) {
           Serial.print("[LR1110] LEGACY RX: actual RL_rxPacket.len=");
           Serial.print(RL_rxPacket_ptr->len);
           Serial.print(", calculated size=");
-          Serial.println(cc13xx_protocol->payload_offset +
-                          cc13xx_protocol->payload_size +
-                          cc13xx_protocol->payload_size +
-                          cc13xx_protocol->crc_size +
-                          cc13xx_protocol->crc_size);
+          Serial.println(curr_rx_protocol_ptr->payload_offset +
+                          curr_rx_protocol_ptr->payload_size +
+                          curr_rx_protocol_ptr->payload_size +
+                          curr_rx_protocol_ptr->crc_size +
+                          curr_rx_protocol_ptr->crc_size);
           offset = 0;
-          size   = cc13xx_protocol->payload_offset +
-                   cc13xx_protocol->payload_size +
-                   cc13xx_protocol->payload_size +
-                   cc13xx_protocol->crc_size +
-                   cc13xx_protocol->crc_size;
+          size   = curr_rx_protocol_ptr->payload_offset +
+                   curr_rx_protocol_ptr->payload_size +
+                   curr_rx_protocol_ptr->payload_size +
+                   curr_rx_protocol_ptr->crc_size +
+                   curr_rx_protocol_ptr->crc_size;
           if (RL_rxPacket_ptr->len >= (size + offset)) {
             uint8_t val1, val2;
             for (i = 0; i < size; i++) {
@@ -4225,8 +4229,8 @@ if (lr11xx_receive_complete == true) {
               if ((i>>1) < sizeof(RxBuffer)) {
                 RxBuffer[i>>1] = ((val1 & 0x0F) << 4) | (val2 & 0x0F);
 
-                if (i < size - (cc13xx_protocol->crc_size + cc13xx_protocol->crc_size)) {
-                  switch (cc13xx_protocol->crc_type)
+                if (i < size - (curr_rx_protocol_ptr->crc_size + curr_rx_protocol_ptr->crc_size)) {
+                  switch (curr_rx_protocol_ptr->crc_type)
                   {
                   case RF_CHECKSUM_TYPE_GALLAGER:
                   case RF_CHECKSUM_TYPE_CRC_MODES:
@@ -4244,7 +4248,7 @@ if (lr11xx_receive_complete == true) {
 
             size = size>>1;
 
-            switch (cc13xx_protocol->crc_type)
+            switch (curr_rx_protocol_ptr->crc_type)
             {
             case RF_CHECKSUM_TYPE_GALLAGER:
               if (LDPC_Check((uint8_t  *) &RxBuffer[0]) == 0) {
@@ -4260,7 +4264,7 @@ if (lr11xx_receive_complete == true) {
               break;
             case RF_CHECKSUM_TYPE_CCITT_FFFF:
             case RF_CHECKSUM_TYPE_CCITT_0000:
-              offset = cc13xx_protocol->payload_offset + cc13xx_protocol->payload_size;
+              offset = curr_rx_protocol_ptr->payload_offset + curr_rx_protocol_ptr->payload_size;
               if (offset + 1 < sizeof(RxBuffer)) {
                 pkt_crc16 = (RxBuffer[offset] << 8 | RxBuffer[offset+1]);
                 if (crc16 == pkt_crc16) {
