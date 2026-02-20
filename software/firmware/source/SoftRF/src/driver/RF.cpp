@@ -2735,6 +2735,12 @@ void set_protocol_for_slot()
               || (settings->flr_adsl
                   && (current_RX_protocol==RF_PROTOCOL_LATEST || current_RX_protocol==RF_PROTOCOL_ADSL)));
 
+  Serial.printf("[set_protocol_for_slot] Slot %d: RX=%s(%d), TX=%s(%d), ptr_equal=%s\r\n",
+    RF_current_slot,
+    curr_rx_protocol_ptr ? curr_rx_protocol_ptr->name : "NULL", current_RX_protocol,
+    curr_tx_protocol_ptr ? curr_tx_protocol_ptr->name : "NULL", current_TX_protocol,
+    (lr11xx_current_protocol_ptr == curr_rx_protocol_ptr) ? "YES" : "NO");
+
   //if (current_RX_protocol != prev_protocol)
   //    RF_FreqPlan.setPlan(settings->band, current_RX_protocol);
 
@@ -2744,6 +2750,10 @@ void set_protocol_for_slot()
     /* LR1110 uses RadioLib, not LMIC */
     if (lr11xx_current_protocol_ptr != curr_rx_protocol_ptr) {
       /* Protocol has changed, need full reconfiguration */
+      Serial.print("[Protocol Switch] LR1110: ");
+      Serial.print(lr11xx_current_protocol_ptr ? lr11xx_current_protocol_ptr->name : "NULL");
+      Serial.print(" -> ");
+      Serial.println(curr_rx_protocol_ptr ? curr_rx_protocol_ptr->name : "NULL");
       RF_FreqPlan.setPlan(settings->band, current_RX_protocol);
       lr11xx_current_protocol_ptr = curr_rx_protocol_ptr;
       lr11xx_resetup();
@@ -2756,6 +2766,10 @@ void set_protocol_for_slot()
   {
     /* LMIC-based chips (SX1276, SX1262, etc.) */
     if (LMIC.protocol != curr_rx_protocol_ptr) {
+        Serial.print("[Protocol Switch] LMIC: ");
+        Serial.print(LMIC.protocol ? LMIC.protocol->name : "NULL");
+        Serial.print(" -> ");
+        Serial.println(curr_rx_protocol_ptr ? curr_rx_protocol_ptr->name : "NULL");
         RF_FreqPlan.setPlan(settings->band, current_RX_protocol);
         LMIC.protocol = curr_rx_protocol_ptr;    // tx will switch to curr_tx_protocol_ptr
         RF_chip_reset(current_RX_protocol);
@@ -3796,7 +3810,8 @@ static void lr11xx_resetup()
   int state;
   unsigned long t0, t1;
   t0 = millis();
-  Serial.println("[LR11XX] Reseting for new protocol");
+  Serial.print("[LR11XX] Reseting for new protocol: ");
+  Serial.println(curr_rx_protocol_ptr ? curr_rx_protocol_ptr->name : "NULL");
   // Switch to Standby RC mode first
   t1 = millis();
   state = lr11xx_radio->standby(RADIOLIB_LR11X0_STANDBY_RC);
