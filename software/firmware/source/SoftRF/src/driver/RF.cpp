@@ -2369,7 +2369,7 @@ byte RF_setup(void)
   if (settings->altprotocol == settings->rf_protocol
         //|| ! in_family(settings->rf_protocol)
         //|| ! in_family(settings->altprotocol)
-        || (rf_chip != &sx1276_ops && rf_chip != &sx1262_ops)) {
+        || (rf_chip != &sx1276_ops && rf_chip != &sx1262_ops && rf_chip != &lr11xx_ops)) {
       settings->altprotocol = RF_PROTOCOL_NONE;
   }
 
