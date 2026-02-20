@@ -69,7 +69,7 @@ uint8_t dual_protocol = RF_SINGLE_PROTOCOL;
 bool flr_adsl = false;
 
 #if defined(USE_LR1110)
-static uint8_t lr11xx_current_protocol = RF_PROTOCOL_NONE;  /* Tracks last configured protocol for LR1110 */
+static const rf_proto_desc_t *lr11xx_current_protocol_ptr = NULL;
 #endif
 
 FreqPlan RF_FreqPlan;
@@ -153,6 +153,49 @@ const rf_proto_desc_t  *curr_rx_protocol_ptr;
 const rf_proto_desc_t  *curr_tx_protocol_ptr;
 const rf_proto_desc_t  *mainprotocol_ptr;
 const rf_proto_desc_t  *altprotocol_ptr;
+
+/* Helper functions to get encode/decode functions from protocol descriptor */
+static size_t (*get_protocol_encode_fn(const rf_proto_desc_t *proto))(void *, container_t *) {
+    if (proto == NULL) return NULL;
+
+    switch (proto->type) {
+        case RF_PROTOCOL_OGNTP:
+            return ogntp_encode;
+        case RF_PROTOCOL_P3I:
+            return p3i_encode;
+        case RF_PROTOCOL_FANET:
+            return fanet_encode;
+        case RF_PROTOCOL_ADSL:
+            return adsl_encode;
+        case RF_PROTOCOL_LEGACY:
+            return legacy_encode;
+        case RF_PROTOCOL_LATEST:
+            return legacy_encode;
+        default:
+            return NULL;
+    }
+}
+
+static bool (*get_protocol_decode_fn(const rf_proto_desc_t *proto))(void *, container_t *, ufo_t *) {
+    if (proto == NULL) return NULL;
+
+    switch (proto->type) {
+        case RF_PROTOCOL_OGNTP:
+            return ogntp_decode;
+        case RF_PROTOCOL_P3I:
+            return p3i_decode;
+        case RF_PROTOCOL_FANET:
+            return fanet_decode;
+        case RF_PROTOCOL_ADSL:
+            return adsl_decode;
+        case RF_PROTOCOL_LEGACY:
+            return legacy_decode;
+        case RF_PROTOCOL_LATEST:
+            return legacy_decode;
+        default:
+            return NULL;
+    }
+}
 
 static Slots_descr_t Time_Slots, *ts;
 static uint8_t       RF_timing = RF_TIMING_INTERVAL;
@@ -2699,11 +2742,11 @@ void set_protocol_for_slot()
 #if defined(USE_LR1110)
   if (rf_chip && rf_chip->type == RF_IC_LR1110) {
     /* LR1110 uses RadioLib, not LMIC */
-    if (lr11xx_current_protocol != current_RX_protocol) {
+    if (lr11xx_current_protocol_ptr != curr_rx_protocol_ptr) {
       /* Protocol has changed, need full reconfiguration */
       RF_FreqPlan.setPlan(settings->band, current_RX_protocol);
-      RF_chip_reset(current_RX_protocol);
-      lr11xx_current_protocol = current_RX_protocol;
+      lr11xx_current_protocol_ptr = curr_rx_protocol_ptr;
+      lr11xx_resetup();
     } else {
       /* Protocol unchanged, just update frequency/channel */
       RF_chip_channel(current_RX_protocol);
@@ -3761,46 +3804,12 @@ static void lr11xx_resetup()
   Serial.print(millis() - t1);
   Serial.println(" ms");
   // ===== UPDATE PROTOCOL DESCRIPTORS =====
-  switch (current_RX_protocol) {
-    case RF_PROTOCOL_OGNTP:
-      Serial.println(F("[LR1110] Protocol: OGNTP"));
-      cc13xx_protocol = &ogntp_proto_desc;
-      protocol_encode = &ogntp_encode;
-      protocol_decode = &ogntp_decode;
-      break;
-    case RF_PROTOCOL_P3I:
-      Serial.println(F("[LR1110] Protocol: P3I"));
-      cc13xx_protocol = &p3i_proto_desc;
-      protocol_encode = &p3i_encode;
-      protocol_decode = &p3i_decode;
-      break;
-    case RF_PROTOCOL_FANET:
-      Serial.println(F("[LR1110] Protocol: FANET"));
-      cc13xx_protocol = &fanet_proto_desc;
-      protocol_encode = &fanet_encode;
-      protocol_decode = &fanet_decode;
-      break;
-    case RF_PROTOCOL_ADSL:
-      Serial.println(F("[LR1110] Protocol: ADSL"));
-      cc13xx_protocol = &adsl_proto_desc;
-      protocol_encode = &adsl_encode;
-      protocol_decode = &adsl_decode;
-      break;
-    case RF_PROTOCOL_LEGACY:
-      Serial.println(F("[LR1110] Protocol: LEGACY"));
-      cc13xx_protocol = &legacy_proto_desc;
-      protocol_encode = &legacy_encode;
-      protocol_decode = &legacy_decode;
-      settings->rf_protocol = RF_PROTOCOL_LEGACY;
-      break;
-    case RF_PROTOCOL_LATEST:
-    default:
-      Serial.println(F("[LR1110] Protocol: LATEST"));
-      cc13xx_protocol = &legacy_proto_desc;
-      protocol_encode = &legacy_encode;
-      protocol_decode = &legacy_decode;
-      settings->rf_protocol = RF_PROTOCOL_LATEST;
-      break;
+  /* Use curr_rx_protocol_ptr to set up protocol configuration */
+  if (curr_rx_protocol_ptr) {
+    Serial.print(F("[LR1110] Protocol: "));
+    Serial.println(curr_rx_protocol_ptr->name);
+    protocol_encode = get_protocol_encode_fn(curr_rx_protocol_ptr);
+    protocol_decode = get_protocol_decode_fn(curr_rx_protocol_ptr);
   }
 
   // Update frequency plan
