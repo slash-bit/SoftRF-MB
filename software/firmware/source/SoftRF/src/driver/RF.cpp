@@ -154,6 +154,25 @@ const rf_proto_desc_t  *curr_tx_protocol_ptr;
 const rf_proto_desc_t  *mainprotocol_ptr;
 const rf_proto_desc_t  *altprotocol_ptr;
 
+/* Helper function to get protocol descriptor from protocol enum value */
+static const rf_proto_desc_t* get_protocol_descriptor(uint8_t protocol_id) {
+    switch (protocol_id) {
+        case RF_PROTOCOL_ADSL:
+            return &adsl_proto_desc;
+        case RF_PROTOCOL_OGNTP:
+            return &ogntp_proto_desc;
+        case RF_PROTOCOL_P3I:
+            return &p3i_proto_desc;
+        case RF_PROTOCOL_FANET:
+            return &fanet_proto_desc;
+        case RF_PROTOCOL_LEGACY:
+            return &legacy_proto_desc;
+        case RF_PROTOCOL_LATEST:
+        default:
+            return &latest_proto_desc;
+    }
+}
+
 /* Helper functions to get encode/decode functions from protocol descriptor */
 static size_t (*get_protocol_encode_fn(const rf_proto_desc_t *proto))(void *, container_t *) {
     if (proto == NULL) return NULL;
@@ -2358,22 +2377,27 @@ byte RF_setup(void)
   if (*p == '?')   // not a listed combination
       settings->altprotocol = RF_PROTOCOL_NONE;
 
-  set_lmic_protocol(settings->altprotocol==RF_PROTOCOL_NONE? settings->rf_protocol : settings->altprotocol);
-  altprotocol_ptr = LMIC.protocol;
-  altprotocol_encode = protocol_encode;
-  altprotocol_decode = protocol_decode;
+  /* Initialize protocol pointers - works for both LMIC and LR1110 */
+  uint8_t alt_proto = (settings->altprotocol == RF_PROTOCOL_NONE) ? settings->rf_protocol : settings->altprotocol;
+  altprotocol_ptr = get_protocol_descriptor(alt_proto);
+  altprotocol_encode = get_protocol_encode_fn(altprotocol_ptr);
+  altprotocol_decode = get_protocol_decode_fn(altprotocol_ptr);
 
   current_RX_protocol = settings->rf_protocol;
   current_TX_protocol = settings->rf_protocol;
-  set_lmic_protocol(settings->rf_protocol);
-  curr_rx_protocol_ptr = LMIC.protocol;
-  curr_tx_protocol_ptr = LMIC.protocol;
-  mainprotocol_ptr = LMIC.protocol;
-  mainprotocol_encode = protocol_encode;
-  mainprotocol_decode = protocol_decode;
+  mainprotocol_ptr = get_protocol_descriptor(settings->rf_protocol);
+  curr_rx_protocol_ptr = mainprotocol_ptr;
+  curr_tx_protocol_ptr = mainprotocol_ptr;
+  mainprotocol_encode = get_protocol_encode_fn(mainprotocol_ptr);
+  mainprotocol_decode = get_protocol_decode_fn(mainprotocol_ptr);
 
-Serial.printf("Main protocol: %d\r\n", mainprotocol_ptr->type);
-Serial.printf(" Alt protocol: %d\r\n",  altprotocol_ptr->type);
+  /* Also set LMIC.protocol for LMIC-based chips */
+  LMIC.protocol = mainprotocol_ptr;
+  protocol_encode = mainprotocol_encode;
+  protocol_decode = mainprotocol_decode;
+
+Serial.printf("Main protocol: %s(%d)\r\n", mainprotocol_ptr->name, mainprotocol_ptr->type);
+Serial.printf(" Alt protocol: %s(%d)\r\n", altprotocol_ptr->name, altprotocol_ptr->type);
 
   RF_FreqPlan.setPlan(settings->band, current_RX_protocol);
 
