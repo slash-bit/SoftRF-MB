@@ -2851,6 +2851,12 @@ void RF_loop()
       return;
 
   RF_time = OurTime;      // OurTime may have been updated in Time_loop since last RF_loop
+  static time_t last_printed_rf_time = -999;
+  if (RF_time != last_printed_rf_time) {
+    Serial.printf("[RF_loop] RF_time updated: OurTime=%ld -> RF_time=%ld, ref_time_ms=%lu, now_ms=%lu\r\n",
+      OurTime, RF_time, ref_time_ms, now_ms);
+    last_printed_rf_time = RF_time;
+  }
 
   if (now_ms < ref_time_ms) {   /* should not happen */
     --OurTime;
