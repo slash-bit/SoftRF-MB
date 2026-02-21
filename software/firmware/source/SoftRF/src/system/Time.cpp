@@ -229,18 +229,10 @@ void Time_loop()
     uint32_t time_corr_neg;   // ms from PPS to commit_time
 
     bool newfix = false;
-    static bool has_logged_gps_status = false;
-    if (!has_logged_gps_status || (last_utc % 5000 == 0)) {  // Log every 5 seconds or once at startup
-        Serial.printf("[Time_loop] GPS: isValidFix=%d, gnss_new_time=%d, ref_time_ms=%lu, OurTime=%ld\r\n",
-            isValidFix(), gnss_new_time, ref_time_ms, OurTime);
-        has_logged_gps_status = true;
-    }
-
     if (isValidFix() && gnss_new_time) {     // set in GNSS.cpp
         newfix = true;
         gnss_new_time = false;               // reset until new data arrives
         gnss_age = gnss.time.age();
-        Serial.println("[Time_loop] GPS fix detected - updating OurTime");
     }
 
     if (settings->debug_flags & DEBUG_SIMULATE) {
@@ -351,12 +343,9 @@ no_pps_time = latest_Commit_Time - no_pps_corr;
       //ref_time_ms = base_time_ms = newtime;
     }
 
-    }   // end of if (settings->debug_flags & DEBUG_SIMULATE)
+    ref_time_ms = base_time_ms = newtime;
 
-    /* Set ref_time_ms for both DEBUG_SIMULATE and normal modes when newfix is true */
-    if (newfix) {
-        ref_time_ms = base_time_ms = newtime;
-    }
+    }   // end of if (settings->debug_flags & DEBUG_SIMULATE)
 
     int yr = gnss.date.year();
     if( yr > 99)
@@ -372,25 +361,17 @@ no_pps_time = latest_Commit_Time - no_pps_corr;
     tm.Second = gnss.time.second();
 
     OurTime = makeTime(tm);
-    Serial.printf("[Time_loop] makeTime result: OurTime=%ld (from %04d-%02d-%02d %02d:%02d:%02d)\r\n",
-        OurTime, tm.Year+1970, tm.Month, tm.Day, tm.Hour, tm.Minute, tm.Second);
-
     if (gnss_age + time_corr_neg >= 1000)
         OurTime += 1;
     /* updated ref_time_ms is the other side effect */
 
     // apply a correction to leap seconds if available
     // (set up in GNSS_loop based on Ublox leap-seconds and settings->leapsecs)
-    if (leap_seconds_correction > 0) {
-        Serial.printf("[Time_loop] Applying negative leap second correction: %ld\r\n", (uint32_t)leap_seconds_correction);
+    if (leap_seconds_correction > 0)
         OurTime -= (uint32_t) leap_seconds_correction;
-    }
-    else if (leap_seconds_correction < 0) {
-        Serial.printf("[Time_loop] Applying positive leap second correction: %ld\r\n", (uint32_t)(-leap_seconds_correction));
+    else if (leap_seconds_correction < 0)
         OurTime += (uint32_t) (-leap_seconds_correction);
-    }
 
-    Serial.printf("[Time_loop] Final OurTime=%ld, ref_time_ms=%lu\r\n", OurTime, ref_time_ms);
     last_utc = now_ms;
 
     /* system clock also gets updated, once a minute,
