@@ -2571,10 +2571,14 @@ void RF_SetChannel(void)
       ref_time_ms = pps_btime_ms;
     } else {
       uint32_t last_RMC_Commit = now_ms - gnss.date.age();
+      // Serial.printf("[RF_SetChannel] No PPS - last_RMC_commit=%lu, now_ms=%lu, gnss.date.age=%lu",
+      //       last_RMC_Commit, now_ms, gnss.date.age());
       time_corr_neg = 100;
       if (gnss_chip)
           time_corr_neg = gnss_chip->rmc_ms;
       ref_time_ms = last_RMC_Commit - time_corr_neg;
+      // Serial.printf(", time_corr_neg=%1u, ref_time_ms=%luu\r\n",
+      //       time_corr_neg, ref_time_ms);
     }
 
     int yr    = gnss.date.year();
@@ -2829,11 +2833,16 @@ void RF_loop()
 //  if (dual_protocol == RF_SINGLE_PROTOCOL
 //   && current_RX_protocol == settings->rf_protocol
 //   && in_family(settings->rf_protocol) == false) {
-
+  //VB test no PPS via RF_SetChannel
+  // if (settings->altprotocol == RF_PROTOCOL_NONE
+  //  && in_family(settings->rf_protocol) == false) {
+  //     RF_SetChannel();    /* use original code */
+  //     return;
+  // }
   if (settings->altprotocol == RF_PROTOCOL_NONE
    && in_family(settings->rf_protocol) == false) {
-      RF_SetChannel();    /* use original code */
-      return;
+    RF_SetChannel();    /* use original code */
+    return;
   }
 
   /* Experimental code by Moshe Braner, specific to Legacy Protocol (and related protocols) */
@@ -2854,7 +2863,7 @@ void RF_loop()
   static time_t last_printed_rf_time = -999;
   if (RF_time != last_printed_rf_time) {
     Serial.printf("[RF_loop] RF_time updated: OurTime=%ld -> RF_time=%ld, ref_time_ms=%lu, now_ms=%lu\r\n",
-      OurTime, RF_time, ref_time_ms, now_ms);
+      (long)OurTime, (long)RF_time, ref_time_ms, now_ms);
     last_printed_rf_time = RF_time;
   }
 
