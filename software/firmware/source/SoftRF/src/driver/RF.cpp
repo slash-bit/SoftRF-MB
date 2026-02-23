@@ -977,7 +977,7 @@ static void sx12xx_transmit()
 
       if ((millis() - tx_start) > tx_timeout) {   // timeout code from v1.2
         os_radio(RADIO_RST);
-        //Serial.println("TX timeout");
+        Serial.println("TX timeout");
         RF_tx_size = 0;
         break;
       }
@@ -3423,9 +3423,9 @@ static void lr11xx_setup()
     case RF_PROTOCOL_LATEST:
     default:
       Serial.println(F("[LR1110] Protocol: LATEST"));
-      curr_rx_protocol_ptr = &legacy_proto_desc;
-      protocol_encode = &legacy_encode;
-      protocol_decode = &legacy_decode;
+      curr_rx_protocol_ptr = &latest_proto_desc;
+      protocol_encode = &latest_encode;
+      protocol_decode = &latest_decode;
       settings->rf_protocol = RF_PROTOCOL_LATEST;
       break;
   }
