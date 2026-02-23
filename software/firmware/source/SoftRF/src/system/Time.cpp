@@ -307,8 +307,8 @@ no_pps_time = latest_Commit_Time - no_pps_corr;
         } else {
             newfix = false;
         }
-        Serial.printf("[Time_loop] newtime=%lu, ref_time_ms=%lu, pps_btime_ms=%lu\r\n",
-            newtime, ref_time_ms, pps_btime_ms);
+        // Serial.printf("[Time_loop] newtime=%lu, ref_time_ms=%lu, pps_btime_ms=%lu\r\n",
+        //     newtime, ref_time_ms, pps_btime_ms);
     }
 
     bool freerun = false;
@@ -345,23 +345,7 @@ no_pps_time = latest_Commit_Time - no_pps_corr;
       //ref_time_ms = base_time_ms = newtime;
     }
 
-    // Initialize ref_time_ms based on PPS availability
-    if (pps_btime_ms > 0) {
-      // With PPS: use the PPS timestamp
-      if (now_ms > pps_btime_ms + 1010) {
-        pps_btime_ms += 1000;
-        newtime += 1000;
-      }
-      ref_time_ms = base_time_ms = newtime;
-    } else {
-      // No PPS (T1000E-CARD case): use latest GPS commit time modulo 1000
-      // Extract only milliseconds within current second (0-999 range) for RF_loop compatibility
-      uint32_t last_RMC_Commit = now_ms - gnss.date.age();
-      uint32_t time_corr_ms = gnss_chip ? gnss_chip->rmc_ms : 100;
-      uint32_t adjusted_time = last_RMC_Commit - time_corr_ms;
-      // Keep only the milliseconds part (0-999), not full timestamp
-      ref_time_ms = base_time_ms = adjusted_time % 1000;
-    }
+    ref_time_ms = base_time_ms = newtime;
 
     }   // end of if (settings->debug_flags & DEBUG_SIMULATE)
 

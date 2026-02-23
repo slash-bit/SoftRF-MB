@@ -2763,11 +2763,11 @@ void set_protocol_for_slot()
               || (settings->flr_adsl
                   && (current_RX_protocol==RF_PROTOCOL_LATEST || current_RX_protocol==RF_PROTOCOL_ADSL)));
 
-  Serial.printf("[set_protocol_for_slot] Slot %d: RX=%s(%d), TX=%s(%d), ptr_equal=%s\r\n",
-    RF_current_slot,
-    curr_rx_protocol_ptr ? curr_rx_protocol_ptr->name : "NULL", current_RX_protocol,
-    curr_tx_protocol_ptr ? curr_tx_protocol_ptr->name : "NULL", current_TX_protocol,
-    (lr11xx_current_protocol_ptr == curr_rx_protocol_ptr) ? "YES" : "NO");
+  // Serial.printf("[set_protocol_for_slot] Slot %d: RX=%s(%d), TX=%s(%d), ptr_equal=%s\r\n",
+    // RF_current_slot,
+    // curr_rx_protocol_ptr ? curr_rx_protocol_ptr->name : "NULL", current_RX_protocol,
+    // curr_tx_protocol_ptr ? curr_tx_protocol_ptr->name : "NULL", current_TX_protocol,
+    // (lr11xx_current_protocol_ptr == curr_rx_protocol_ptr) ? "YES" : "NO");
 
   //if (current_RX_protocol != prev_protocol)
   //    RF_FreqPlan.setPlan(settings->band, current_RX_protocol);
@@ -2862,8 +2862,8 @@ void RF_loop()
   RF_time = OurTime;      // OurTime may have been updated in Time_loop since last RF_loop
   static time_t last_printed_rf_time = -999;
   if (RF_time != last_printed_rf_time) {
-    Serial.printf("[RF_loop] RF_time updated: OurTime=%ld -> RF_time=%ld, ref_time_ms=%lu, now_ms=%lu\r\n",
-      (long)OurTime, (long)RF_time, ref_time_ms, now_ms);
+    // Serial.printf("[RF_loop] RF_time updated: OurTime=%ld -> RF_time=%ld, ref_time_ms=%lu, now_ms=%lu\r\n",
+      // (long)OurTime, (long)RF_time, ref_time_ms, now_ms);
     last_printed_rf_time = RF_time;
   }
 
@@ -2984,9 +2984,9 @@ void RF_loop()
       Serial.println(RF_OK_until - slot_base_ms);
   }
 */
-Serial.printf("Prot %d/%d, Slot %d set for sec %d at PPS+%d ms, PPS %d, tx ok %d - %d, gd to %d\r\n",
-current_RX_protocol, current_TX_protocol, RF_current_slot, (RF_time & 0x0F), ms_since_pps, slot_base_ms,
-   (current_TX_protocol==RF_PROTOCOL_FANET? TxTimeMarker2 : TxTimeMarker), TxEndMarker, RF_OK_until);
+  Serial.printf("Prot %d/%d, Slot %d set for sec %d at PPS+%lu ms, PPS %lu, tx ok %lu - %lu, gd to %lu\r\n",
+  current_RX_protocol, current_TX_protocol, RF_current_slot, (int)(RF_time & 0x0F), ms_since_pps, slot_base_ms,
+    (unsigned long)(current_TX_protocol==RF_PROTOCOL_FANET? TxTimeMarker2 : TxTimeMarker), (unsigned long)TxEndMarker, (unsigned long)RF_OK_until);
 }
 
 bool RF_Transmit_Happened()
@@ -3066,15 +3066,21 @@ bool RF_Transmit(size_t size, bool wait)   // only called with no-wait for air-r
       /* Experimental code by Moshe Braner */
 
       if (RF_Transmit_Ready(wait)) {
-
-        if (curr_tx_protocol_ptr != curr_rx_protocol_ptr) {
+#if defined(USE_LR1110)
+        if (LMIC.protocol != curr_rx_protocol_ptr) {
             // (otherwise LMIC.protocol was set in set_protocol_for_slot())
             RF_FreqPlan.setPlan(settings->band, current_TX_protocol);
             LMIC.protocol = curr_tx_protocol_ptr;
             RF_chip_reset(current_TX_protocol);
-//Serial.println("transmitting in altprotocol...");
         }
-
+#else /* LMIC-based chips (SX1276, SX1262, etc.) */
+        if (lr11xx_current_protocol_ptr != curr_rx_protocol_ptr) {
+          // (otherwise LMIC.protocol was set in set_protocol_for_slot())
+          RF_FreqPlan.setPlan(settings->band, current_TX_protocol);
+          LMIC.protocol = curr_tx_protocol_ptr;
+          RF_chip_reset(current_TX_protocol);
+        }
+#endif
         if (settings->txpower != RF_TX_POWER_OFF)
             rf_chip->transmit();
 
@@ -4221,14 +4227,6 @@ if (lr11xx_receive_complete == true) {
         case RF_PROTOCOL_ADSL:
         case RF_PROTOCOL_LEGACY:
         default:
-          Serial.print("[LR1110] LEGACY RX: actual RL_rxPacket.len=");
-          Serial.print(RL_rxPacket_ptr->len);
-          Serial.print(", calculated size=");
-          Serial.println(curr_rx_protocol_ptr->payload_offset +
-                          curr_rx_protocol_ptr->payload_size +
-                          curr_rx_protocol_ptr->payload_size +
-                          curr_rx_protocol_ptr->crc_size +
-                          curr_rx_protocol_ptr->crc_size);
           offset = 0;
           size   = curr_rx_protocol_ptr->payload_offset +
                    curr_rx_protocol_ptr->payload_size +
@@ -4311,6 +4309,13 @@ if (lr11xx_receive_complete == true) {
     }
 
     lr11xx_receive_complete = false;
+
+    if (settings->debug_flags) {
+      uint32_t ms = millis() - ref_time_ms;
+      if (ms < 300)  ms += 1000;
+      Serial.printf("RX in prot %d, time slot %d, sec %d(%d) + %d ms\r\n",
+          RF_last_protocol, RF_current_slot, RF_time, int(RF_time & 0x0F), ms);
+      }
   }
 
   return success;
