@@ -2504,14 +2504,17 @@ Serial.printf(" Alt protocol: %s(%d)\r\n", altprotocol_ptr->name, altprotocol_pt
 void RF_chip_channel(uint8_t protocol)
 {
     uint8_t OGN = useOGNfreq(protocol);
+    Serial.printf("[RF_chip_channel] protocol=%d, OGN=%d\r\n", protocol, OGN);
     RF_current_chan = RF_FreqPlan.getChannel((time_t)RF_time, RF_current_slot, OGN);
+    Serial.printf("[RF_chip_channel] RF_time=%lu, RF_current_slot=%d, RF_current_chan=%d\r\n",
+        (unsigned long)RF_time, RF_current_slot, RF_current_chan);
     if (rf_chip)
         rf_chip->channel(RF_current_chan);
 }
 
 void RF_chip_reset(uint8_t protocol)
 {
-Serial.printf("[RF] chip_reset called, protocol = %d\r\n", protocol);
+  Serial.printf("[RF] chip_reset called, protocol = %d\r\n", protocol);
 
 #if defined(USE_BASICMAC)
 #if !defined(EXCLUDE_SX12XX)
@@ -2526,8 +2529,8 @@ Serial.printf("[RF] chip_reset called, protocol = %d\r\n", protocol);
 #endif
 #endif
     RF_chip_channel(protocol);
-Serial.printf("reset to Prot %d at millis %d, tx ok %d - %d, gd to %d\r\n",
-current_RX_protocol, millis(), TxTimeMarker, TxEndMarker, RF_OK_until);
+    Serial.printf("reset to Prot %d at millis %d, tx ok %d - %d, gd to %d\r\n",
+    current_RX_protocol, millis(), TxTimeMarker, TxEndMarker, RF_OK_until);
 }
 
 /* original code, now only called for protocols other than Legacy: */
@@ -2596,6 +2599,7 @@ void RF_SetChannel(void)
 //  Time = makeTime(tm) + (gnss.time.age() - time_corr_neg) / 1000;
     Time = makeTime(tm) + (gnss.time.age() + time_corr_neg) / 1000;
     OurTime = Time;
+    RF_time = OurTime;
 
     break;
   }
@@ -2785,8 +2789,12 @@ void set_protocol_for_slot()
       RF_FreqPlan.setPlan(settings->band, current_RX_protocol);
       lr11xx_current_protocol_ptr = curr_rx_protocol_ptr;
       lr11xx_resetup();
+      /* Now set the frequency for the new protocol */
+      RF_chip_channel(current_RX_protocol);
     } else {
       /* Protocol unchanged, just update frequency/channel */
+      Serial.print("[Channel change] calling RF_chip_channel: ");
+      Serial.println(current_RX_protocol);
       RF_chip_channel(current_RX_protocol);
     }
   } else
@@ -2895,6 +2903,7 @@ void RF_loop()
   if (ms_since_pps >= 380 && ms_since_pps < 800) {
 
     if (RF_current_slot != 0) {
+      Serial.print("Switching to Slot 0 at PPS+"); Serial.print(ms_since_pps); Serial.println(" ms");
       RF_current_slot = 0;
       set_protocol_for_slot();
     }
@@ -2913,6 +2922,7 @@ void RF_loop()
   } else if (ms_since_pps >= 800 && ms_since_pps < 1300) {
 
     if (RF_current_slot != 1) {
+      Serial.print("Switching to Slot 1 at PPS+"); Serial.print(ms_since_pps); Serial.println(" ms");
       RF_current_slot = 1;
       set_protocol_for_slot();
     }
@@ -2984,9 +2994,9 @@ void RF_loop()
       Serial.println(RF_OK_until - slot_base_ms);
   }
 */
-  Serial.printf("Prot %d/%d, Slot %d set for sec %d at PPS+%lu ms, PPS %lu, tx ok %lu - %lu, gd to %lu\r\n",
-  current_RX_protocol, current_TX_protocol, RF_current_slot, (int)(RF_time & 0x0F), ms_since_pps, slot_base_ms,
-    (unsigned long)(current_TX_protocol==RF_PROTOCOL_FANET? TxTimeMarker2 : TxTimeMarker), (unsigned long)TxEndMarker, (unsigned long)RF_OK_until);
+  // Serial.printf("Prot %d/%d, Slot %d set for sec %d at PPS+%lu ms, PPS %lu, tx ok %lu - %lu, gd to %lu\r\n",
+  // current_RX_protocol, current_TX_protocol, RF_current_slot, (int)(RF_time & 0x0F), ms_since_pps, slot_base_ms,
+  //   (unsigned long)(current_TX_protocol==RF_PROTOCOL_FANET? TxTimeMarker2 : TxTimeMarker), (unsigned long)TxEndMarker, (unsigned long)RF_OK_until);
 }
 
 bool RF_Transmit_Happened()
@@ -3318,6 +3328,10 @@ static bool lr11xx_probe()
 
 static void lr11xx_channel(uint8_t channel)
 {
+  Serial.print("[LR11XX] Setting channel: ");
+  Serial.print(channel);
+  Serial.print("   Previous channel: ");
+  Serial.println(lr11xx_channel_prev);
   if (channel != -1 && channel != lr11xx_channel_prev) {
     uint32_t frequency = RF_FreqPlan.getChanFrequency((uint8_t) channel);
     int8_t fc = settings->freq_corr;
@@ -3339,13 +3353,13 @@ static void lr11xx_channel(uint8_t channel)
 
     int state = lr11xx_radio->setFrequency((frequency + (fc * 1000)) / 1000000.0);
 
-#if RADIOLIB_DEBUG_BASIC
+#if 1
     if (state == RADIOLIB_ERR_INVALID_FREQUENCY) {
       Serial.println(F("[LR11XX] Selected frequency is invalid for this module!"));
       while (true) { delay(10); }
-    } esle {
+    } else {
       Serial.print("[LR11XX] Selected frequency: ");
-      Serial.print(frequency / 1000000.0);
+      Serial.println(frequency / 1000000.0);
     }
 #endif
 
@@ -3877,7 +3891,7 @@ static void lr11xx_resetup()
   }
 
   // Update frequency plan
-  RF_FreqPlan.setPlan(settings->band, settings->rf_protocol);
+  RF_FreqPlan.setPlan(settings->band, current_RX_protocol);
 
   // Get TCXO voltage (needed for begin() calls)
   float Vtcxo;
@@ -4179,6 +4193,7 @@ if (lr11xx_receive_complete == true) {
         switch (curr_rx_protocol_ptr->type)
         {
         case RF_PROTOCOL_LEGACY:
+        case RF_PROTOCOL_LATEST:
           /* take in account NRF905/FLARM "address" bytes */
           crc16 = update_crc_ccitt(crc16, 0x31);
           crc16 = update_crc_ccitt(crc16, 0xFA);
@@ -4226,13 +4241,21 @@ if (lr11xx_receive_complete == true) {
         case RF_PROTOCOL_OGNTP:
         case RF_PROTOCOL_ADSL:
         case RF_PROTOCOL_LEGACY:
+        case RF_PROTOCOL_LATEST:
         default:
-          offset = 0;
+          // LR1110 returns raw packet with preamble bytes that need to be skipped
+          offset = curr_rx_protocol_ptr->syncword_skip;
           size   = curr_rx_protocol_ptr->payload_offset +
                    curr_rx_protocol_ptr->payload_size +
                    curr_rx_protocol_ptr->payload_size +
                    curr_rx_protocol_ptr->crc_size +
                    curr_rx_protocol_ptr->crc_size;
+
+          // If packet is 1 byte short (LR1110 specific), adjust size to match actual packet
+          if (RL_rxPacket_ptr->len < (size + offset) && RL_rxPacket_ptr->len == (size + offset - 1)) {
+            size = RL_rxPacket_ptr->len - offset;
+          }
+
           if (RL_rxPacket_ptr->len >= (size + offset)) {
             uint8_t val1, val2;
             for (i = 0; i < size; i++) {
@@ -4314,7 +4337,7 @@ if (lr11xx_receive_complete == true) {
       uint32_t ms = millis() - ref_time_ms;
       if (ms < 300)  ms += 1000;
       Serial.printf("RX in prot %d, time slot %d, sec %d(%d) + %d ms\r\n",
-          RF_last_protocol, RF_current_slot, RF_time, int(RF_time & 0x0F), ms);
+          current_RX_protocol, RF_current_slot, (long)RF_time, int(RF_time & 0x0F), ms);
       }
   }
 
