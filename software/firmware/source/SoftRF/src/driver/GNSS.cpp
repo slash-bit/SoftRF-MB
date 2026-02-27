@@ -2244,7 +2244,7 @@ uint8_t Try_GNSS_sentence() {
     } else if (is_g) {
         if (((settings->nmea_g | settings->nmea2_g) & NMEA_G_NONBASIC) == 0)
             return 1;
-        if (is_g && gb[3]=='G' && gb[4]=='S') {
+        if (/* is_g && */ gb[3]=='G' && gb[4]=='S') {
             if (gb[5]=='A')  nmeatype = NMEA_G_GSA;
             else
             if (gb[5]=='T')  nmeatype = NMEA_G_GST;
@@ -2266,8 +2266,10 @@ uint8_t Try_GNSS_sentence() {
     else
 #endif
     {
-        if (is_g && settings->gn_to_gp)   // convert $GN, $GA, $GL to $GP if needed
+        if (is_g && settings->gn_to_gp) {   // convert $GN, $GA, $GL to $GP if needed
             gb[2] = 'P';
+            (void) NMEA_add_checksum(gb);   // since we patched the sentence
+        }
         NMEA_Outs(nmeatype, gb, write_size, true);
     }
     return 1;
