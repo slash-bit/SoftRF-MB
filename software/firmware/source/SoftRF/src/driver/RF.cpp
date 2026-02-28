@@ -4214,8 +4214,10 @@ static bool lr11xx_receive()
 if (lr11xx_receive_complete == true) {
 
     RL_rxPacket.len = lr11xx_radio->getPacketLength();
-    // Serial.print("[LR1110] Received packet length: ");
-    // Serial.println(RL_rxPacket.len);
+    if (RL_rxPacket.len > 0 && (settings->debug_flags & DEBUG_DEEPER)) {
+      Serial.print(F("[LR1110] pkt len="));
+      Serial.println(RL_rxPacket.len);
+    }
 
     if (RL_rxPacket.len > 0) {
 
@@ -4308,18 +4310,13 @@ if (lr11xx_receive_complete == true) {
         case RF_PROTOCOL_LEGACY:
         case RF_PROTOCOL_LATEST:
         default:
-          // LR1110 returns raw packet with preamble bytes that need to be skipped
-          offset = curr_rx_protocol_ptr->syncword_skip;
+          // LR1110 strips the syncword; any extra byte is at the end.
+          offset = 0;
           size   = curr_rx_protocol_ptr->payload_offset +
                    curr_rx_protocol_ptr->payload_size +
                    curr_rx_protocol_ptr->payload_size +
                    curr_rx_protocol_ptr->crc_size +
                    curr_rx_protocol_ptr->crc_size;
-
-          // If packet is 1 byte short (LR1110 specific), adjust size to match actual packet
-          if (RL_rxPacket_ptr->len < (size + offset) && RL_rxPacket_ptr->len == (size + offset - 1)) {
-            size = RL_rxPacket_ptr->len - offset;
-          }
 
           if (RL_rxPacket_ptr->len >= (size + offset)) {
             uint8_t val1, val2;
@@ -4369,8 +4366,18 @@ if (lr11xx_receive_complete == true) {
               if (offset + 1 < sizeof(RxBuffer)) {
                 pkt_crc16 = (RxBuffer[offset] << 8 | RxBuffer[offset+1]);
                 if (crc16 == pkt_crc16) {
-
+                  if (settings->debug_flags & DEBUG_DEEPER) {
+                    Serial.print(F("[LR1110] CRC MATCH: 0x"));
+                    Serial.println(crc16, HEX);
+                  }
                   success = true;
+                } else {
+                  if (settings->debug_flags & DEBUG_DEEPER) {
+                    Serial.print(F("[LR1110] CRC MISMATCH: computed=0x"));
+                    Serial.print(crc16, HEX);
+                    Serial.print(F(" packet=0x"));
+                    Serial.println(pkt_crc16, HEX);
+                  }
                 }
               }
               break;
@@ -4394,16 +4401,25 @@ if (lr11xx_receive_complete == true) {
       lr11xx_radio->setBufferBaseAddress();
 #endif
       RL_rxPacket.len = 0;
+
+      if (settings->debug_flags) {
+        uint32_t ms = millis() - ref_time_ms;
+        if (ms < 300)  ms += 1000;
+        Serial.printf("RX in prot %d, time slot %d, sec %d(%d) + %d ms\r\n",
+            current_RX_protocol, RF_current_slot, (long)RF_time, int(RF_time & 0x0F), ms);
+      }
+    } else {
+      // len == 0: radio fired IRQ but no data available.
+      // Call readData() to clear the radio's internal IRQ flags,
+      // otherwise the DIO pin stays asserted and the ISR fires again.
+      if (settings->debug_flags & DEBUG_DEEPER) {
+        Serial.println(F("[LR1110] Empty packet (len=0), clearing IRQ"));
+      }
+      uint8_t dummy;
+      lr11xx_radio->readData(&dummy, 0);
     }
 
     lr11xx_receive_complete = false;
-
-    if (settings->debug_flags) {
-      uint32_t ms = millis() - ref_time_ms;
-      if (ms < 300)  ms += 1000;
-      Serial.printf("RX in prot %d, time slot %d, sec %d(%d) + %d ms\r\n",
-          current_RX_protocol, RF_current_slot, (long)RF_time, int(RF_time & 0x0F), ms);
-      }
   }
 
   return success;
