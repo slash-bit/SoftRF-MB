@@ -3705,8 +3705,15 @@ static void lr11xx_setup()
                          };
       state = lr11xx_radio->setSyncWord(sword, 4);
     } else {
-      state = lr11xx_radio->setSyncWord((uint8_t *) curr_rx_protocol_ptr->syncword,
-                                         (size_t)    curr_rx_protocol_ptr->syncword_size);
+      /* Skip leading sync bytes on RX per Moshe's advice:
+       * XC Tracer (SX1262) may not transmit the 0x55 0x99 prefix,
+       * and SX1262 preamble polarity (0x55 vs 0xAA) depends on
+       * the first sync byte, so matching on it is unreliable.
+       * Use only: {0xA5, 0xA9, 0x55, 0x66, 0x65, 0x96} */
+      int sw_skip = curr_rx_protocol_ptr->syncword_skip;
+      state = lr11xx_radio->setSyncWord(
+          (uint8_t *) &curr_rx_protocol_ptr->syncword[sw_skip],
+          (size_t)    (curr_rx_protocol_ptr->syncword_size - sw_skip));
     }
     break; /*End of GFSK config*/
   }
@@ -4112,10 +4119,13 @@ static void lr11xx_resetup()
       uint8_t sword[4] = { preamble, preamble, curr_rx_protocol_ptr->syncword[0], curr_rx_protocol_ptr->syncword[1] };
       state = lr11xx_radio->setSyncWord(sword, 4);
     } else {
-      state = lr11xx_radio->setSyncWord((uint8_t *) curr_rx_protocol_ptr->syncword,
-                                         (size_t) curr_rx_protocol_ptr->syncword_size);
+      /* Skip leading sync bytes on RX (same as lr11xx_setup) */
+      int sw_skip = curr_rx_protocol_ptr->syncword_skip;
+      state = lr11xx_radio->setSyncWord(
+          (uint8_t *) &curr_rx_protocol_ptr->syncword[sw_skip],
+          (size_t)    (curr_rx_protocol_ptr->syncword_size - sw_skip));
     }
-    
+
     break;
   }
   state = rf_chip->receive();
