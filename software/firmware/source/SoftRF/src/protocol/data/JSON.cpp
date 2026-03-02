@@ -929,3 +929,311 @@ void parseSettings(JsonObject root)
 #endif // USE_JSON_SETTINGS
 
 #endif /* RASPBERRY_PI || ARDUINO_ARCH_NRF52 */
+
+/* -----------------------------------------------------------------------
+ * JSON settings file support (settings.json) for Seeed T1000E / CARD
+ * Enabled when USE_JSETTINGS is defined (set by -DSOFTRF_MODEL_T1000E).
+ * ----------------------------------------------------------------------- */
+#if defined(ARDUINO_ARCH_NRF52) && defined(USE_JSETTINGS)
+
+#include "../../driver/Settings.h"
+
+/* Parse a settings.json root object into the settings struct.
+ * Only fields present in the JSON are applied; all others keep
+ * whatever value was set by Settings_defaults() beforehand.
+ */
+void parseJSettings(JsonObject root)
+{
+  const char *key;
+
+  /* "class" must equal "SOFTRF" - used to validate the file */
+  key = "class";
+  if (root.containsKey(key)) {
+    const char *cls = root[key].as<const char*>();
+    if (strcmp(cls, "SOFTRF") != 0) {
+      Serial.println(F("JSON: invalid class, ignoring file"));
+      return;
+    }
+  }
+
+  key = "protocol";
+  if (root.containsKey(key)) {
+    const char *s = root[key].as<const char*>();
+    if      (!strcmp(s,"FLARM") || !strcmp(s,"LATEST"))
+      settings->rf_protocol = RF_PROTOCOL_LATEST;
+    else if (!strcmp(s,"OGNTP"))
+      settings->rf_protocol = RF_PROTOCOL_OGNTP;
+    else if (!strcmp(s,"P3I"))
+      settings->rf_protocol = RF_PROTOCOL_P3I;
+    else if (!strcmp(s,"FANET"))
+      settings->rf_protocol = RF_PROTOCOL_FANET;
+    else if (!strcmp(s,"ADS-L"))
+      settings->rf_protocol = RF_PROTOCOL_ADSL;
+  }
+
+  key = "altprotocol";
+  if (root.containsKey(key)) {
+    const char *s = root[key].as<const char*>();
+    if      (!strcmp(s,"FANET"))
+      settings->altprotocol = RF_PROTOCOL_FANET;
+    else if (!strcmp(s,"NONE") || !strcmp(s,"OFF"))
+      settings->altprotocol = RF_PROTOCOL_NONE;
+  }
+
+  key = "band";
+  if (root.containsKey(key)) {
+    const char *s = root[key].as<const char*>();
+    if      (!strcmp(s,"EU"))  settings->band = RF_BAND_EU;
+    else if (!strcmp(s,"US"))  settings->band = RF_BAND_US;
+    else if (!strcmp(s,"AU"))  settings->band = RF_BAND_AU;
+    else if (!strcmp(s,"NZ"))  settings->band = RF_BAND_NZ;
+    else if (!strcmp(s,"RU"))  settings->band = RF_BAND_RU;
+    else if (!strcmp(s,"CN"))  settings->band = RF_BAND_CN;
+    else if (!strcmp(s,"UK"))  settings->band = RF_BAND_UK;
+    else if (!strcmp(s,"IN"))  settings->band = RF_BAND_IN;
+    else if (!strcmp(s,"IL"))  settings->band = RF_BAND_IL;
+    else if (!strcmp(s,"KR"))  settings->band = RF_BAND_KR;
+  }
+
+  key = "aircraft_type";
+  if (root.containsKey(key)) {
+    const char *s = root[key].as<const char*>();
+    if      (!strcmp(s,"GLIDER"))     settings->acft_type = AIRCRAFT_TYPE_GLIDER;
+    else if (!strcmp(s,"TOWPLANE"))   settings->acft_type = AIRCRAFT_TYPE_TOWPLANE;
+    else if (!strcmp(s,"POWERED"))    settings->acft_type = AIRCRAFT_TYPE_POWERED;
+    else if (!strcmp(s,"JET"))        settings->acft_type = AIRCRAFT_TYPE_JET;
+    else if (!strcmp(s,"HELICOPTER")) settings->acft_type = AIRCRAFT_TYPE_HELICOPTER;
+    else if (!strcmp(s,"UAV"))        settings->acft_type = AIRCRAFT_TYPE_UAV;
+    else if (!strcmp(s,"HANGGLIDER")) settings->acft_type = AIRCRAFT_TYPE_HANGGLIDER;
+    else if (!strcmp(s,"PARAGLIDER")) settings->acft_type = AIRCRAFT_TYPE_PARAGLIDER;
+    else if (!strcmp(s,"PARACHUTE"))  settings->acft_type = AIRCRAFT_TYPE_PARACHUTE;
+    else if (!strcmp(s,"BALLOON"))    settings->acft_type = AIRCRAFT_TYPE_BALLOON;
+    else if (!strcmp(s,"STATIC"))     settings->acft_type = AIRCRAFT_TYPE_STATIC;
+  }
+
+  key = "aircraft_id";
+  if (root.containsKey(key)) {
+    const char *s = root[key].as<const char*>();
+    if (s && strlen(s) == 6 && strspn(s, "0123456789ABCDEFabcdef") == 6)
+      settings->aircraft_id = strtoul(s, NULL, 16);
+    else
+      settings->aircraft_id = 0;
+  }
+
+  key = "id_method";
+  if (root.containsKey(key)) {
+    const char *s = root[key].as<const char*>();
+    if      (s && !strcmp(s, "RANDOM"))    settings->id_method = ADDR_TYPE_RANDOM;
+    else if (s && !strcmp(s, "ICAO"))      settings->id_method = ADDR_TYPE_ICAO;
+    else if (s && !strcmp(s, "DEVICE"))     settings->id_method = ADDR_TYPE_FLARM;
+    else if (s && !strcmp(s, "ANONYMOUS")) settings->id_method = ADDR_TYPE_ANONYMOUS;
+    else if (s && !strcmp(s, "OVERRIDE"))  settings->id_method = ADDR_TYPE_OVERRIDE;
+  }
+
+  key = "ignore_id";
+  if (root.containsKey(key)) {
+    const char *s = root[key].as<const char*>();
+    if (s && strlen(s) == 6 && strspn(s, "0123456789ABCDEFabcdef") == 6
+        && strcmp(s, "000000") != 0)
+      settings->ignore_id = strtoul(s, NULL, 16);
+    else
+      settings->ignore_id = 0;
+  }
+
+  key = "alarm";
+  if (root.containsKey(key)) {
+    const char *s = root[key].as<const char*>();
+    if      (!strcmp(s,"NONE"))     settings->alarm = TRAFFIC_ALARM_NONE;
+    else if (!strcmp(s,"DISTANCE")) settings->alarm = TRAFFIC_ALARM_DISTANCE;
+    else if (!strcmp(s,"VECTOR"))   settings->alarm = TRAFFIC_ALARM_VECTOR;
+    else if (!strcmp(s,"LATEST"))   settings->alarm = TRAFFIC_ALARM_LATEST;
+  }
+
+  key = "alarm_filter";
+  if (root.containsKey(key)) {
+    /* alarm_filter is not in Moshe settings_t yet; silently ignore */
+  }
+
+  key = "txpower";
+  if (root.containsKey(key)) {
+    const char *s = root[key].as<const char*>();
+    if      (!strcmp(s,"FULL")) settings->txpower = RF_TX_POWER_FULL;
+    else if (!strcmp(s,"LOW"))  settings->txpower = RF_TX_POWER_LOW;
+    else if (!strcmp(s,"OFF"))  settings->txpower = RF_TX_POWER_OFF;
+  }
+
+  key = "volume";
+  if (root.containsKey(key)) {
+    const char *s = root[key].as<const char*>();
+    if      (!strcmp(s,"FULL")) settings->volume = BUZZER_VOLUME_FULL;
+    else if (!strcmp(s,"LOW"))  settings->volume = BUZZER_VOLUME_LOW;
+    else if (!strcmp(s,"OFF"))  settings->volume = BUZZER_OFF;
+  }
+
+  key = "alarmlog";
+  if (root.containsKey(key)) {
+    const char *s = root[key].as<const char*>();
+    settings->logalarms = (!strcmp(s,"YES") || !strcmp(s,"1"));
+  }
+
+  key = "logflight";
+  if (root.containsKey(key)) {
+    const char *s = root[key].as<const char*>();
+    if      (!strcmp(s,"OFF"))      settings->logflight = FLIGHT_LOG_NONE;
+    else if (!strcmp(s,"ALWAYS"))   settings->logflight = FLIGHT_LOG_ALWAYS;
+    else if (!strcmp(s,"AIRBORNE")) settings->logflight = FLIGHT_LOG_AIRBORNE;
+    else if (!strcmp(s,"TRAFFIC"))  settings->logflight = FLIGHT_LOG_TRAFFIC;
+  }
+
+  key = "loginterval";
+  if (root.containsKey(key)) {
+    /* Accept both integer and string values (e.g. 4 or "4") */
+    int v = root[key].is<int>() ? root[key].as<int>() : atoi(root[key].as<const char*>());
+    if (v >= 1 && v <= 255) settings->loginterval = (uint8_t)v;
+  }
+
+  key = "igc_pilot";
+  if (root.containsKey(key)) {
+    const char *s = root[key].as<const char*>();
+    if (s) strncpy(settings->igc_pilot, s, sizeof(settings->igc_pilot)-1);
+    settings->igc_pilot[sizeof(settings->igc_pilot)-1] = '\0';
+  }
+
+  key = "igc_type";
+  if (root.containsKey(key)) {
+    const char *s = root[key].as<const char*>();
+    if (s) strncpy(settings->igc_type, s, sizeof(settings->igc_type)-1);
+    settings->igc_type[sizeof(settings->igc_type)-1] = '\0';
+  }
+
+  key = "igc_reg";
+  if (root.containsKey(key)) {
+    const char *s = root[key].as<const char*>();
+    if (s) strncpy(settings->igc_reg, s, sizeof(settings->igc_reg)-1);
+    settings->igc_reg[sizeof(settings->igc_reg)-1] = '\0';
+  }
+
+  /* fanet_name: stored in igc_cs (repurposed for FANET display name) */
+  key = "fanet_name";
+  if (root.containsKey(key)) {
+    const char *s = root[key].as<const char*>();
+    if (s) strncpy(settings->igc_cs, s, sizeof(settings->igc_cs)-1);
+    settings->igc_cs[sizeof(settings->igc_cs)-1] = '\0';
+  }
+
+  key = "debug_flags";
+  if (root.containsKey(key)) {
+    const char *s = root[key].as<const char*>();
+    if (s) settings->debug_flags = strtoul(s, NULL, 16);
+  }
+
+  /* sw_version is read-only / informational, not applied */
+}
+
+/* Write current settings to a JSON object in the supplied document.
+ * Returns true on success.
+ * Caller is responsible for serializing and writing to file.
+ */
+bool writeJSettings(JsonObject obj)
+{
+  char hexbuf[7];
+
+  obj["class"]    = "SOFTRF";
+
+  obj["protocol"] =
+    (settings->rf_protocol == RF_PROTOCOL_LEGACY)    ? "FLARM"  :
+    (settings->rf_protocol == RF_PROTOCOL_OGNTP)     ? "OGNTP"  :
+    (settings->rf_protocol == RF_PROTOCOL_P3I)       ? "P3I"    :
+    (settings->rf_protocol == RF_PROTOCOL_FANET)     ? "FANET"  :
+    (settings->rf_protocol == RF_PROTOCOL_ADSL)  ? "ADS-L"  : "FLARM";
+
+  obj["altprotocol"] =
+    (settings->altprotocol == RF_PROTOCOL_FANET)     ? "FANET"  : "NONE";
+
+  obj["band"] =
+    (settings->band == RF_BAND_EU) ? "EU" :
+    (settings->band == RF_BAND_US) ? "US" :
+    (settings->band == RF_BAND_AU) ? "AU" :
+    (settings->band == RF_BAND_NZ) ? "NZ" :
+    (settings->band == RF_BAND_RU) ? "RU" :
+    (settings->band == RF_BAND_CN) ? "CN" :
+    (settings->band == RF_BAND_UK) ? "UK" :
+    (settings->band == RF_BAND_IN) ? "IN" :
+    (settings->band == RF_BAND_IL) ? "IL" :
+    (settings->band == RF_BAND_KR) ? "KR" : "EU";
+
+  obj["aircraft_type"] =
+    (settings->acft_type == AIRCRAFT_TYPE_GLIDER)     ? "GLIDER"     :
+    (settings->acft_type == AIRCRAFT_TYPE_TOWPLANE)   ? "TOWPLANE"   :
+    (settings->acft_type == AIRCRAFT_TYPE_POWERED)    ? "POWERED"    :
+    (settings->acft_type == AIRCRAFT_TYPE_JET)        ? "JET"        :
+    (settings->acft_type == AIRCRAFT_TYPE_HELICOPTER) ? "HELICOPTER" :
+    (settings->acft_type == AIRCRAFT_TYPE_UAV)        ? "UAV"        :
+    (settings->acft_type == AIRCRAFT_TYPE_HANGGLIDER) ? "HANGGLIDER" :
+    (settings->acft_type == AIRCRAFT_TYPE_PARAGLIDER) ? "PARAGLIDER" :
+    (settings->acft_type == AIRCRAFT_TYPE_PARACHUTE)  ? "PARACHUTE"  :
+    (settings->acft_type == AIRCRAFT_TYPE_BALLOON)    ? "BALLOON"    :
+    (settings->acft_type == AIRCRAFT_TYPE_STATIC)     ? "STATIC"     : "GLIDER";
+
+  {
+    uint32_t aid = settings->aircraft_id ? settings->aircraft_id
+                 : ThisAircraft.addr     ? ThisAircraft.addr
+                 : (hw_info.model == SOFTRF_MODEL_CARD ||
+                    hw_info.model == SOFTRF_MODEL_POCKET)
+                   ? (0x880000 | (SoC->getChipId() & 0x000FFFFF))
+                   : (SoC->getChipId() & 0x00FFFFFF);
+    snprintf(hexbuf, sizeof(hexbuf), "%06X", (unsigned int)aid);
+  }
+  obj["aircraft_id"] = hexbuf;
+
+  obj["id_method"] =
+    (settings->id_method == ADDR_TYPE_RANDOM)    ? "RANDOM"    :
+    (settings->id_method == ADDR_TYPE_ICAO)      ? "ICAO"      :
+    (settings->id_method == ADDR_TYPE_ANONYMOUS) ? "ANONYMOUS" :
+    (settings->id_method == ADDR_TYPE_OVERRIDE)  ? "OVERRIDE"  : "DEVICE";
+
+  obj["alarm"] =
+    (settings->alarm == TRAFFIC_ALARM_NONE)     ? "NONE"     :
+    (settings->alarm == TRAFFIC_ALARM_DISTANCE) ? "DISTANCE" :
+    (settings->alarm == TRAFFIC_ALARM_VECTOR)   ? "VECTOR"   :
+    (settings->alarm == TRAFFIC_ALARM_LATEST)   ? "LATEST"   : "VECTOR";
+
+  obj["alarm_filter"] = "NONE";   /* not yet implemented in Moshe settings_t */
+
+  obj["txpower"] =
+    (settings->txpower == RF_TX_POWER_FULL) ? "FULL" :
+    (settings->txpower == RF_TX_POWER_LOW)  ? "LOW"  : "OFF";
+
+  obj["volume"] =
+    (settings->volume == BUZZER_VOLUME_FULL) ? "FULL" :
+    (settings->volume == BUZZER_VOLUME_LOW)  ? "LOW"  : "OFF";
+
+  snprintf(hexbuf, sizeof(hexbuf), "%06X", (unsigned int)settings->ignore_id);
+  obj["ignore_id"] = hexbuf;
+
+  obj["alarmlog"] = settings->logalarms ? "YES" : "NO";
+
+  obj["logflight"] =
+    (settings->logflight == FLIGHT_LOG_NONE)     ? "OFF"      :
+    (settings->logflight == FLIGHT_LOG_ALWAYS)   ? "ALWAYS"   :
+    (settings->logflight == FLIGHT_LOG_AIRBORNE) ? "AIRBORNE" :
+    (settings->logflight == FLIGHT_LOG_TRAFFIC)  ? "TRAFFIC"  : "AIRBORNE";
+
+  obj["loginterval"] = (int)settings->loginterval;
+
+  obj["igc_pilot"] = settings->igc_pilot;
+  obj["igc_type"]  = settings->igc_type;
+  obj["igc_reg"]   = settings->igc_reg;
+  /* fanet_name is stored in igc_cs */
+  obj["fanet_name"] = settings->igc_cs;
+
+  snprintf(hexbuf, sizeof(hexbuf), "%06X", (unsigned int)(settings->debug_flags & 0xFFFFFF));
+  obj["debug_flags"] = hexbuf;
+
+  /* firmware version stamp - informational, not parsed on load */
+  obj["sw_version"] = String(SOFTRF_IDENT) + "-" + String(SOFTRF_FIRMWARE_VERSION);
+
+  return true;
+}
+
+#endif /* ARDUINO_ARCH_NRF52 && USE_JSETTINGS */

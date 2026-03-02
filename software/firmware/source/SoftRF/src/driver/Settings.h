@@ -519,6 +519,13 @@ typedef union EEPROM_U {
 #define DEBUG_RELAY 0x800
 #define DEBUG_SIMULATE 0x800000
 
+/* Use JSON settings file (settings.json) instead of settings.txt
+ * Enabled for Seeed T1000E/CARD builds (-DSOFTRF_MODEL_T1000E in build_opt.h)
+ */
+#if defined(SOFTRF_MODEL_T1000E)
+#define USE_JSETTINGS
+#endif
+
 void Adjust_Settings(void);
 void Settings_setup(void);
 void Settings_defaults(bool keepsome);
@@ -529,6 +536,10 @@ bool format_setting(const int index, const bool comment, char *buf=NULL, size_t 
 void show_settings_serial(void);
 void save_settings_to_file(void);
 bool load_settings_from_file(void);
+#if defined(USE_JSETTINGS)
+void save_settings_to_json(void);
+bool load_settings_from_json(void);
+#endif
 const char *settings_message(const char *msg=NULL, const char *submsg=NULL, const int val=0);
 void do_test_mode(void);
 
@@ -537,6 +548,7 @@ enum stg_default {
     STG_EEPROM  = 1,
     STG_FILE    = 2
 };
+
 extern uint8_t settings_used;
 
 extern settings_t *settings;

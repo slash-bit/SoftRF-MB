@@ -217,6 +217,7 @@ struct rst_info {
   #define EXCLUDE_BMP280
   #define EXCLUDE_MPL3115A2
   #define EXCLUDE_SX1276
+  #define USE_JSETTINGS
   #undef  USE_EPAPER
   #undef  USE_EPD_TASK
   /* T1000E uses LR1110 radio */

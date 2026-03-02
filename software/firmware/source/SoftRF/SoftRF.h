@@ -38,6 +38,8 @@
 #define SOFTRF_FIRMWARE_VERSION "MB177"
 #define SOFTRF_IDENT            "SoftRF"
 #define SOFTRF_USB_FW_VERSION   0x0101
+#define SOFTRF_SUBVERSION       "VB008"
+#define SOFTRF_REVISION         "dev"
 
 #define ENTRY_EXPIRATION_TIME  30 /* seconds - was 17 - NMEA export limited further by 'expire' setting */
 #define NONDIR_EXPIRATION       5 /* seconds */

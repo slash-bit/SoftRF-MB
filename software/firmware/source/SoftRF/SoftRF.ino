@@ -231,12 +231,15 @@ void setup()
         || settings->id_method == ADDR_TYPE_RANDOM
         || settings->id_method == ADDR_TYPE_ANONYMOUS) {
     ThisAircraft.addr = 0;  /* will be filled in later */
-  } else if (settings->id_method == ADDR_TYPE_ICAO && settings->aircraft_id != 0) {
-    ThisAircraft.addr = settings->aircraft_id;
-  } else if (settings->id_method == ADDR_TYPE_OVERRIDE && settings->aircraft_id != 0) {
+  } else if (settings->aircraft_id != 0) {
+    /* aircraft_id set in settings (JSON/file/EEPROM) — use it regardless of id_method */
     ThisAircraft.addr = settings->aircraft_id;
   } else {
-    uint32_t id = SoC->getChipId() & 0x00FFFFFF;
+    uint32_t chipid = SoC->getChipId() & 0x00FFFFFF;
+    uint32_t id = (hw_info.model == SOFTRF_MODEL_CARD ||
+                   hw_info.model == SOFTRF_MODEL_POCKET)
+                  ? (0x880000 | (chipid & 0x000FFFFF))
+                  : chipid;
     ThisAircraft.addr = id;
   }
 Serial.printf("\r\nID_method: %d, settings_ID: %06X, used_ID: %06X\r\n\r\n",

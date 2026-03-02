@@ -31,6 +31,10 @@
 #include "../protocol/data/GDL90.h"
 #include "../protocol/data/D1090.h"
 //#include "../protocol/data/JSON.h"
+#if defined(USE_JSETTINGS)
+#include <ArduinoJson.h>
+#include "../protocol/data/JSON.h"
+#endif
 #include "Battery.h"
 
 #if defined(EXCLUDE_EEPROM)
@@ -683,9 +687,23 @@ void Settings_setup()
   // start with defaults, then overwrite from file or EEPROM
   Settings_defaults(false);
 
+#if defined(USE_JSETTINGS)
+  /* For T1000E/CARD: try settings.json first.
+   * If not present, fall through to settings.txt then EEPROM.
+   * On first boot from EEPROM/defaults, save_settings_to_json() is called
+   * at the end so subsequent boots use the JSON file.
+   */
+  if (load_settings_from_json()) {
+      return;
+  }
+#endif
+
   if (load_settings_from_file()) {
       //Serial.println(F("Current settings:"));
       //show_settings_serial();
+#if defined(USE_JSETTINGS)
+      save_settings_to_json();   // migrate settings.txt → settings.json
+#endif
       return;
   }
 
@@ -744,7 +762,11 @@ void Settings_setup()
 
   //show_settings_serial();
   Adjust_Settings();
-  save_settings_to_file();  // save to a file, next boot will read from the file
+#if defined(USE_JSETTINGS)
+  save_settings_to_json();  // save to settings.json, next boot will read from there
+#else
+  save_settings_to_file();  // save to settings.txt, next boot will read from the file
+#endif
 }
 
 void Settings_defaults(bool keepsome)
@@ -765,6 +787,9 @@ void Settings_defaults(bool keepsome)
 #endif
     settings->acft_type   = hw_info.model == SOFTRF_MODEL_BRACELET ?
                                                 AIRCRAFT_TYPE_STATIC :
+                            hw_info.model == SOFTRF_MODEL_CARD ||
+                            hw_info.model == SOFTRF_MODEL_POCKET ?
+                                                AIRCRAFT_TYPE_PARAGLIDER :
                                                 AIRCRAFT_TYPE_GLIDER;
     settings->id_method   = ADDR_TYPE_FLARM;
     settings->aircraft_id = 0;
@@ -774,14 +799,18 @@ void Settings_defaults(bool keepsome)
     settings->nmea_out    = DEST_USB;
     settings->nmea_out2   = DEST_NONE;
 #else
-    settings->nmea_out    = hw_info.model == SOFTRF_MODEL_BADGE ?
+    settings->nmea_out    = hw_info.model == SOFTRF_MODEL_BADGE || 
+                            hw_info.model == SOFTRF_MODEL_CARD ||
+                            hw_info.model == SOFTRF_MODEL_POCKET ?
                                              DEST_BLUETOOTH :
                                           (hw_info.model == SOFTRF_MODEL_PRIME ?
                                              DEST_UDP :
                                           (hw_info.model == SOFTRF_MODEL_PRIME_MK2 ?
                                              DEST_UDP :
                                            DEST_UART));
-    settings->nmea_out2   = hw_info.model == SOFTRF_MODEL_BADGE ?
+    settings->nmea_out2   = hw_info.model == SOFTRF_MODEL_BADGE ||
+                            hw_info.model == SOFTRF_MODEL_CARD ||
+                            hw_info.model == SOFTRF_MODEL_POCKET ?
                                              DEST_USB :
                                           (hw_info.model == SOFTRF_MODEL_PRIME ?
                                              DEST_UART :
@@ -797,11 +826,19 @@ void Settings_defaults(bool keepsome)
     settings->nmea_d  = 0;
     settings->nmea_e  = 0;
 
-    settings->nmea2_g = NMEA_BASIC;
+        settings->nmea2_g =  hw_info.model == SOFTRF_MODEL_CARD ||
+                            hw_info.model == SOFTRF_MODEL_POCKET ?
+                                        0 : NMEA_BASIC;
     settings->nmea2_p = 0;
-    settings->nmea2_t = NMEA_BASIC;
-    settings->nmea2_s = NMEA_BASIC;
-    settings->nmea2_d = 0;
+    settings->nmea2_t = hw_info.model == SOFTRF_MODEL_CARD ||
+                        hw_info.model == SOFTRF_MODEL_POCKET ?
+                                        0 : NMEA_BASIC;
+    settings->nmea2_s = hw_info.model == SOFTRF_MODEL_CARD ||
+                        hw_info.model == SOFTRF_MODEL_POCKET ?
+                                        0 : NMEA_BASIC;;
+    settings->nmea2_d = hw_info.model == SOFTRF_MODEL_CARD ||
+                        hw_info.model == SOFTRF_MODEL_POCKET ?
+                                        NMEA_BASIC : 0;
     settings->nmea2_e = 0;
 
 #if defined(ARDUINO_ARCH_NRF52)
@@ -855,10 +892,12 @@ void Settings_defaults(bool keepsome)
   // otherwise keep those settings from the previous version
 
   // move volume back above next time
-    if (hw_info.model == SOFTRF_MODEL_STANDALONE
-     || hw_info.model == SOFTRF_MODEL_PRIME) {
+    if (hw_info.model == SOFTRF_MODEL_STANDALONE ||
+        hw_info.model == SOFTRF_MODEL_PRIME) {
       settings->volume  = BUZZER_OFF;
-    } else if (hw_info.model == SOFTRF_MODEL_PRIME_MK2) {
+    } else if (hw_info.model == SOFTRF_MODEL_PRIME_MK2 ||
+                        hw_info.model == SOFTRF_MODEL_CARD ||
+                        hw_info.model == SOFTRF_MODEL_POCKET) {
       settings->volume  = BUZZER_VOLUME_FULL;
     } else {
       settings->volume  = BUZZER_OFF;
@@ -1228,6 +1267,104 @@ bool load_settings_from_file()
     Adjust_Settings();
     return true;
 }
+
+#if defined(USE_JSETTINGS)
+
+/* Save current settings to /settings.json on the flash filesystem.
+ * If the file already exists it is overwritten.
+ * The JSON document size is chosen to fit all relevant fields.
+ */
+void save_settings_to_json()
+{
+  if (!FS_is_mounted) {
+    Serial.println(F("JSON: file system not mounted"));
+    return;
+  }
+  Serial.println(F("Saving settings to settings.json ..."));
+
+  StaticJsonDocument<1024> doc;
+  JsonObject root = doc.to<JsonObject>();
+
+  if (!writeJSettings(root)) {
+    Serial.println(F("JSON: writeJSettings failed"));
+    return;
+  }
+
+  if (FILESYS.exists("/settings.json"))
+    FILESYS.remove("/settings.json");
+
+  File f = FILESYS.open("/settings.json", FILE_WRITE);
+  if (!f) {
+    Serial.println(F("JSON: failed to open settings.json for writing"));
+    return;
+  }
+
+  size_t n = serializeJsonPretty(doc, f);
+  f.close();
+
+  if (n == 0) {
+    Serial.println(F("JSON: error writing settings.json"));
+    FILESYS.remove("/settings.json");
+  } else {
+    Serial.println(F("... OK"));
+  }
+}
+
+/* Load settings from /settings.json.
+ * Applies defaults first, then overlays values found in the JSON.
+ * Returns true if the file was found and successfully parsed.
+ */
+bool load_settings_from_json()
+{
+  if (!FS_is_mounted) {
+    Serial.println(F("JSON: file system not mounted"));
+    return false;
+  }
+  if (!FILESYS.exists("/settings.json")) {
+    Serial.println(F("File settings.json does not exist"));
+    return false;
+  }
+
+  File f = FILESYS.open("/settings.json", FILE_READ);
+  if (!f) {
+    Serial.println(F("JSON: failed to open settings.json"));
+    return false;
+  }
+
+  StaticJsonDocument<1024> doc;
+  DeserializationError err = deserializeJson(doc, f);
+  f.close();
+
+  if (err) {
+    Serial.print(F("JSON: parse error: "));
+    Serial.println(err.c_str());
+    FILESYS.remove("/settings.json");
+    return false;
+  }
+
+  if (!doc.containsKey("class") || strcmp(doc["class"], "SOFTRF") != 0) {
+    Serial.println(F("JSON: missing or invalid 'class' field"));
+    FILESYS.remove("/settings.json");
+    return false;
+  }
+
+  Settings_defaults(false);
+  parseJSettings(doc.as<JsonObject>());
+  Adjust_Settings();
+
+  settings_used = STG_FILE;
+  settings_message("Loaded settings from settings.json");
+  Serial.println(settings_message());
+
+  /* If the file does not yet contain a firmware version stamp, rewrite it
+   * so the saved file reflects the running firmware version. */
+  if (!doc.containsKey("sw_version"))
+    save_settings_to_json();
+
+  return true;
+}
+
+#endif /* USE_JSETTINGS */
 
 #endif /* FILESYS */
 

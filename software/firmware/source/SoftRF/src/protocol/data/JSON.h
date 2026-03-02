@@ -87,4 +87,9 @@ extern void parsePING(JsonObject);
 extern void parseRAW(JsonObject);
 extern byte getVal(char);
 
+#if defined(USE_JSETTINGS)
+extern void parseJSettings(JsonObject);
+extern bool writeJSettings(JsonObject);
+#endif
+
 #endif /* JSONHELPER_H */
