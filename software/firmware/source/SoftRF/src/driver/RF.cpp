@@ -4134,6 +4134,95 @@ static void lr11xx_resetup()
   // Serial.println(" ms");
 }
 
+/* Test function: cycle through 8-byte syncword candidates via button double-click.
+ * Tests what first byte(s) XC Tracer actually transmits before {99 A5 A9 55 66 65 96}.
+ * We know XC Tracer transmits 0x99 onwards. The question is what comes before it.
+ * SX1262 preamble could be 0x55 or 0xAA depending on first sync byte polarity.
+ *
+ * Config 0: {AA 99 A5 A9 55 66 65 96}  — preamble=0xAA theory (most likely)
+ * Config 1: {55 99 A5 A9 55 66 65 96}  — original FLARM (NRF905 preamble=0x55)
+ * Config 2: {AA AA 99 A5 A9 55 66 65}  — two 0xAA preamble bytes before 0x99
+ *                                         (truncated to 8, drops last byte 0x96)
+ * Config 3: {55 55 99 A5 A9 55 66 65}  — two 0x55 preamble bytes before 0x99
+ * Config 4: {99 A5 A9 55 66 65 96 00}  — 7-byte match padded (no prefix)
+ * Config 5: 6 bytes {A5 A9 55 66 65 96} — known working (baseline)
+ */
+static int sw_test_config = -1;  /* starts at -1, first click goes to 0 */
+
+void lr11xx_test_cycle_syncword()
+{
+  if (lr11xx_radio == nullptr || curr_rx_protocol_ptr == nullptr) {
+    Serial.println(F("[LR1110] SW test: radio or protocol not ready"));
+    return;
+  }
+
+  /* Only applies to FSK protocols with long syncwords (Legacy/LATEST) */
+  if (curr_rx_protocol_ptr->syncword_size <= 2) {
+    Serial.println(F("[LR1110] SW test: not a long-syncword protocol"));
+    return;
+  }
+
+  sw_test_config = (sw_test_config + 1) % 6;
+
+  /* All candidates are 8 bytes except config 4 (7 bytes) and 5 (6 bytes) */
+  static uint8_t sw_buf[8];
+  int sw_len;
+
+  switch (sw_test_config) {
+    case 0:  /* {AA 99 A5 A9 55 66 65 96} — preamble=0xAA + original sync */
+      sw_buf[0] = 0xAA;
+      memcpy(&sw_buf[1], &curr_rx_protocol_ptr->syncword[1], 7);
+      sw_len = 8;
+      break;
+    case 1:  /* {55 99 A5 A9 55 66 65 96} — original full syncword */
+      memcpy(sw_buf, curr_rx_protocol_ptr->syncword, 8);
+      sw_len = 8;
+      break;
+    case 2:  /* {AA AA 99 A5 A9 55 66 65} — two 0xAA + sync from 0x99, 8 bytes */
+      sw_buf[0] = 0xAA;
+      sw_buf[1] = 0xAA;
+      memcpy(&sw_buf[2], &curr_rx_protocol_ptr->syncword[1], 6);
+      sw_len = 8;
+      break;
+    case 3:  /* {55 55 99 A5 A9 55 66 65} — two 0x55 + sync from 0x99, 8 bytes */
+      sw_buf[0] = 0x55;
+      sw_buf[1] = 0x55;
+      memcpy(&sw_buf[2], &curr_rx_protocol_ptr->syncword[1], 6);
+      sw_len = 8;
+      break;
+    case 4:  /* 7 bytes: {99 A5 A9 55 66 65 96} — known working */
+      memcpy(sw_buf, &curr_rx_protocol_ptr->syncword[1], 7);
+      sw_len = 7;
+      break;
+    case 5:  /* 6 bytes: {A5 A9 55 66 65 96} — known working baseline */
+      memcpy(sw_buf, &curr_rx_protocol_ptr->syncword[2], 6);
+      sw_len = 6;
+      break;
+  }
+
+  /* Put radio in standby, change syncword, restart receive */
+  lr11xx_radio->standby(RADIOLIB_LR11X0_STANDBY_RC);
+
+  int state = lr11xx_radio->setSyncWord(sw_buf, (size_t) sw_len);
+
+  lr11xx_receive_active = false;
+  lr11xx_radio->startReceive();
+  lr11xx_receive_active = true;
+
+  Serial.print(F("[LR1110] SW test config "));
+  Serial.print(sw_test_config);
+  Serial.print(F(": len="));
+  Serial.print(sw_len);
+  Serial.print(F(" bytes: "));
+  for (int i = 0; i < sw_len; i++) {
+    if (sw_buf[i] < 0x10) Serial.print('0');
+    Serial.print(sw_buf[i], HEX);
+    if (i < sw_len - 1) Serial.print(' ');
+  }
+  Serial.print(F(" state="));
+  Serial.println(state);
+}
+
 static void lr11xx_standby()
 {
 #if USE_LR11XX

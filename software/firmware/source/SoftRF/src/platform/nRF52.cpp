@@ -2238,6 +2238,8 @@ void handleEvent(AceButton* button, uint8_t eventType,
 #else
         if (eventType == AceButton::kEventDoubleClicked) {
           Serial.println(F("kEventDoubleClicked."));
+          extern void lr11xx_test_cycle_syncword();
+          lr11xx_test_cycle_syncword();
         }
 #endif
       }
