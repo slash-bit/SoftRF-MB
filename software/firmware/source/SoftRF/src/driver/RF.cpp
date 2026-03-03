@@ -2526,10 +2526,10 @@ byte RF_setup(void)
 void RF_chip_channel(uint8_t protocol)
 {
     uint8_t OGN = useOGNfreq(protocol);
-    Serial.printf("[RF_chip_channel] protocol=%d, OGN=%d\r\n", protocol, OGN);
+    // Serial.printf("[RF_chip_channel] protocol=%d, OGN=%d\r\n", protocol, OGN);
     RF_current_chan = RF_FreqPlan.getChannel((time_t)RF_time, RF_current_slot, OGN);
-    Serial.printf("[RF_chip_channel] RF_time=%lu, RF_current_slot=%d, RF_current_chan=%d\r\n",
-        (unsigned long)RF_time, RF_current_slot, RF_current_chan);
+    // Serial.printf("[RF_chip_channel] RF_time=%lu, RF_current_slot=%d, RF_current_chan=%d\r\n",
+        // (unsigned long)RF_time, RF_current_slot, RF_current_chan);
     if (rf_chip)
         rf_chip->channel(RF_current_chan);
 }
@@ -3393,10 +3393,6 @@ static bool lr11xx_probe()
 
 static void lr11xx_channel(uint8_t channel)
 {
-  Serial.print("[LR11XX] Setting channel: ");
-  Serial.print(channel);
-  Serial.print("   Previous channel: ");
-  Serial.println(lr11xx_channel_prev);
   if (channel != -1 && channel != lr11xx_channel_prev) {
     uint32_t frequency = RF_FreqPlan.getChanFrequency((uint8_t) channel);
     int8_t fc = settings->freq_corr;
@@ -3815,6 +3811,7 @@ static void lr11xx_transmit()
   switch (curr_rx_protocol_ptr->type)
   {
   case RF_PROTOCOL_LEGACY:
+  case RF_PROTOCOL_LATEST:
     /* take in account NRF905/FLARM "address" bytes */
     crc16 = update_crc_ccitt(crc16, 0x31);
     crc16 = update_crc_ccitt(crc16, 0xFA);
@@ -3911,8 +3908,22 @@ static void lr11xx_transmit()
 
   // Serial.print("[LR1110] TX: RL_txPacket.len = ");
   // Serial.println(RL_txPacket.len);
-
-  int state = lr11xx_radio->transmit((uint8_t *) &RL_txPacket.payload, (size_t) RL_txPacket.len);
+  // TX syncword: send full 8 bytes including leading 0x55
+  int sw_skip = curr_rx_protocol_ptr->syncword_skip;
+  int state = lr11xx_radio->setSyncWord(
+          (uint8_t *) &curr_rx_protocol_ptr->syncword[0],
+          (size_t)    (curr_rx_protocol_ptr->syncword_size));
+  state = lr11xx_radio->transmit((uint8_t *) &RL_txPacket.payload, (size_t) RL_txPacket.len);
+  // Restore RX syncword (skip 2 bytes: 0x55, 0x99) so XC Tracer packets are still received
+  lr11xx_radio->setSyncWord(
+          (uint8_t *) &curr_rx_protocol_ptr->syncword[sw_skip],
+          (size_t)    (curr_rx_protocol_ptr->syncword_size - sw_skip));
+  // setSyncWord() clobbers fixedPacketLengthMode — must restore for RX
+  size_t pkt_size = curr_rx_protocol_ptr->payload_offset + curr_rx_protocol_ptr->payload_size +
+                    curr_rx_protocol_ptr->crc_size;
+  if (curr_rx_protocol_ptr->whitening == RF_WHITENING_MANCHESTER)
+      pkt_size += pkt_size;
+  lr11xx_radio->fixedPacketLengthMode(pkt_size);
   // Serial.print("[LR1110] transmit() returned state = ");
   // Serial.println(state);
 
