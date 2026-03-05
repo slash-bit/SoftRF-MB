@@ -223,6 +223,7 @@ struct rst_info {
   /* T1000E uses LR1110 radio */
   #define USE_RADIOLIB
   #define USE_LR1110
+  #define USE_LK8EX1
 #else
   /* Default for other nRF52 boards (e.g., T-Echo with E-Paper) */
   #define USE_EPAPER

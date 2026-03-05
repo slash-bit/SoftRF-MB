@@ -363,8 +363,12 @@ static void nRF52_system_off()
   if ( sd_en ) {
     sd_power_system_off();
   } else {
+    __disable_irq();
     NRF_POWER->SYSTEMOFF = 1;
   }
+
+  // Should never reach here after SYSTEMOFF
+  while(1);
 #else
   NRF_POWER->SYSTEMOFF = 1;
   while(1);
@@ -1230,12 +1234,6 @@ static void nRF52_fini(int reason)
 
       digitalWrite(SOC_GPIO_LED_T1000_GREEN, 1-LED_STATE_ON);
       pinMode(SOC_GPIO_PIN_SFL_T1000_EN,    INPUT);
-      pinMode(SOC_GPIO_PIN_SFL_T1000_WP,    INPUT);
-      pinMode(SOC_GPIO_PIN_SFL_T1000_HOLD,  INPUT);
-      pinMode(SOC_GPIO_PIN_SFL_T1000_SS,    INPUT);
-      pinMode(SOC_GPIO_PIN_SFL_T1000_MOSI,  INPUT);
-      pinMode(SOC_GPIO_PIN_SFL_T1000_MISO,  INPUT);
-      pinMode(SOC_GPIO_PIN_SFL_T1000_SCK,   INPUT);
       pinMode(SOC_GPIO_LED_T1000_GREEN,     INPUT);
       break;
     case NRF52_ELECROW_TN_M3:
@@ -1323,25 +1321,13 @@ static void nRF52_fini(int reason)
                            nRF52_board == NRF52_SEEED_T1000E       ? INPUT_PULLDOWN :
                            INPUT);
 
-  // Wait for button release before entering SYSTEMOFF, otherwise the
-  // SENSE condition is already met and the nRF52 wakes up immediately.
-  // Feed the watchdog inside the loop to prevent WDT reset.
-#if !defined(ARDUINO_ARCH_MBED) && !defined(ARDUINO_ARCH_ZEPHYR)
-  while (digitalRead(mode_button_pin) == (nRF52_board == NRF52_SEEED_T1000E ? HIGH : LOW)) {
-    if (nrf_wdt_started(NRF_WDT)) {
-      Watchdog.reset();
-    }
-    delay(10);
-  }
-#else
-  while (digitalRead(mode_button_pin) == (nRF52_board == NRF52_SEEED_T1000E ? HIGH : LOW)) {
-    delay(10);
-  }
-#endif
+  while (digitalRead(mode_button_pin) == (nRF52_board == NRF52_SEEED_T1000E ? HIGH : LOW));
   delay(100);
 
 #if defined(USE_TINYUSB)
-  Serial1.end();
+  if (nRF52_board != NRF52_SEEED_T1000E) {
+    Serial1.end();
+  }
 
   // pinMode(SOC_GPIO_PIN_CONS_RX, INPUT);
   // pinMode(SOC_GPIO_PIN_CONS_TX, INPUT);

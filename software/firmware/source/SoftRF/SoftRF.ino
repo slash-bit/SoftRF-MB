@@ -416,17 +416,20 @@ void shutparts()
   SoC->WDT_fini();
   if (SoC->Bluetooth_ops)
      SoC->Bluetooth_ops->fini();
+  SoC->WDT_fini();
   closeFlightLog();
   if (AlarmLogOpen)
     AlarmLog.close();
 #if defined(USE_SD_CARD)
   closeSDlog();
 #endif
+  SoC->WDT_fini();
 #if !defined(SERIAL_FLUSH)
 #define SERIAL_FLUSH()       Serial.flush()
 #endif
   SERIAL_FLUSH();
   SoC->swSer_enableRx(false);
+  SoC->WDT_fini();
 #if defined(ESP32)
   Voice_fini();
   Buzzer_fini();
@@ -436,21 +439,26 @@ void shutparts()
   WiFi_fini();
 #endif
   RF_Shutdown();
+  SoC->WDT_fini();
   if (SoC->USB_ops)
      SoC->USB_ops->fini();
+  SoC->WDT_fini();
   if (settings->mode != SOFTRF_MODE_UAV)
     GNSS_fini();
+  SoC->WDT_fini();
   delay(1000);
 }
 
 void shutdown(int reason)
 {
-//Serial.println("shutdown()...");
   shutparts();
+  SoC->WDT_fini();
 #if !defined(SOFTRF_NRF52_T1000E) || !defined(SOFTRF_NRF52_M3)
   SoC->Display_fini(reason);
 #endif
+  SoC->WDT_fini();
   SoC->Button_fini();
+  SoC->WDT_fini();
   SoC_fini(reason);
 }
 

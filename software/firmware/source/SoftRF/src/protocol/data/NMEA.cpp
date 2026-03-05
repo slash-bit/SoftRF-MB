@@ -1107,7 +1107,7 @@ void NMEA_loop()
                altitude, isValidGNSSFix() ? '3' : '1'); /* feet , 3D fix */
     NMEAOutC(NMEA_S);
 
-#if 0
+#if defined(USE_LK8EX1)
 // moved to baro_loop()
 #if !defined(EXCLUDE_LK8EX1)
     char str_Vcc[6];
