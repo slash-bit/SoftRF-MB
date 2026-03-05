@@ -1150,6 +1150,7 @@ static void bt_app_av_state_disconnecting(uint16_t event, void *param)
 #include "Baro.h"
 #include "Settings.h"
 #include "Buzzer.h"
+#include <SenseCAP.h>
 #include "../protocol/data/NMEA.h"
 #include "../protocol/data/GDL90.h"
 #include "../protocol/data/D1090.h"
@@ -1280,7 +1281,9 @@ bool BLESensBox::notify_sys(uint8_t status)
   sensbox_system_t data = {0};
 
   data.battery   = (uint8_t) Battery_charge();
-  data.temp      = (int16_t) (Baro_temperature() * 10);
+  data.temp      = (hw_info.model == SOFTRF_MODEL_CARD) ?
+                     t1000e_ntc_sample() :
+                     (int16_t) (Baro_temperature() * 10);
   data.status    = status;
 
   return _sensbox_sys.notify(&data, sizeof(sensbox_system_t)) > 0;

@@ -46,6 +46,9 @@
 #include "../../driver/Filesys.h"
 #include "IGC.h"
 #include "../../TrafficHelper.h"
+#if defined(ARDUINO_ARCH_NRF52)
+#include <SenseCAP.h>
+#endif
 
 #if defined(USE_SD_CARD)
 #include <SD.h>
@@ -1107,24 +1110,23 @@ void NMEA_loop()
                altitude, isValidGNSSFix() ? '3' : '1'); /* feet , 3D fix */
     NMEAOutC(NMEA_S);
 
-#if defined(USE_LK8EX1)
-// moved to baro_loop()
-#if !defined(EXCLUDE_LK8EX1)
-    char str_Vcc[6];
-    dtostrf(Battery_voltage(), 3, 1, str_Vcc);
-
-    snprintf_P(NMEABuffer, sizeof(NMEABuffer), PSTR("$LK8EX1,999999,%d,%d,%d,%s*"),
-            constrain((int) ThisAircraft.pressure_altitude, -1000, 99998), /* meters */
-            (int) ((ThisAircraft.vs * 100) / (_GPS_FEET_PER_METER * 60)),  /* cm/s   */
-            constrain((int) Baro_temperature(), -99, 98),                  /* deg. C */
-            str_Vcc);
-    NMEAOutC(NMEA_S_LK8);
-
-#endif /* EXCLUDE_LK8EX1 */
-#endif
-
     PGRMZ_TimeMarker = millis();
   }
+
+#if defined(USE_LK8EX1)
+// T1000E has no baro but has NTC temperature sensor
+#if !defined(EXCLUDE_LK8EX1)
+  if (isTimeToPGRMZ()) {
+    snprintf_P(NMEABuffer, sizeof(NMEABuffer), PSTR("$LK8EX1,999999,%d,%d,%d,%d*"),
+            constrain((int) ThisAircraft.pressure_altitude, -1000, 99998), /* meters */
+            (int) ((ThisAircraft.vs * 100) / (_GPS_FEET_PER_METER * 60)),  /* cm/s   */
+            constrain((int) (t1000e_ntc_sample() / 10), -99, 98),         /* deg. C */
+            1000 + (int) Battery_charge());
+    NMEAOutC(NMEA_S_LK8);
+    PGRMZ_TimeMarker = millis();
+  }
+#endif /* EXCLUDE_LK8EX1 */
+#endif
 
 #if defined(ENABLE_AHRS)
   if (((settings->nmea_s  | settings->nmea2_s) & NMEA_S_AHRS) && isTimeToRPYL()) {
@@ -1241,8 +1243,14 @@ void NMEA_Export()
       // - just to report the battery charge percentage
       // - LK8000 specs say to send percent instead of volts send as an integer, percent+1000
       if (baro_chip == NULL) {
+#if defined(ARDUINO_ARCH_NRF52)
+          snprintf_P(NMEABuffer, sizeof(NMEABuffer), PSTR("$LK8EX1,999999,99999,9999,%d,%d*"),
+              constrain((int) (t1000e_ntc_sample() / 10), -99, 98),
+              1000+(int)Battery_charge());
+#else
           snprintf_P(NMEABuffer, sizeof(NMEABuffer), PSTR("$LK8EX1,999999,99999,9999,99,%d*"),
               1000+(int)Battery_charge());
+#endif
           NMEAOutC(NMEA_S_LK8);
       }
     }

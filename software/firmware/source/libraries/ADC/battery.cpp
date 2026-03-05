@@ -1,4 +1,4 @@
-
+#if defined(ESP32)
 #include <esp32-hal-log.h>
 #include <soc/adc_channel.h>
 #include <Arduino.h>
@@ -55,3 +55,4 @@ uint16_t read_voltage() {
   ESP_LOGD(TAG, "Raw: %d / Voltage: %dmV", adc_reading, voltage);
   return voltage;
 }
+#endif /* ESP32 */

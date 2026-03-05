@@ -822,7 +822,11 @@ void Settings_defaults(bool keepsome)
     settings->nmea_g  = NMEA_BASIC;
     settings->nmea_p  = 0;
     settings->nmea_t  = NMEA_BASIC;
-    settings->nmea_s  = NMEA_BASIC;
+    settings->nmea_s  = NMEA_BASIC
+#if !defined(EXCLUDE_LK8EX1)
+                      | (NMEA_S_LK8 & 0xFF)
+#endif
+                      ;
     settings->nmea_d  = 0;
     settings->nmea_e  = 0;
 
