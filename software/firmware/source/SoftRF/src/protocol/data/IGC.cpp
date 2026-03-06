@@ -50,8 +50,8 @@ size_t PSRAMbufUsed2 = 0;
 bool suspended = false;
 #endif
 
-char FlightLogPath[20] = {'\0'};
-char compfilename[16];
+char FlightLogPath[48] = {'\0'};
+char compfilename[48];
 File FlightLog, compfile;
 bool FlightLogOpen = false;    // means log is in process, but the *file* may be closed
 bool compfileOpen = false;   // means log is in process, but the *file* may be closed
@@ -134,18 +134,21 @@ bool decompressfile(char *filename)
         Serial.println("Not enough file space for decompression");
         return false;
     }
+    // find bare filename after last '/'
+    const char *bn = strrchr(filename, '/');
+    bn = bn ? bn + 1 : filename;
     char sfn[8];
-    sfn[0]=filename[1];
-    sfn[1]=filename[2];
-    sfn[2]=filename[3];
+    sfn[0]=bn[0];
+    sfn[1]=bn[1];
+    sfn[2]=bn[2];
     sfn[3]='_';
-    sfn[4]=filename[8];
+    sfn[4]=bn[7];
     sfn[5]='\0';
 #if defined(USE_EPAPER)
     EPD_Message("DECOMP", sfn);
     delay(500);
 #endif
-    char outfilename[24];
+    char outfilename[28];
     strcpy(outfilename,filename);
     outfilename[strlen(outfilename)-1] = 'C';   // overwriting 'X'
     File outfile = IGCFILESYS.open(outfilename, FILE_WRITE);
@@ -320,26 +323,34 @@ void FlightLog_setup()
 #if defined(ARDUINO_ARCH_NRF52)
 void FlightLog_decomp()
 {
-    // if there are xxxxxxxx.IGX files, decompress them (if there is enough space)
+    // if there are .IGX files, decompress them (if there is enough space)
     Serial.println(F("Looking for .IGX files..."));
-    File root = IGCFILESYS.open("/");
+#if defined(SOFTRF_NRF52_T1000E)
+    const char *logdir = "/Tracklogs";
+    const char *prefix = "/Tracklogs/";
+#else
+    const char *logdir = "/";
+    const char *prefix = "/";
+#endif
+    File root = IGCFILESYS.open(logdir);
     if (! root) {
-        Serial.println(F("Cannot open IGCFILESYS root"));
+        Serial.println(F("Cannot open IGCFILESYS log dir"));
         return;
     }
-    char fn[20];
-    fn[0] = '/';
+    char fn[48];
+    int prefixlen = strlen(prefix);
+    strcpy(fn, prefix);
     bool any_decomp = false;
     File file = root.openNextFile();
     for (; file; file=root.openNextFile()) {
         if (file.isDirectory())
             continue;
-        //strncpy(&fn[1], file.name(), 19);
-        file.getName(fn+1,19);
+        file.getName(fn + prefixlen, sizeof(fn) - prefixlen);
         Serial.println(fn);
-        if (strlen(fn) != 13)   // including the '/'
+        int namelen = strlen(fn + prefixlen);
+        if (namelen < 5)   // must have at least X.IGX
             continue;
-        if (strncmp(fn+9,".IGX",4) == 0) {
+        if (strcmp(fn + prefixlen + namelen - 4, ".IGX") == 0) {
             Serial.println(F("- try decompress this one..."));
             file.close();
             if (! data_block_buf)
@@ -348,7 +359,7 @@ void FlightLog_decomp()
                 any_decomp = true;
             //else
             //    EPD_Message("DECOMP", "FAILED");
-            delay(500);    
+            delay(500);
         }
     }
     file.close();
@@ -406,9 +417,9 @@ void reopenFlightLog()
         if (compfileOpen) {
             if (FILESYS_free_kb() < limit) {   // flash almost full, stop logging into it
                 compfileOpen = false;
-                char buf[16];
+                char buf[48];
                 strcpy(buf,compfilename);
-                buf[8] = '_';    // rename /xxxxxxx1.IGZ /xxxxxxx_.IGZ
+                buf[strlen(buf) - 5] = '_';    // rename /xxxxxxx1.IGZ /xxxxxxx_.IGZ
                 FILESYS.rename(compfilename,buf);
                 Serial.print("flash almost full, renamed ");
                 Serial.print(compfilename);
@@ -764,6 +775,23 @@ void makeLogNameDate(char *p)
 
 void makeFlightLogName()
 {
+#if defined(SOFTRF_NRF52_T1000E)
+    // T1000E: SOFTRF_YYYY-MM-DD-HH-MM.IGC in /Tracklogs/
+    char buf[48];
+    snprintf(buf, sizeof(buf), "/Tracklogs/SOFTRF_%04d-%02d-%02d-%02d-%02d.IGC",
+             gnss.date.year(), gnss.date.month(), gnss.date.day(),
+             gnss.time.hour(), gnss.time.minute());
+    strcpy(compfilename, buf);
+    int cfnlen = strlen(compfilename);
+    compfilename[cfnlen - 1] = 'Z';   // .IGZ means compressed
+    if (IGCFILESYS.exists(buf) || IGCFILESYS.exists(compfilename)) {
+        Serial.print(buf);
+        Serial.println(" already exists, overwriting");
+        IGCFILESYS.remove(buf);
+        IGCFILESYS.remove(compfilename);
+    }
+    strcpy(FlightLogPath, buf);
+#else
     char buf[8];
     makeLogNameDate(buf);
     buf[3] = 'X';
@@ -775,7 +803,7 @@ void makeFlightLogName()
     if (PSRAMbuf)
         basename = "/";
 #else
-    String basename = "/";  // BASEPATH;
+    String basename = "/";
 #endif
     basename += buf;
     int flightnum = 1;
@@ -784,7 +812,8 @@ void makeFlightLogName()
     filename += flightn;
     filename += ".IGC";
     strcpy(compfilename, filename.c_str());
-    compfilename[12] = 'Z';   // .IGZ means compressed
+    int cfnlen = strlen(compfilename);
+    compfilename[cfnlen - 1] = 'Z';   // .IGZ means compressed
 #if defined(ESP32)
     const char *fn = (PSRAMbuf? compfilename : filename.c_str());
     while (PSRAMbuf? SPIFFS.exists(fn) : SD.exists(fn))
@@ -816,9 +845,10 @@ void makeFlightLogName()
         filename = basename;
         filename += flightn;
         filename += ".IGC";
-        compfilename[8] = flightn;
+        compfilename[cfnlen - 5] = flightn;
     }
     strcpy(FlightLogPath, filename.c_str());
+#endif
     Serial.print("New flight log: ");
     Serial.println(FlightLogPath);
 }
@@ -856,6 +886,8 @@ bool writeIGCHeader()
     igc_file_append_nonconst(buf);
 #if defined(ESP32)
     igc_file_append_const("HFRHWHARDWAREVERSION: T-Beam\r\n");
+#elif defined(SOFTRF_NRF52_T1000E)
+    igc_file_append_const("HFRHWHARDWAREVERSION: T1000-E Card\r\n");
 #elif defined(ARDUINO_ARCH_NRF52)
     igc_file_append_const("HFRHWHARDWAREVERSION: T-Echo\r\n");
 #endif
@@ -898,7 +930,17 @@ bool eraseOldestFlightLog()
     String oldestlog = "~";
     int found = 0;
     // find oldest file by alphabetical order of file name
-    File root = FILESYS.open("/");
+#if defined(SOFTRF_NRF52_T1000E)
+    const char *logdir = "/Tracklogs";
+    const char *logprefix = "/Tracklogs/";
+#elif defined(ARDUINO_ARCH_NRF52)
+    const char *logdir = "/";
+    const char *logprefix = "/";
+#else
+    const char *logdir = "/";
+    const char *logprefix = "/";
+#endif
+    File root = FILESYS.open(logdir);
     if (! root)
         return false;
     File file = root.openNextFile();
@@ -925,7 +967,7 @@ bool eraseOldestFlightLog()
     }
     Serial.print("Removing ");
     Serial.println(oldestlog);
-    oldestlog = "/" + oldestlog;
+    oldestlog = String(logprefix) + oldestlog;
     FILESYS.remove(oldestlog.c_str());
     return true;
 }

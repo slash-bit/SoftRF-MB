@@ -297,7 +297,15 @@ uint32_t FILESYS_free_kb()
 
 #if defined(ARDUINO_ARCH_NRF52)
 
-void Filesys_setup() {}   // nothing needs to be done, fatfs was already mounted in SoC setup
+void Filesys_setup() {
+  // fatfs was already mounted in SoC setup
+#if defined(SOFTRF_NRF52_T1000E)
+  if (FS_is_mounted) {
+    if (! FILESYS.exists("/Tracklogs"))
+      FILESYS.mkdir("/Tracklogs");
+  }
+#endif
+}
 
 // get free space in FATFS
 uint32_t FILESYS_free_kb()
