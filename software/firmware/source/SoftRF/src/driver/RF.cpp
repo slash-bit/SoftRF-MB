@@ -4375,11 +4375,9 @@ if (lr11xx_receive_complete == true) {
               }
               break;
             case RF_CHECKSUM_TYPE_CRC_MODES:
-#if defined(ENABLE_ADSL)
               if (ADSL_Packet::checkPI((uint8_t  *) &RxBuffer[0], size) == 0) {
                 success = true;
               }
-#endif /* ENABLE_ADSL */
               break;
             case RF_CHECKSUM_TYPE_CCITT_FFFF:
             case RF_CHECKSUM_TYPE_CCITT_0000:
