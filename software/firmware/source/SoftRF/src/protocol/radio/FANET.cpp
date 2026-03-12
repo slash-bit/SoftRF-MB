@@ -24,6 +24,7 @@
  */
 
 #include <stdint.h>
+#include <string.h>
 
 #include <protocol.h>
 #include <TimeLib.h>
@@ -304,12 +305,117 @@ bool fanet_decode(void *fanet_pkt, container_t *this_aircraft, ufo_t *fop) {
     Serial.flush();
 #endif
     rval = true;
+
+  } else if (pkt->ext_header == 0 && pkt->type == 7 ) {  /* Ground Tracking */
+
+    /* use the same pkt pointer for header fields (shared layout with Type 1) */
+    fop->addr     = (pkt->vendor << 16) | pkt->address;
+
+    if (fop->addr == this_aircraft->addr)
+        return false;
+
+    fop->protocol = RF_PROTOCOL_FANET;
+    fop->addr_type = ADDR_TYPE_FLARM;
+    fop->timestamp = this_aircraft->timestamp;
+    fop->gnsstime_ms = millis();
+
+    payload_absolut2coord(&(fop->latitude), &(fop->longitude),
+      ((uint8_t *) fanet_pkt) + FANET_HEADER_SIZE);
+
+    uint8_t status = ((uint8_t *) fanet_pkt)[FANET_HEADER_SIZE + 6];
+
+    fop->altitude = this_aircraft->altitude;  /* ground station, use own alt as estimate */
+    fop->aircraft_type = AIRCRAFT_TYPE_UNKNOWN;
+    fop->course = 0;
+    fop->speed = 0;
+    fop->vs = 0;
+    fop->stealth = 0;
+    fop->no_track = !(status & 0x01);
+    if (settings->debug_flags & DEBUG_RELAY)  fop->no_track = 0;
+
+    rval = true;
   }
 
   return rval;
 }
 
-size_t fanet_encode(void *fanet_pkt, container_t *this_aircraft) {
+static uint32_t fanet_name_last_ms = 0;
+uint32_t fanet_sos_last_ms  = 0;
+uint8_t  fanet_sos_count    = 0;
+
+#define FANET_SOS_INTERVAL_MS  30000  /* broadcast SOS message every 30 seconds */
+#define FANET_SOS_MAX_COUNT    3      /* send SOS message this many times, then stop */
+
+static size_t fanet_type2_encode(void *fanet_pkt, container_t *this_aircraft) {
+
+  const char *name = settings->fanet_name;
+  if (name[0] == '\0')
+    return 0;
+
+  uint8_t *buf = (uint8_t *) fanet_pkt;
+  uint32_t id = this_aircraft->addr;
+
+  /* header (4 bytes) */
+  buf[0] = (2 & 0x3F) | (1 << 6) | (0 << 7);  /* type=2, forward=1, ext_header=0 */
+  buf[1] = (id >> 16) & 0xFF;                    /* vendor */
+  buf[2] = id & 0xFF;                            /* address low */
+  buf[3] = (id >> 8) & 0xFF;                     /* address high */
+
+  /* name string */
+  size_t len = strlen(name);
+  if (len > MAX_PKT_SIZE - FANET_HEADER_SIZE)
+    len = MAX_PKT_SIZE - FANET_HEADER_SIZE;
+  memcpy(&buf[FANET_HEADER_SIZE], name, len);
+
+  return FANET_HEADER_SIZE + len;
+}
+
+static size_t fanet_type3_encode(void *fanet_pkt, container_t *this_aircraft,
+                                  const char *msg) {
+
+  uint8_t *buf = (uint8_t *) fanet_pkt;
+  uint32_t id = this_aircraft->addr;
+
+  /* header (4 bytes) — broadcast, no extended header */
+  buf[0] = (3 & 0x3F) | (1 << 6) | (0 << 7);  /* type=3, forward=1, ext_header=0 */
+  buf[1] = (id >> 16) & 0xFF;
+  buf[2] = id & 0xFF;
+  buf[3] = (id >> 8) & 0xFF;
+
+  /* body: subtype(1) + message string */
+  buf[FANET_HEADER_SIZE] = 0x00;  /* subtype 0 = normal message */
+
+  size_t len = strlen(msg);
+  size_t max_msg = MAX_PKT_SIZE - FANET_HEADER_SIZE - 1;  /* -1 for subtype byte */
+  if (len > max_msg) len = max_msg;
+  memcpy(&buf[FANET_HEADER_SIZE + 1], msg, len);
+
+  return FANET_HEADER_SIZE + 1 + len;
+}
+
+static size_t fanet_type7_encode(void *fanet_pkt, container_t *this_aircraft) {
+
+  uint8_t *buf = (uint8_t *) fanet_pkt;
+  uint32_t id = this_aircraft->addr;
+
+  /* header (4 bytes) — same layout as Type 1 */
+  buf[0] = (7 & 0x3F) | (1 << 6) | (0 << 7);  /* type=7, forward=1, ext_header=0 */
+  buf[1] = (id >> 16) & 0xFF;                    /* vendor */
+  buf[2] = id & 0xFF;                            /* address low */
+  buf[3] = (id >> 8) & 0xFF;                     /* address high */
+
+  /* body: lat(3) + lon(3) + status(1) */
+  coord2payload_absolut(this_aircraft->latitude, this_aircraft->longitude,
+    &buf[FANET_HEADER_SIZE]);
+
+  uint8_t online = (this_aircraft->no_track ? 0 : 1);
+  uint8_t gtype = fanet_distress ? FANET_GROUND_TYPE_DISTRESS : FANET_GROUND_TYPE_LANDED_OK;
+  buf[FANET_HEADER_SIZE + 6] = (gtype << 4) | online;
+
+  return FANET_HEADER_SIZE + FANET_GROUND_BODY_SIZE;
+}
+
+static size_t fanet_type1_encode(void *fanet_pkt, container_t *this_aircraft) {
 
   uint32_t id = this_aircraft->addr;
   float lat = this_aircraft->latitude;
@@ -390,4 +496,40 @@ size_t fanet_encode(void *fanet_pkt, container_t *this_aircraft) {
 #endif
 
   return sizeof(fanet_packet_t);
+}
+
+size_t fanet_encode(void *fanet_pkt, container_t *this_aircraft) {
+
+  uint32_t now = millis();
+
+  /* Every 2 minutes, send a Name packet (Type 2) instead of tracking */
+  if (settings->fanet_name[0] != '\0' &&
+      (now - fanet_name_last_ms) >= FANET_NAME_INTERVAL_MS) {
+    fanet_name_last_ms = now;
+    size_t s = fanet_type2_encode(fanet_pkt, this_aircraft);
+    if (s > 0) return s;
+  }
+
+  /* Distress mode (double-click): alternate SOS message and DISTRESS tracking */
+  if (fanet_distress) {
+    if (fanet_sos_count < FANET_SOS_MAX_COUNT &&
+        (fanet_sos_last_ms == 0 ||
+         (now - fanet_sos_last_ms) >= FANET_SOS_INTERVAL_MS)) {
+      fanet_sos_last_ms = now;
+      fanet_sos_count++;
+      char sos_msg[60];
+      snprintf(sos_msg, sizeof(sos_msg), "SOS! Pilot in distress %.5f,%.5f",
+               this_aircraft->latitude, this_aircraft->longitude);
+      return fanet_type3_encode(fanet_pkt, this_aircraft, sos_msg);
+    }
+    return fanet_type7_encode(fanet_pkt, this_aircraft);
+  }
+
+  /* If not airborne, send Ground Tracking (Type 7) */
+  if (!this_aircraft->airborne) {
+    return fanet_type7_encode(fanet_pkt, this_aircraft);
+  }
+
+  /* Otherwise send normal Tracking (Type 1) */
+  return fanet_type1_encode(fanet_pkt, this_aircraft);
 }

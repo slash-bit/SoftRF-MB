@@ -3924,6 +3924,10 @@ static void lr11xx_transmit()
   if (curr_rx_protocol_ptr->whitening == RF_WHITENING_MANCHESTER)
       pkt_size += pkt_size;
   lr11xx_radio->fixedPacketLengthMode(pkt_size);
+  // transmit() clobbers LoRa packet params — restore explicit header for RX
+  if (curr_rx_protocol_ptr->modulation_type == RF_MODULATION_TYPE_LORA) {
+      lr11xx_radio->explicitHeader();
+  }
   // Serial.print("[LR1110] transmit() returned state = ");
   // Serial.println(state);
 

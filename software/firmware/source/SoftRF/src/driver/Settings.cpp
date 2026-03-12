@@ -55,6 +55,7 @@ bool do_alarm_demo = false;        // activated by middle button on T-Beam
 bool landed_out_mode = false;      // activated by button in status web page
 
 bool test_mode = false;            // activated by double-clicking middle button on T-Beam
+uint8_t fanet_distress = 0;        // toggled by double-click on T1000E: 0=normal, 1=distress
                                     // - or via web interface, or via $PSRFT
 // Upon receiving a $PSRFT NMEA command,
 // first the variable test_mode is toggled, then
@@ -973,6 +974,7 @@ void Settings_defaults(bool keepsome)
   strcpy(settings->igc_type,  "ASW20");
   strcpy(settings->igc_reg,   "N1234");
   strcpy(settings->igc_cs,    "XXX");
+  settings->fanet_name[0] = '\0';
 }
 
 void EEPROM_store()

@@ -1113,12 +1113,11 @@ void parseJSettings(JsonObject root)
     settings->igc_reg[sizeof(settings->igc_reg)-1] = '\0';
   }
 
-  /* fanet_name: stored in igc_cs (repurposed for FANET display name) */
   key = "fanet_name";
   if (root.containsKey(key)) {
     const char *s = root[key].as<const char*>();
-    if (s) strncpy(settings->igc_cs, s, sizeof(settings->igc_cs)-1);
-    settings->igc_cs[sizeof(settings->igc_cs)-1] = '\0';
+    if (s) strncpy(settings->fanet_name, s, sizeof(settings->fanet_name)-1);
+    settings->fanet_name[sizeof(settings->fanet_name)-1] = '\0';
   }
 
   key = "flr_adsl";
@@ -1230,8 +1229,7 @@ bool writeJSettings(JsonObject obj)
   obj["igc_pilot"] = settings->igc_pilot;
   obj["igc_type"]  = settings->igc_type;
   obj["igc_reg"]   = settings->igc_reg;
-  /* fanet_name is stored in igc_cs */
-  obj["fanet_name"] = settings->igc_cs;
+  obj["fanet_name"] = settings->fanet_name;
 
   snprintf(hexbuf, sizeof(hexbuf), "%06X", (unsigned int)(settings->debug_flags & 0xFFFFFF));
   obj["debug_flags"] = hexbuf;

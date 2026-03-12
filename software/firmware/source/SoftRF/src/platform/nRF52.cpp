@@ -2214,7 +2214,14 @@ void handleEvent(AceButton* button, uint8_t eventType,
             EPD_Down();
 #else
         if (eventType == AceButton::kEventDoubleClicked) {
-          Serial.println(F("kEventDoubleClicked."));
+          fanet_distress = !fanet_distress;
+          if (fanet_distress) {
+            fanet_sos_last_ms = 0;  /* send SOS message immediately */
+            fanet_sos_count = 0;
+            Serial.println(F("FANET SOS+DISTRESS mode ON"));
+          } else {
+            Serial.println(F("FANET SOS+DISTRESS mode OFF"));
+          }
         }
 #endif
       }

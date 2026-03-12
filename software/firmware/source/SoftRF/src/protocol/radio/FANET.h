@@ -109,8 +109,36 @@ typedef struct {
 #endif
 } __attribute__((packed)) fanet_packet_t;
 
+/*
+ * Ground Tracking frame type (#7),
+ * Standard header,
+ * No signature,
+ * Broadcast
+ */
+enum
+{
+	FANET_GROUND_TYPE_OTHER,
+	FANET_GROUND_TYPE_WALKING,
+	FANET_GROUND_TYPE_VEHICLE,
+	FANET_GROUND_TYPE_BIKE,
+	FANET_GROUND_TYPE_BOOT,
+	FANET_GROUND_TYPE_NEED_RIDE = 8,
+	FANET_GROUND_TYPE_LANDED_OK,
+	FANET_GROUND_TYPE_NEED_TECH = 12,
+	FANET_GROUND_TYPE_NEED_MED,
+	FANET_GROUND_TYPE_DISTRESS,
+	FANET_GROUND_TYPE_AUTO_DIST
+};
+
+/* Type 7 body is 7 bytes: 3 lat + 3 lon + 1 status byte.
+ * Encoded manually (not as bitfield struct) to avoid compiler layout issues.
+ * Status byte: [0] track_online, [3:1] reserved, [7:4] ground_type
+ */
+#define FANET_GROUND_BODY_SIZE  7
+
 #define FANET_PAYLOAD_SIZE    sizeof(fanet_packet_t)
 #define FANET_HEADER_SIZE     4
+#define FANET_NAME_INTERVAL_MS  120000  /* 2 minutes */
 
 #define FANET_AIR_TIME        36   /* in ms */
 

@@ -428,6 +428,7 @@ typedef struct Settings {
     char     igc_type[20];
     char     igc_reg[12];
     char     igc_cs[8];
+    char     fanet_name[20];
 
     /* encryption key provided by contest organizers */
     uint32_t igc_key[4];
@@ -558,6 +559,9 @@ extern uint32_t baudrates[];
 extern bool do_alarm_demo;
 extern bool test_mode;
 extern bool landed_out_mode;
+extern uint8_t fanet_distress;
+extern uint32_t fanet_sos_last_ms;
+extern uint8_t  fanet_sos_count;
 extern int8_t geoid_from_setting;
 
 #endif /* SETTINGS_H */
