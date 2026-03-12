@@ -1121,6 +1121,12 @@ void parseJSettings(JsonObject root)
     settings->igc_cs[sizeof(settings->igc_cs)-1] = '\0';
   }
 
+  key = "flr_adsl";
+  if (root.containsKey(key)) {
+    int v = root[key].is<int>() ? root[key].as<int>() : atoi(root[key].as<const char*>());
+    settings->flr_adsl = (uint8_t)v;
+  }
+
   key = "debug_flags";
   if (root.containsKey(key)) {
     const char *s = root[key].as<const char*>();
