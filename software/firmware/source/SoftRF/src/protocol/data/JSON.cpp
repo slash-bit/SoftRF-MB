@@ -1076,6 +1076,12 @@ void parseJSettings(JsonObject root)
     settings->logalarms = (!strcmp(s,"YES") || !strcmp(s,"1"));
   }
 
+  key = "auto_sos";
+  if (root.containsKey(key)) {
+    const char *s = root[key].as<const char*>();
+    settings->auto_sos = (!strcmp(s,"YES") || !strcmp(s,"1")) ? 1 : 0;
+  }
+
   key = "logflight";
   if (root.containsKey(key)) {
     const char *s = root[key].as<const char*>();
@@ -1217,6 +1223,7 @@ bool writeJSettings(JsonObject obj)
   obj["ignore_id"] = hexbuf;
 
   obj["alarmlog"] = settings->logalarms ? "YES" : "NO";
+  obj["auto_sos"] = settings->auto_sos ? "YES" : "NO";
 
   obj["logflight"] =
     (settings->logflight == FLIGHT_LOG_NONE)     ? "OFF"      :

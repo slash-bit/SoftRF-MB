@@ -57,6 +57,8 @@ bool landed_out_mode = false;      // activated by button in status web page
 bool test_mode = false;            // activated by double-clicking middle button on T-Beam
 uint8_t fanet_distress = 0;        // toggled by double-click on T1000E: 0=normal, 1=distress
                                     // - or via web interface, or via $PSRFT
+uint8_t  fanet_landed = 0;         // 0=startup/airborne, 1=SOS countdown, 2=landed OK
+uint32_t sos_countdown_start_ms = 0;
 // Upon receiving a $PSRFT NMEA command,
 // first the variable test_mode is toggled, then
 // this is called, whether test_mode is on or off
@@ -177,6 +179,7 @@ static void init_stgdesc()
   stgdesc[STG_POWER_EXT]  = { "power_ext",  (char*)&settings->power_ext,  STG_UINT1 };
   stgdesc[STG_RFC]        = { "rfc",        (char*)&settings->freq_corr,  STG_HIDDEN };
   stgdesc[STG_ALARMLOG]   = { "alarmlog",   (char*)&settings->logalarms,  STG_UINT1 };
+  stgdesc[STG_AUTO_SOS]   = { "auto_sos",   (char*)&settings->auto_sos,   STG_UINT1 };
   stgdesc[STG_LOG_NMEA]   = { "log_nmea",   (char*)&settings->log_nmea,   esp_only(STG_UINT1) };
   stgdesc[STG_GNSS_PINS]  = { "gnss_pins",  (char*)&settings->gnss_pins,  esp_only(STG_UINT1) };
   stgdesc[STG_PPSWIRE]    = { "ppswire",    (char*)&settings->ppswire,    esp_only(STG_UINT1) };
@@ -892,6 +895,7 @@ void Settings_defaults(bool keepsome)
 #endif
 
     settings->logalarms  = false;
+    settings->auto_sos   = 0;
     settings->log_nmea   = false;
   }
   // otherwise keep those settings from the previous version

@@ -215,6 +215,7 @@ enum stgidx {
     STG_POWER_EXT,
     STG_RFC,
     STG_ALARMLOG,
+    STG_AUTO_SOS,
 //#if defined(ESP32)
     STG_LOG_NMEA,
     STG_GNSS_PINS,
@@ -394,6 +395,7 @@ typedef struct Settings {
     int8_t   expire;
     bool     pflaa_cs;
     bool     logalarms;
+    uint8_t  auto_sos;      /* if 1, auto-distress 60s after landing unless button double-pressed */
     uint32_t debug_flags;   /* each bit activates output of some debug info */
 
 //#if defined(ESP32)
@@ -562,6 +564,8 @@ extern bool landed_out_mode;
 extern uint8_t fanet_distress;
 extern uint32_t fanet_sos_last_ms;
 extern uint8_t  fanet_sos_count;
+extern uint8_t  fanet_landed;
+extern uint32_t sos_countdown_start_ms;
 extern int8_t geoid_from_setting;
 
 #endif /* SETTINGS_H */

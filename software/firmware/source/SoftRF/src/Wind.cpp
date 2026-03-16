@@ -562,10 +562,21 @@ void this_airborne(bool validfix)
 
     } else if (airborne <= 0) {    /* not airborne but moving with speed > 1 knot */
 
-        if ( speed > 20.0                                               /* 20 knots  */
-          || fabs(ThisAircraft.latitude - initial_latitude) > 0.0018f   /* about 200 meters */
-          || fabs(ThisAircraft.longitude - initial_longitude) > 0.0027f
-          || fabs(ThisAircraft.altitude - initial_altitude) > 120.0f) {
+        float speed_thresh = 20.0;                /* 20 knots for most aircraft */
+        float dist_thresh  = 0.0018f;             /* about 200 meters */
+        float alt_thresh   = 120.0f;
+        if (settings->acft_type == AIRCRAFT_TYPE_PARAGLIDER
+         || settings->acft_type == AIRCRAFT_TYPE_HANGGLIDER
+         || settings->acft_type == AIRCRAFT_TYPE_BALLOON) {
+            speed_thresh = 10.0;                  /* 10 knots (~18 km/h) */
+            dist_thresh  = 0.0005f;               /* about 100 meters */
+            alt_thresh   = 1.0f;                 /* 30 meters altitude change */
+        }
+
+        if ( speed > speed_thresh
+          || fabs(ThisAircraft.latitude - initial_latitude) > dist_thresh
+          || fabs(ThisAircraft.longitude - initial_longitude) > dist_thresh * 1.5f
+          || fabs(ThisAircraft.altitude - initial_altitude) > alt_thresh) {
             /* movement larger than typical GNSS noise */
             uint32_t interval = ThisAircraft.gnsstime_ms - ThisAircraft.prevtime_ms;
             if (fabs(ThisAircraft.altitude - ThisAircraft.prevaltitude) > 0.020 * (float)interval
@@ -593,6 +604,7 @@ void this_airborne(bool validfix)
     bool airborne_changed = false;
     if (ThisAircraft.airborne==0 && airborne>0) {
       airborne_changed = true;
+      fanet_landed = 0;   // back to airborne
       // AirborneTime = RF_time;
 //#if defined(ESP32)
       startlogs();      // restart alarm log (and flight log) on first takeoff after boot
@@ -600,6 +612,13 @@ void this_airborne(bool validfix)
     } else if (ThisAircraft.airborne==1 && airborne<=0) {
       airborne_changed = true;
       // AirborneTime = 0;
+      if (settings->auto_sos && !fanet_distress) {
+        fanet_landed = 1;  // SOS countdown active
+        sos_countdown_start_ms = millis();
+        Serial.println(F("Auto-SOS countdown started (60s)"));
+      } else {
+        fanet_landed = 2;  // landed OK (no auto-sos)
+      }
     }
 
     ThisAircraft.airborne = (airborne > 0)? 1 : 0;

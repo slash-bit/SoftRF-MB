@@ -175,8 +175,12 @@ extern uint32_t RF_last_crc;
 extern int8_t RF_last_rssi;
 extern int8_t which_rx_try;
 extern uint8_t RF_last_protocol;
+extern size_t RF_last_rx_len;
 
 extern uint32_t rx_packets_counter, tx_packets_counter;
+
+void    RF_chip_reset(uint8_t protocol);
+void    RF_protocol_switch(uint8_t new_main, uint8_t new_alt);
 
 /* #define TIMETEST */
 #ifdef TIMETEST

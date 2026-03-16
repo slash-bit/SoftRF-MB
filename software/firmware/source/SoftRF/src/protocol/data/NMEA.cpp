@@ -46,6 +46,7 @@
 #include "../../driver/Filesys.h"
 #include "IGC.h"
 #include "../../TrafficHelper.h"
+#include "../radio/FANET.h"
 #if defined(ARDUINO_ARCH_NRF52)
 #include <SenseCAP.h>
 #endif
@@ -1557,6 +1558,40 @@ void NMEA_Export()
         if (fop->next >= MAX_TRACKING_OBJECTS)  break;    /* belt and suspenders */
 
         fop = &Container[fop->next];
+      }
+    }
+
+    /* $FNNGB sentences for FANET traffic with known pilot names */
+    if (settings->rf_protocol == RF_PROTOCOL_FANET
+     || settings->altprotocol == RF_PROTOCOL_FANET) {
+      for (int i = 0; i < FANET_NAME_TABLE_SIZE; i++) {
+        if (fanet_name_table[i].addr == 0)
+            continue;
+        if (fanet_name_table[i].name[0] == '\0')
+            continue;
+        /* find this aircraft in the container */
+        container_t *cip = NULL;
+        for (int j = 0; j < MAX_TRACKING_OBJECTS; j++) {
+            if (Container[j].addr == fanet_name_table[i].addr) {
+                cip = &Container[j];
+                break;
+            }
+        }
+        if (cip == NULL)
+            continue;
+        if ((OurTime - cip->timestamp) > settings->expire)
+            continue;
+        float climb_ms = cip->vs / (_GPS_FEET_PER_METER * 60.0);
+        float speed_kmh = cip->speed * _GPS_KMPH_PER_KNOT;
+        snprintf(NMEABuffer, sizeof(NMEABuffer),
+          "$FNNGB,%02X,%X,%s,%u,%.5f,%.5f,%.0f,%.1f,%.1f,%.0f*",
+          (unsigned)(cip->addr >> 16) & 0xFF,
+          (unsigned)(cip->addr & 0xFFFF),
+          fanet_name_table[i].name,
+          fanet_name_table[i].type_status,
+          cip->latitude, cip->longitude, cip->altitude,
+          climb_ms, speed_kmh, cip->course);
+        NMEAOutC(NMEA_T);
       }
     }
 

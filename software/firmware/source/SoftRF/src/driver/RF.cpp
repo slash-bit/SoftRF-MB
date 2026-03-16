@@ -64,6 +64,7 @@ int8_t which_rx_try = 0;
 int8_t RF_last_rssi = 0;
 uint32_t RF_last_crc = 0;
 uint8_t RF_last_protocol = 0;
+size_t RF_last_rx_len = 0;
 uint8_t current_RX_protocol;
 uint8_t current_TX_protocol;
 uint8_t dual_protocol = RF_SINGLE_PROTOCOL;
@@ -1095,6 +1096,7 @@ static void sx12xx_rx_func(osjob_t* job) {
   } else {
       // single protocol, no bit-shifting needed, just copy by bytes
       size -= offset;
+      RF_last_rx_len = size;
       for (u1_t i=0; i < size; i++) {
          RxBuffer[i] = LMIC.frame[offset+i];
       }
@@ -2553,6 +2555,38 @@ void RF_chip_reset(uint8_t protocol)
     RF_chip_channel(protocol);
     Serial.printf("reset to Prot %d at millis %d, tx ok %d - %d, gd to %d\r\n",
     current_RX_protocol, millis(), TxTimeMarker, TxEndMarker, RF_OK_until);
+}
+
+/* Switch main protocol at runtime (e.g., for distress FANET switch) */
+void RF_protocol_switch(uint8_t new_main, uint8_t new_alt)
+{
+  settings->rf_protocol = new_main;
+  settings->altprotocol = new_alt;
+
+  mainprotocol_ptr = get_protocol_descriptor(new_main);
+  mainprotocol_encode = get_protocol_encode_fn(mainprotocol_ptr);
+  mainprotocol_decode = get_protocol_decode_fn(mainprotocol_ptr);
+
+  uint8_t alt = (new_alt == RF_PROTOCOL_NONE) ? new_main : new_alt;
+  altprotocol_ptr = get_protocol_descriptor(alt);
+  altprotocol_encode = get_protocol_encode_fn(altprotocol_ptr);
+  altprotocol_decode = get_protocol_decode_fn(altprotocol_ptr);
+
+  current_RX_protocol = new_main;
+  current_TX_protocol = new_main;
+  curr_rx_protocol_ptr = mainprotocol_ptr;
+  curr_tx_protocol_ptr = mainprotocol_ptr;
+  LMIC.protocol = mainprotocol_ptr;
+  protocol_encode = mainprotocol_encode;
+  protocol_decode = mainprotocol_decode;
+
+  RF_FreqPlan.setPlan(settings->band, current_RX_protocol);
+
+  Serial.printf("Protocol switch: main=%s(%d) alt=%s(%d)\r\n",
+      mainprotocol_ptr->name, mainprotocol_ptr->type,
+      altprotocol_ptr->name, altprotocol_ptr->type);
+
+  RF_chip_reset(new_main);
 }
 
 /* original code, now only called for protocols other than Legacy: */
@@ -4321,7 +4355,10 @@ if (lr11xx_receive_complete == true) {
           break;
         case RF_PROTOCOL_FANET:
           offset = curr_rx_protocol_ptr->payload_offset;
-          size   = curr_rx_protocol_ptr->payload_size + curr_rx_protocol_ptr->crc_size;
+          /* LoRa explicit header: use actual received length (may be shorter than payload_size) */
+          size   = RL_rxPacket_ptr->len - offset;
+          if (size > sizeof(RxBuffer)) size = sizeof(RxBuffer);
+          RF_last_rx_len = size;
           for (i = 0; i < size; i++)
           {
             if (i < sizeof(RxBuffer)) {

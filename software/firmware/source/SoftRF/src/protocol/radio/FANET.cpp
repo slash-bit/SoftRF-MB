@@ -32,6 +32,7 @@
 #include "../../../SoftRF.h"
 #include "../../driver/RF.h"
 #include "../../driver/Settings.h"
+#include "../../protocol/data/NMEA.h"
 
 const rf_proto_desc_t fanet_proto_desc = {
   "FANET",
@@ -105,6 +106,44 @@ const uint8_t aircraft_type_from_fanet[] PROGMEM = {
 
 #define AT_FROM_FANET(x)  (x > 7 ? \
    AIRCRAFT_TYPE_UNKNOWN : pgm_read_byte(&aircraft_type_from_fanet[x]))
+
+/* FANET name table: stores pilot names received via Type 2 packets */
+fanet_name_entry_t fanet_name_table[FANET_NAME_TABLE_SIZE];
+
+static void fanet_name_store(uint32_t addr, const char *name)
+{
+    int oldest = 0;
+    for (int i = 0; i < FANET_NAME_TABLE_SIZE; i++) {
+        if (fanet_name_table[i].addr == addr || fanet_name_table[i].addr == 0) {
+            oldest = i;
+            break;
+        }
+        /* reuse first slot if table is full (simple replacement) */
+        oldest = i;
+    }
+    fanet_name_table[oldest].addr = addr;
+    strncpy(fanet_name_table[oldest].name, name, FANET_NAME_MAX_LEN - 1);
+    fanet_name_table[oldest].name[FANET_NAME_MAX_LEN - 1] = '\0';
+}
+
+const char *fanet_name_lookup(uint32_t addr)
+{
+    for (int i = 0; i < FANET_NAME_TABLE_SIZE; i++) {
+        if (fanet_name_table[i].addr == addr)
+            return fanet_name_table[i].name;
+    }
+    return NULL;
+}
+
+void fanet_name_set_type(uint32_t addr, uint8_t type_status)
+{
+    for (int i = 0; i < FANET_NAME_TABLE_SIZE; i++) {
+        if (fanet_name_table[i].addr == addr) {
+            fanet_name_table[i].type_status = type_status;
+            return;
+        }
+    }
+}
 
 #if defined(FANET_DEPRECATED)
 /* ------------------------------------------------------------------------- */
@@ -304,7 +343,26 @@ bool fanet_decode(void *fanet_pkt, container_t *this_aircraft, ufo_t *fop) {
     Serial.println();
     Serial.flush();
 #endif
+    fanet_name_set_type(fop->addr, pkt->aircraft_type);  /* 0-7 airborne */
     rval = true;
+
+  } else if (pkt->ext_header == 0 && pkt->type == 2 ) {  /* Name */
+
+    uint32_t addr = (pkt->vendor << 16) | pkt->address;
+    if (addr == this_aircraft->addr)
+        return false;
+
+    uint8_t *body = ((uint8_t *) fanet_pkt) + FANET_HEADER_SIZE;
+    size_t body_len = (RF_last_rx_len > FANET_HEADER_SIZE) ?
+                       RF_last_rx_len - FANET_HEADER_SIZE : 0;
+    if (body_len > 0 && body_len < 40) {
+      char name[40];
+      memcpy(name, body, body_len);
+      name[body_len] = '\0';
+      fanet_name_store(addr, name);
+    }
+
+    return false;  /* name packet is not traffic */
 
   } else if (pkt->ext_header == 0 && pkt->type == 7 ) {  /* Ground Tracking */
 
@@ -333,6 +391,7 @@ bool fanet_decode(void *fanet_pkt, container_t *this_aircraft, ufo_t *fop) {
     fop->no_track = !(status & 0x01);
     if (settings->debug_flags & DEBUG_RELAY)  fop->no_track = 0;
 
+    fanet_name_set_type(fop->addr, ((status >> 4) & 0x0F) + 10);  /* ground: 10-25 */
     rval = true;
   }
 
@@ -525,9 +584,12 @@ size_t fanet_encode(void *fanet_pkt, container_t *this_aircraft) {
     return fanet_type7_encode(fanet_pkt, this_aircraft);
   }
 
-  /* If not airborne, send Ground Tracking (Type 7) */
+  /* If not airborne: only send Ground Tracking if confirmed landed */
   if (!this_aircraft->airborne) {
-    return fanet_type7_encode(fanet_pkt, this_aircraft);
+    if (fanet_landed == 2)        // confirmed landed (button pressed or auto_sos off)
+      return fanet_type7_encode(fanet_pkt, this_aircraft);
+    // fanet_landed==0 (startup, never flown) or ==1 (SOS countdown) → Type 1
+    return fanet_type1_encode(fanet_pkt, this_aircraft);
   }
 
   /* Otherwise send normal Tracking (Type 1) */

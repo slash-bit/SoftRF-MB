@@ -639,7 +639,9 @@ static void nRF52_setup()
 
       pinMode(SOC_GPIO_LED_T1000_GREEN, OUTPUT);
       digitalWrite(SOC_GPIO_LED_T1000_GREEN, LED_STATE_ON);
-      Serial.println("[SETUP] Status LED ON (P0.24)");
+      pinMode(SOC_GPIO_LED_T1000_RED, OUTPUT);
+      digitalWrite(SOC_GPIO_LED_T1000_RED, LOW);
+      Serial.println("[SETUP] Status LEDs initialized (green P0.24, red P0.03)");
 
       lmic_pins.nss  = SOC_GPIO_PIN_T1000_SS;
       lmic_pins.rst  = SOC_GPIO_PIN_T1000_RST;
@@ -1233,8 +1235,10 @@ static void nRF52_fini(int reason)
       pinMode(SOC_GPIO_PIN_T1000_SS,        INPUT_PULLUP);
 
       digitalWrite(SOC_GPIO_LED_T1000_GREEN, 1-LED_STATE_ON);
+      digitalWrite(SOC_GPIO_LED_T1000_RED, LOW);
       pinMode(SOC_GPIO_PIN_SFL_T1000_EN,    INPUT);
       pinMode(SOC_GPIO_LED_T1000_GREEN,     INPUT);
+      pinMode(SOC_GPIO_LED_T1000_RED,       INPUT);
       break;
     case NRF52_ELECROW_TN_M3:
       digitalWrite(SOC_GPIO_PIN_GNSS_M3_WKE, LOW);
@@ -2214,13 +2218,39 @@ void handleEvent(AceButton* button, uint8_t eventType,
             EPD_Down();
 #else
         if (eventType == AceButton::kEventDoubleClicked) {
-          fanet_distress = !fanet_distress;
-          if (fanet_distress) {
-            fanet_sos_last_ms = 0;  /* send SOS message immediately */
-            fanet_sos_count = 0;
-            Serial.println(F("FANET SOS+DISTRESS mode ON"));
+          static uint8_t saved_rf_protocol = RF_PROTOCOL_NONE;
+          static uint8_t saved_altprotocol = RF_PROTOCOL_NONE;
+
+          /* If SOS countdown is active, cancel it and confirm Landed OK */
+          if (fanet_landed == 1) {
+            fanet_landed = 2;
+            Serial.println(F("Auto-SOS cancelled - Landed OK"));
           } else {
-            Serial.println(F("FANET SOS+DISTRESS mode OFF"));
+            /* Normal distress toggle */
+            fanet_distress = !fanet_distress;
+            if (fanet_distress) {
+              fanet_sos_last_ms = 0;  /* send SOS message immediately */
+              fanet_sos_count = 0;
+              /* If not already running FANET, switch to it */
+              if (settings->rf_protocol != RF_PROTOCOL_FANET) {
+                saved_rf_protocol = settings->rf_protocol;
+                saved_altprotocol = settings->altprotocol;
+                RF_protocol_switch(RF_PROTOCOL_FANET, saved_rf_protocol);
+                Serial.println(F("FANET SOS+DISTRESS mode ON (switched to FANET)"));
+              } else {
+                saved_rf_protocol = RF_PROTOCOL_NONE;
+                Serial.println(F("FANET SOS+DISTRESS mode ON"));
+              }
+            } else {
+              /* Restore original protocol if we switched */
+              if (saved_rf_protocol != RF_PROTOCOL_NONE) {
+                RF_protocol_switch(saved_rf_protocol, saved_altprotocol);
+                saved_rf_protocol = RF_PROTOCOL_NONE;
+                Serial.println(F("FANET SOS+DISTRESS mode OFF (restored protocol)"));
+              } else {
+                Serial.println(F("FANET SOS+DISTRESS mode OFF"));
+              }
+            }
           }
         }
 #endif

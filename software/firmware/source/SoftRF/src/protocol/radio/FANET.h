@@ -145,6 +145,20 @@ enum
 #define FANET_TX_INTERVAL_MIN 2500 /* in ms */
 #define FANET_TX_INTERVAL_MAX 3500
 
+#define FANET_NAME_MAX_LEN  33   /* 32 chars + null */
+#define FANET_NAME_TABLE_SIZE  8
+
+typedef struct {
+    uint32_t addr;
+    uint8_t  type_status;  /* 0-7 airborne aircraft_type, 10-25 ground status+10 */
+    char     name[FANET_NAME_MAX_LEN];
+} fanet_name_entry_t;
+
+extern fanet_name_entry_t fanet_name_table[FANET_NAME_TABLE_SIZE];
+
+const char *fanet_name_lookup(uint32_t addr);
+void fanet_name_set_type(uint32_t addr, uint8_t type_status);
+
 extern const rf_proto_desc_t fanet_proto_desc;
 
 bool fanet_decode(void *, container_t *, ufo_t *);

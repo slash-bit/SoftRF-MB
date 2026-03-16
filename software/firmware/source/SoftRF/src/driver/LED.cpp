@@ -25,6 +25,7 @@
 #include "Battery.h"
 #include "Settings.h"
 #include "Buzzer.h"
+#include "RF.h"
 #include "../TrafficHelper.h"
 
 static uint32_t prev_tx_packets_counter = 0;
@@ -219,17 +220,129 @@ void LED_loop() {
       return;
   }
 
+#if defined(SOFTRF_NRF52_T1000E)
+  {
+    static unsigned long t1000e_led_marker = 0;
+    static unsigned long t1000e_buzz_marker = 0;
+    static bool t1000e_led_phase = false;  /* false=green, true=red */
+    unsigned long now_ms = millis();
+    int green_led = SOC_GPIO_LED_T1000_GREEN;
+
+    if (fanet_landed == 1) {
+      /* AUTO-SOS COUNTDOWN: accelerating red blink + beeps */
+      #define SOS_COUNTDOWN_MS  60000UL
+      uint32_t elapsed = now_ms - sos_countdown_start_ms;
+      if (elapsed >= SOS_COUNTDOWN_MS) {
+        /* Countdown expired — activate distress */
+        fanet_landed = 2;
+        fanet_distress = 1;
+        fanet_sos_last_ms = 0;
+        fanet_sos_count = 0;
+        if (settings->rf_protocol != RF_PROTOCOL_FANET)
+          RF_protocol_switch(RF_PROTOCOL_FANET, settings->rf_protocol);
+        Serial.println(F("Auto-SOS: DISTRESS activated"));
+      } else {
+        /* Blink red: faster as countdown progresses (1000ms → 200ms) */
+        uint32_t remaining = SOS_COUNTDOWN_MS - elapsed;
+        uint32_t blink_period = 200 + (remaining * 800 / SOS_COUNTDOWN_MS);
+        if (now_ms - t1000e_led_marker > blink_period) {
+          t1000e_led_phase = !t1000e_led_phase;
+          t1000e_led_marker = now_ms;
+          digitalWrite(SOC_GPIO_LED_T1000_RED, t1000e_led_phase ? HIGH : LOW);
+          digitalWrite(green_led, LOW);
+        }
+        /* Beep: faster as countdown progresses (2000ms → 500ms) */
+        uint32_t beep_interval = 500 + (remaining * 1500 / SOS_COUNTDOWN_MS);
+        if (now_ms - t1000e_buzz_marker > beep_interval) {
+          t1000e_buzz_marker = now_ms;
+          SoC->Buzzer_tone(2000, BUZZER_VOLUME_FULL);
+          delay(30);
+          SoC->Buzzer_tone(0, BUZZER_VOLUME_FULL);
+        }
+      }
+    } else if (fanet_distress) {
+      /* DISTRESS: alternate red(500ms) / green(500ms) */
+      if (now_ms - t1000e_led_marker > 500) {
+        t1000e_led_phase = !t1000e_led_phase;
+        t1000e_led_marker = now_ms;
+        if (t1000e_led_phase) {
+          digitalWrite(green_led, LOW);
+          digitalWrite(SOC_GPIO_LED_T1000_RED, HIGH);
+        } else {
+          digitalWrite(SOC_GPIO_LED_T1000_RED, LOW);
+          digitalWrite(green_led, HIGH);
+        }
+      }
+      /* DISTRESS buzzer: short beep every 2000ms */
+      if (now_ms - t1000e_buzz_marker > 2000) {
+        t1000e_buzz_marker = now_ms;
+        SoC->Buzzer_tone(3000, BUZZER_VOLUME_FULL);
+        delay(50);
+        SoC->Buzzer_tone(0, BUZZER_VOLUME_FULL);
+      }
+    } else if (!isValidFix()) {
+      /* NO GPS FIX: red+green (amber) flash 200ms every 1000ms */
+      if (!t1000e_led_phase && (now_ms - t1000e_led_marker > 800)) {
+        t1000e_led_phase = true;
+        t1000e_led_marker = now_ms;
+        digitalWrite(green_led, HIGH);
+        digitalWrite(SOC_GPIO_LED_T1000_RED, HIGH);
+      } else if (t1000e_led_phase && (now_ms - t1000e_led_marker > 200)) {
+        t1000e_led_phase = false;
+        t1000e_led_marker = now_ms;
+        digitalWrite(green_led, LOW);
+        digitalWrite(SOC_GPIO_LED_T1000_RED, LOW);
+      }
+    } else {
+      if (Battery_voltage() <= Battery_threshold()) {
+        /* LOW BATTERY: green(1500ms) then red(500ms) */
+        if (!t1000e_led_phase && (now_ms - t1000e_led_marker > 1500)) {
+          t1000e_led_phase = true;
+          t1000e_led_marker = now_ms;
+          digitalWrite(green_led, LOW);
+          digitalWrite(SOC_GPIO_LED_T1000_RED, HIGH);
+        } else if (t1000e_led_phase && (now_ms - t1000e_led_marker > 500)) {
+          t1000e_led_phase = false;
+          t1000e_led_marker = now_ms;
+          digitalWrite(SOC_GPIO_LED_T1000_RED, LOW);
+          digitalWrite(green_led, HIGH);
+        }
+      } else if (ThisAircraft.airborne) {
+        /* AIRBORNE: slow green blink (1500ms on / 500ms off), red off */
+        if (digitalRead(SOC_GPIO_LED_T1000_RED) == HIGH)
+          digitalWrite(SOC_GPIO_LED_T1000_RED, LOW);
+        if (!t1000e_led_phase && (now_ms - t1000e_led_marker > 1500)) {
+          t1000e_led_phase = true;
+          t1000e_led_marker = now_ms;
+          digitalWrite(green_led, LOW);
+        } else if (t1000e_led_phase && (now_ms - t1000e_led_marker > 500)) {
+          t1000e_led_phase = false;
+          t1000e_led_marker = now_ms;
+          digitalWrite(green_led, HIGH);
+        }
+      } else {
+        /* NORMAL (ground): green steady on, red off */
+        if (digitalRead(SOC_GPIO_LED_T1000_RED) == HIGH)
+          digitalWrite(SOC_GPIO_LED_T1000_RED, LOW);
+        if (digitalRead(green_led) != HIGH)
+          digitalWrite(green_led, HIGH);
+        t1000e_led_phase = false;
+        t1000e_led_marker = now_ms;
+      }
+    }
+  }
+#else
   if (status_LED != SOC_UNUSED_PIN) {
     if (Battery_voltage() > Battery_threshold() ) {
-      /* Indicate positive power supply */
       if (digitalRead(status_LED) != LED_STATE_ON) {
         digitalWrite(status_LED, LED_STATE_ON);
       }
     } else {
       if (isTimeToToggle()) {
-        digitalWrite(status_LED, !digitalRead(status_LED) ? HIGH : LOW);  // toggle state
+        digitalWrite(status_LED, !digitalRead(status_LED) ? HIGH : LOW);
         status_LED_TimeMarker = millis();
       }
     }
   }
+#endif
 }
