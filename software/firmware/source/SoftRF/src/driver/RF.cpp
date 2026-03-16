@@ -4195,9 +4195,10 @@ static void lr11xx_shutdown()
 {
   /* Shutdown LR1110 radio */
   if (lr11xx_radio != nullptr) {
-    /* Enter standby/sleep mode */
-    lr11xx_radio->standby();
-    lr11xx_radio->sleep();
+    /* Switch to RC oscillator standby, disable TCXO, then cold sleep */
+    lr11xx_radio->standby(RADIOLIB_LR11X0_STANDBY_RC);
+    lr11xx_radio->setTCXO(0);       /* Turn off TCXO voltage supply */
+    lr11xx_radio->sleep(false, 0);  /* Cold start sleep, no config retained */
   }
 
   RadioSPI.end();
