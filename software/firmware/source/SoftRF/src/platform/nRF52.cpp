@@ -354,6 +354,17 @@ static bool nRF52_bl_check(const char* signature)
 
 static void nRF52_system_off()
 {
+  /* Debug: blink green LED 3 times to confirm we reached SYSTEMOFF */
+  if (nRF52_board == NRF52_SEEED_T1000E) {
+    pinMode(SOC_GPIO_LED_T1000_GREEN, OUTPUT);
+    for (int i = 0; i < 3; i++) {
+      digitalWrite(SOC_GPIO_LED_T1000_GREEN, LED_STATE_ON);
+      delay(100);
+      digitalWrite(SOC_GPIO_LED_T1000_GREEN, 1-LED_STATE_ON);
+      delay(100);
+    }
+    pinMode(SOC_GPIO_LED_T1000_GREEN, INPUT);
+  }
 
 #if !defined(ARDUINO_ARCH_MBED) && !defined(ARDUINO_ARCH_ZEPHYR)
   uint8_t sd_en;
@@ -1233,6 +1244,15 @@ static void nRF52_fini(int reason)
       pinMode(SOC_GPIO_PIN_T1000_3V3_EN,    INPUT_PULLDOWN);
 
       pinMode(SOC_GPIO_PIN_T1000_SS,        INPUT_PULLUP);
+
+      /* LR1110 SPI pins - set to INPUT to prevent current leakage */
+      pinMode(SOC_GPIO_PIN_T1000_MOSI,    INPUT);
+      pinMode(SOC_GPIO_PIN_T1000_MISO,    INPUT);
+      pinMode(SOC_GPIO_PIN_T1000_SCK,     INPUT);
+
+      /* LR1110 control pins */
+      pinMode(SOC_GPIO_PIN_T1000_DIO9,    INPUT);
+      pinMode(SOC_GPIO_PIN_T1000_BUSY,    INPUT);
 
       digitalWrite(SOC_GPIO_LED_T1000_GREEN, 1-LED_STATE_ON);
       digitalWrite(SOC_GPIO_LED_T1000_RED, LOW);

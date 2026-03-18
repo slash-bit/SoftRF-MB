@@ -4195,6 +4195,9 @@ static void lr11xx_shutdown()
 {
   /* Shutdown LR1110 radio */
   if (lr11xx_radio != nullptr) {
+    /* Detach DIO9 interrupt before sleep to free GPIOTE channel */
+    lr11xx_radio->clearPacketReceivedAction();
+
     /* Switch to RC oscillator standby, disable TCXO, then cold sleep */
     lr11xx_radio->standby(RADIOLIB_LR11X0_STANDBY_RC);
     lr11xx_radio->setTCXO(0);       /* Turn off TCXO voltage supply */
