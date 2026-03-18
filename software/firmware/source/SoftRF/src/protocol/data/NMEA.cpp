@@ -1856,6 +1856,9 @@ static void nmea_cfg_restart(bool save_settings)
   if (save_settings) {
       //EEPROM_store();
       save_settings_to_file();   // this also shows the new settings
+#if defined(USE_JSETTINGS)
+      save_settings_to_json();   // T1000E loads from settings.json on boot
+#endif
   }
   Serial.println();
   Serial.println(F("Restart is in progress. Please, wait..."));

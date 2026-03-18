@@ -1242,7 +1242,8 @@ bool writeJSettings(JsonObject obj)
   obj["debug_flags"] = hexbuf;
 
   /* firmware version stamp - informational, not parsed on load */
-  obj["sw_version"] = String(SOFTRF_IDENT) + "-" + String(SOFTRF_FIRMWARE_VERSION);
+  obj["sw_version"] = String(SOFTRF_IDENT) + "-" + String(SOFTRF_FIRMWARE_VERSION)
+                      + "-" + String(SOFTRF_SUBVERSION) + "-" + String(SOFTRF_REVISION);
 
   return true;
 }
