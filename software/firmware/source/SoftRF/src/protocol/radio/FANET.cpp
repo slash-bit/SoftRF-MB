@@ -468,7 +468,11 @@ static size_t fanet_type7_encode(void *fanet_pkt, container_t *this_aircraft) {
     &buf[FANET_HEADER_SIZE]);
 
   uint8_t online = (this_aircraft->no_track ? 0 : 1);
-  uint8_t gtype = fanet_distress ? FANET_GROUND_TYPE_DISTRESS : FANET_GROUND_TYPE_LANDED_OK;
+  uint8_t gtype;
+  if (fanet_ground_type != 0xFF)
+    gtype = fanet_ground_type;           /* set by #FNG command from XCGuide */
+  else
+    gtype = fanet_distress ? FANET_GROUND_TYPE_DISTRESS : FANET_GROUND_TYPE_LANDED_OK;
   buf[FANET_HEADER_SIZE + 6] = (gtype << 4) | online;
 
   return FANET_HEADER_SIZE + FANET_GROUND_BODY_SIZE;

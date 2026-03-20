@@ -76,6 +76,11 @@ extern bool has_serial2;
 extern bool rx1090found;
 extern bool NMEA_bridge_sent;
 
+void NMEA_FNF_Out(const uint8_t *raw, size_t raw_len);
+void FN_check_ack(const uint8_t *raw, size_t raw_len);
+void FN_check_ack_timeout(void);
+bool FN_process_command(char *buf, int len);
+
 #if defined(USE_NMEA_CFG)
 void NMEA_Process_SRF_SKV_Sentences(void);
 #endif /* USE_NMEA_CFG */

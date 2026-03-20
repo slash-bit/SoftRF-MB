@@ -58,6 +58,7 @@ bool test_mode = false;            // activated by double-clicking middle button
 uint8_t fanet_distress = 0;        // toggled by double-click on T1000E: 0=normal, 1=distress
                                     // - or via web interface, or via $PSRFT
 uint8_t  fanet_landed = 0;         // 0=startup/airborne, 1=SOS countdown, 2=landed OK
+uint8_t  fanet_ground_type = 0xFF; // ground type from #FNG command, 0xFF=not set (use default)
 uint32_t sos_countdown_start_ms = 0;
 // Upon receiving a $PSRFT NMEA command,
 // first the variable test_mode is toggled, then

@@ -2241,6 +2241,9 @@ void handleEvent(AceButton* button, uint8_t eventType,
           static uint8_t saved_rf_protocol = RF_PROTOCOL_NONE;
           static uint8_t saved_altprotocol = RF_PROTOCOL_NONE;
 
+          /* Button double-click overrides any #FNG-set ground type */
+          fanet_ground_type = 0xFF;
+
           /* If SOS countdown is active, cancel it and confirm Landed OK */
           if (fanet_landed == 1) {
             fanet_landed = 2;

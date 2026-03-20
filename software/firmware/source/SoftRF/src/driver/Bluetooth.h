@@ -30,6 +30,7 @@ enum
 };
 
 extern bool BTactive;
+extern bool FNF_enabled;  /* XCGuide connected with high MTU â€” send #FNF, accept #FNG/#FNT */
 
 #if defined(ESP32)
 #include "sdkconfig.h"
@@ -184,7 +185,7 @@ typedef struct {
     uint32_t  timestamp;  /* Date/Time (UTC), UnixTime */
     uint8_t   battery;    /* Battery Level, % */
     uint8_t   log;        /* Logging level, % */
-    int16_t   temp;       /* Temperature, °C * 10 */
+    int16_t   temp;       /* Temperature, ï¿½C * 10 */
     uint8_t   status;     /* Status: same as above */
     uint8_t   status2;
     uint16_t  qnh;        /* QNH, Pa * 10 */

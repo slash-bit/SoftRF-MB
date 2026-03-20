@@ -782,6 +782,394 @@ bool NMEA_encode(const char *buf, const int len)
     return false;
 }
 
+/*
+ * #FNF — FANET frame output for XCGuide (GXAirCom protocol)
+ * Format: #FNF src_manufacturer,src_id,broadcast,signature,type,length,payload\n
+ * All header fields hex without leading zeros, payload bytes hex with leading zeros.
+ */
+void NMEA_FNF_Out(const uint8_t *raw, size_t raw_len)
+{
+    if (!FNF_enabled || raw_len < FANET_HEADER_SIZE)
+        return;
+
+    /* Parse FANET header (4 bytes) */
+    uint8_t type = raw[0] & 0x3F;
+
+    /* Type 0 = ACK — handled by FN_check_ack(), do not forward to app */
+    if (type == 0) {
+        Serial.print("FNF: skip Type 0 ACK from ");
+        Serial.print(raw[1], HEX);
+        Serial.print(",");
+        Serial.println(raw[2] | ((uint16_t)raw[3] << 8), HEX);
+        return;
+    }
+    uint8_t vendor = raw[1];
+    uint16_t address = raw[2] | ((uint16_t)raw[3] << 8);
+    size_t payload_len = (raw_len > FANET_HEADER_SIZE) ? raw_len - FANET_HEADER_SIZE : 0;
+
+    bool has_ext = raw[0] & 0x80;
+    bool unicast = (has_ext && raw_len >= 5) ? (raw[4] & (1 << 5)) : false;
+
+    if (type >= 2 && type <= 4) {
+        Serial.print("FNF: RX Type ");
+        Serial.print(type);
+        Serial.print(" from ");
+        Serial.print(vendor, HEX);
+        Serial.print(",");
+        Serial.print(address, HEX);
+        Serial.print(" len=");
+        Serial.print(payload_len);
+        if (type == 3) {
+            Serial.print(unicast ? " unicast" : " broadcast");
+            if (unicast && raw_len >= 8) {
+                Serial.print(" to ");
+                Serial.print(raw[5], HEX);
+                Serial.print(",");
+                Serial.print(raw[6] | ((uint16_t)raw[7] << 8), HEX);
+            }
+        }
+        Serial.println();
+    }
+
+    /* Build #FNF sentence into NMEABuffer */
+    int len = snprintf(NMEABuffer, sizeof(NMEABuffer), "#FNF %X,%X,%X,%X,%X,%X,",
+        (unsigned)vendor,       /* src_manufacturer */
+        (unsigned)address,      /* src_id */
+        1,                      /* broadcast (we only receive broadcasts) */
+        0,                      /* signature (not used in SoftRF) */
+        (unsigned)type,         /* FANET frame type */
+        (unsigned)payload_len); /* payload length */
+
+    /* Append payload bytes with leading zeros */
+    for (size_t i = 0; i < payload_len && len < (int)sizeof(NMEABuffer) - 3; i++) {
+        len += snprintf(NMEABuffer + len, sizeof(NMEABuffer) - len, "%02X",
+                        raw[FANET_HEADER_SIZE + i]);
+    }
+    NMEABuffer[len++] = '\n';
+    NMEABuffer[len] = '\0';
+
+    /* Send directly to BLE (FNF is BLE-only, not a standard NMEA sentence) */
+    NMEA_Out(DEST_BLUETOOTH, NMEABuffer, len, false);
+}
+
+/*
+ * Parse #FNG command: set ground tracking type
+ * Format: #FNG groundType\r\n
+ * groundType: single hex digit 0-F
+ */
+static void FN_process_FNG(const char *args)
+{
+    unsigned int gtype = 0;
+    Serial.print("FNG: raw args='");
+    Serial.print(args);
+    Serial.println("'");
+    if (sscanf(args, "%1X", &gtype) == 1 && gtype <= 0xF) {
+        fanet_ground_type = (uint8_t)gtype;
+        fanet_landed = 2;  /* confirmed landed (ground tracking mode) */
+
+        /* Distress ground types trigger SOS message transmission */
+        if (gtype >= FANET_GROUND_TYPE_NEED_MED) {  /* 13, 14, 15 */
+            fanet_distress = 1;
+            fanet_sos_last_ms = 0;   /* send SOS immediately */
+            fanet_sos_count = 0;
+        } else {
+            fanet_distress = 0;
+        }
+
+        NMEA_Out(DEST_BLUETOOTH, "#FNR OK\n", 8, false);
+        Serial.print("FNG: ground type=0x");
+        Serial.print(gtype, HEX);
+        Serial.print(fanet_distress ? " (distress)" : "");
+        Serial.println();
+
+    } else {
+        NMEA_Out(DEST_BLUETOOTH, "#FNR ERR,22,Bad ground type\n", 28, false);
+    }
+}
+
+/* Pending ACK tracking for unicast messages sent via #FNT */
+static uint8_t  fnf_ack_pending_mfr = 0;
+static uint16_t fnf_ack_pending_id  = 0;
+static uint32_t fnf_ack_pending_ms  = 0;
+#define FNF_ACK_TIMEOUT_MS  5000
+
+/*
+ * Parse #FNT command: transmit a FANET frame
+ * Format: #FNT type,dest_manufacturer,dest_id,forward,ack_required,length,payload[,signature]\r\n
+ * All values in hex.
+ *
+ * FANET header layout:
+ *   Byte 0: [7] ext_header, [6] forward, [5-0] type
+ *   Bytes 1-3: src manufacturer(1) + src address(2, LE)
+ *   Byte 4 (if ext_header): [7-6] ACK, [5] unicast, [4] signature, [3-0] reserved
+ *   Bytes 5-7 (if unicast): dest manufacturer(1) + dest address(2, LE)
+ */
+static void FN_process_FNT(const char *args)
+{
+    unsigned int type, dest_mfr, dest_id, fwd, ack, plen;
+    int consumed = 0;
+
+    if (sscanf(args, "%X,%X,%X,%X,%X,%X,%n",
+               &type, &dest_mfr, &dest_id, &fwd, &ack, &plen, &consumed) < 6) {
+        NMEA_Out(DEST_BLUETOOTH, "#FNR ERR,22,Parse error\n", 24, false);
+        return;
+    }
+
+    bool unicast = (dest_mfr != 0 || dest_id != 0);
+    bool need_ext = (unicast || ack);
+
+    /* Calculate header size */
+    size_t hdr_size = FANET_HEADER_SIZE;         /* 4 bytes basic */
+    if (need_ext) hdr_size += 1;                 /* +1 extended header byte */
+    if (unicast)  hdr_size += 3;                 /* +3 dest address bytes */
+
+    if (hdr_size + plen >= MAX_PKT_SIZE) {
+        NMEA_Out(DEST_BLUETOOTH, "#FNR ERR,21,Frame too long\n", 27, false);
+        return;
+    }
+
+    /* Parse hex payload */
+    const char *hex = args + consumed;
+    uint8_t frame[MAX_PKT_SIZE];
+
+    /* Build FANET header */
+    frame[0] = (type & 0x3F) | ((fwd ? 1 : 0) << 6) | (need_ext ? 0x80 : 0);
+    uint32_t id = ThisAircraft.addr;
+    frame[1] = (id >> 16) & 0xFF;    /* src vendor */
+    frame[2] = id & 0xFF;            /* src address low */
+    frame[3] = (id >> 8) & 0xFF;     /* src address high */
+
+    size_t pos = FANET_HEADER_SIZE;
+
+    if (need_ext) {
+        uint8_t ext = 0;
+        if (ack)     ext |= (1 << 6);    /* ACK requested (value=1) */
+        if (unicast) ext |= (1 << 5);    /* unicast */
+        frame[pos++] = ext;
+    }
+
+    if (unicast) {
+        frame[pos++] = (uint8_t)(dest_mfr & 0xFF);
+        frame[pos++] = (uint8_t)(dest_id & 0xFF);
+        frame[pos++] = (uint8_t)((dest_id >> 8) & 0xFF);
+    }
+
+    for (unsigned int i = 0; i < plen; i++) {
+        unsigned int byte_val;
+        if (sscanf(hex + i * 2, "%2X", &byte_val) != 1) {
+            NMEA_Out(DEST_BLUETOOTH, "#FNR ERR,22,Bad payload hex\n", 28, false);
+            return;
+        }
+        frame[pos + i] = (uint8_t)byte_val;
+    }
+
+    size_t frame_len = pos + plen;
+
+    /* Queue for transmission via RF */
+    Serial.print("FNT: TX Type ");
+    Serial.print(type);
+    Serial.print(" len=");
+    Serial.print(frame_len);
+    if (unicast) {
+        Serial.print(" to ");
+        Serial.print(dest_mfr, HEX);
+        Serial.print(",");
+        Serial.print(dest_id, HEX);
+    } else {
+        Serial.print(" broadcast");
+    }
+    Serial.print(" ack=");
+    Serial.println(ack);
+    memcpy(TxBuffer, frame, frame_len);
+    RF_Transmit(frame_len, true);
+
+    /* If ACK requested for unicast, track it so we can match incoming Type 0 */
+    if (ack && unicast) {
+        fnf_ack_pending_mfr = (uint8_t)dest_mfr;
+        fnf_ack_pending_id  = (uint16_t)dest_id;
+        fnf_ack_pending_ms  = millis();
+    }
+
+    NMEA_Out(DEST_BLUETOOTH, "#FNR OK\n", 8, false);
+}
+
+/*
+ * Encode and transmit a FANET Type 0 (ACK) packet.
+ * ACK is unicast to the specified address, no payload.
+ */
+static void FN_transmit_ack(uint8_t dest_mfr, uint16_t dest_id)
+{
+    uint8_t frame[8];
+    uint32_t id = ThisAircraft.addr;
+
+    /* Byte 0: type=0, forward=0, ext_header=1 */
+    frame[0] = 0x80;
+    /* Source address */
+    frame[1] = (id >> 16) & 0xFF;
+    frame[2] = id & 0xFF;
+    frame[3] = (id >> 8) & 0xFF;
+    /* Extended header: no ACK, unicast */
+    frame[4] = (1 << 5);  /* unicast bit */
+    /* Destination address */
+    frame[5] = dest_mfr;
+    frame[6] = dest_id & 0xFF;
+    frame[7] = (dest_id >> 8) & 0xFF;
+
+    Serial.print("FN_transmit_ack: Type 0 ACK to ");
+    Serial.print(dest_mfr, HEX);
+    Serial.print(",");
+    Serial.println(dest_id, HEX);
+    memcpy(TxBuffer, frame, 8);
+    RF_Transmit(8, true);
+
+    Serial.print("FN ACK sent to ");
+    Serial.print(dest_mfr, HEX);
+    Serial.print(":");
+    Serial.println(dest_id, HEX);
+}
+
+/*
+ * Check incoming FANET packet for ACK (Type 0) addressed to us.
+ * Called from ParseData() after NMEA_FNF_Out() for FANET packets.
+ * If it matches a pending ACK we're waiting for, send #FNR ACK to BLE.
+ */
+void FN_check_ack(const uint8_t *raw, size_t raw_len)
+{
+    if (!FNF_enabled || raw_len < FANET_HEADER_SIZE)
+        return;
+
+    uint8_t type = raw[0] & 0x3F;
+    bool has_ext = raw[0] & 0x80;
+
+    if (type != 0)  /* Only interested in ACK packets */
+        return;
+
+    uint8_t src_mfr = raw[1];
+    uint16_t src_id = raw[2] | ((uint16_t)raw[3] << 8);
+
+    Serial.print("FN_check_ack: Type 0 from ");
+    Serial.print(src_mfr, HEX);
+    Serial.print(",");
+    Serial.print(src_id, HEX);
+    Serial.print(" ext=");
+    Serial.print(has_ext);
+    Serial.print(" len=");
+    Serial.println(raw_len);
+
+    /* ACK must be unicast to us — check extended header */
+    if (has_ext && raw_len >= 8) {
+        bool unicast = raw[4] & (1 << 5);
+        if (!unicast) {
+            Serial.println("  ext hdr but not unicast — ignoring");
+            return;
+        }
+        uint8_t dest_mfr = raw[5];
+        uint16_t dest_id = raw[6] | ((uint16_t)raw[7] << 8);
+        uint32_t our_addr = ThisAircraft.addr;
+        uint8_t our_mfr = (our_addr >> 16) & 0xFF;
+        uint16_t our_id = our_addr & 0xFFFF;
+        Serial.print("  unicast to ");
+        Serial.print(dest_mfr, HEX);
+        Serial.print(",");
+        Serial.print(dest_id, HEX);
+        Serial.print(" us=");
+        Serial.print(our_mfr, HEX);
+        Serial.print(",");
+        Serial.println(our_id, HEX);
+        if (dest_mfr != our_mfr || dest_id != our_id)
+            return;  /* ACK not for us */
+    } else {
+        Serial.println("  no ext hdr — ignoring");
+        return;  /* can't determine destination without ext header */
+    }
+
+    /* Only forward ACK to app if we're actually waiting for one (from #FNT with ack) */
+    if (fnf_ack_pending_ms != 0 &&
+        src_mfr == fnf_ack_pending_mfr && src_id == fnf_ack_pending_id) {
+        Serial.print("FN_check_ack: MATCH pending! sending #FNR ACK to app for ");
+        Serial.print(src_mfr, HEX);
+        Serial.print(",");
+        Serial.println(src_id, HEX);
+        char buf[32];
+        int len = snprintf(buf, sizeof(buf), "#FNR ACK,%X,%X\n",
+                           (unsigned)src_mfr, (unsigned)src_id);
+        NMEA_Out(DEST_BLUETOOTH, buf, len, false);
+        fnf_ack_pending_ms = 0;
+    } else {
+        Serial.print("  unsolicited ACK from ");
+        Serial.print(src_mfr, HEX);
+        Serial.print(",");
+        Serial.print(src_id, HEX);
+        Serial.println(" — ignoring");
+    }
+}
+
+/*
+ * Check for ACK timeout — called periodically from NMEA_Export().
+ * If we've been waiting for an ACK longer than FNF_ACK_TIMEOUT_MS,
+ * send #FNR NACK to XCGuide.
+ */
+void FN_check_ack_timeout()
+{
+    if (!FNF_enabled || fnf_ack_pending_ms == 0)
+        return;
+
+    if ((millis() - fnf_ack_pending_ms) >= FNF_ACK_TIMEOUT_MS) {
+        char buf[32];
+        int len = snprintf(buf, sizeof(buf), "#FNR NACK,%X,%X\n",
+                           (unsigned)fnf_ack_pending_mfr, (unsigned)fnf_ack_pending_id);
+        NMEA_Out(DEST_BLUETOOTH, buf, len, false);
+        fnf_ack_pending_ms = 0;
+    }
+}
+
+/*
+ * Process incoming #FN commands received from BLE
+ * Returns true if the line was handled as an #FN command.
+ */
+bool FN_process_command(char *buf, int len)
+{
+    if (len < 5 || buf[0] != '#' || buf[1] != 'F' || buf[2] != 'N')
+        return false;
+
+    /* First #FN command from BLE enables FNF mode (app handshake) */
+    if (!FNF_enabled) {
+        FNF_enabled = true;
+        Serial.println("FNF enabled by #FN command");
+    }
+
+    /* Strip trailing \r\n */
+    while (len > 0 && (buf[len-1] == '\r' || buf[len-1] == '\n'))
+        len--;
+    buf[len] = '\0';
+
+    if (buf[3] == 'G' && len >= 5) {
+        FN_process_FNG(buf + 4 + (buf[4] == ' ' ? 1 : 0));
+        return true;
+    }
+    if (buf[3] == 'T' && buf[4] == ' ' && len > 5) {
+        FN_process_FNT(buf + 5);
+        return true;
+    }
+    /* #FNR ACK,manufacturer,id — app acknowledges receipt of a message,
+     * SoftRF transmits FANET Type 0 ACK back to the sender over radio */
+    if (buf[3] == 'R' && buf[4] == ' ') {
+        if (strncmp(buf + 5, "ACK,", 4) == 0) {
+            unsigned int mfr, aid;
+            if (sscanf(buf + 9, "%X,%X", &mfr, &aid) == 2) {
+                Serial.print("FN_cmd: #FNR ACK from app, TX ack to ");
+                Serial.print(mfr, HEX);
+                Serial.print(",");
+                Serial.println(aid, HEX);
+                FN_transmit_ack((uint8_t)mfr, (uint16_t)aid);
+            }
+        }
+        return true;
+    }
+
+    return false;
+}
+
 // Send buffered sentences to bridged outputs
 bool NMEA_bridge_sent = false;
 void NMEA_bridge_send(char *buf, int len)
@@ -855,16 +1243,32 @@ void NMEA_bridge_buf(char c, char* buf, int& n)
         n = 0;
         // start new sentence, drop any preceding data
         // fall through to buf[n++] = c;
-    } else if (n == 0) {      // wait for a '$' (or '!')
+    } else if (c == '#') {
+        n = 0;
+        // start #FN command (XCGuide protocol)
+        // fall through to buf[n++] = c;
+    } else if (n == 0) {      // wait for a '$' (or '!' or '#')
         if (c != '!')
             return;
         // if '!', start new sentence of some related protocols
         // fall through to buf[n++] = c;
     } else if (c=='\r' || c=='\n') {
-        if (n > 5 && n <= 128) {
+        if (n > 3 && n <= 128) {
+            /* Debug: log complete sentences received from BLE */
+            if (NMEA_Source == DEST_BLUETOOTH) {
+                buf[n] = '\0';
+                Serial.print("BLE_RX: ");
+                Serial.println(buf);
+            }
+            /* #FN commands: no checksum required */
+            if (buf[0] == '#' && buf[1] == 'F' && buf[2] == 'N') {
+                buf[n] = '\0';
+                FN_process_command(buf, n);
+                NMEA_bridge_sent = true;
+            }
             // sentences missing "*xx" ending are ignored unless started with '!'
             // >>> or could forward all sentences even without checksum?
-            if (buf[0] == '!' || buf[n-3] == '*') {
+            else if (buf[0] == '!' || buf[n-3] == '*') {
                 buf[n++] = '\r';
                 buf[n++] = '\n';      // add a proper line-ending
                 buf[n]   = '\0';
@@ -1257,6 +1661,8 @@ void NMEA_Export()
     }
 #endif /* EXCLUDE_SOFTRF_HEARTBEAT */
 
+    FN_check_ack_timeout();
+
     if (! (settings->nmea_t || settings->nmea2_t))
          return;
 
@@ -1405,6 +1811,16 @@ void NMEA_Export()
          // since it will be in the PFLAU sentence - but XCsoar etc
          // seem to ignore the PFLAU, so report the HP object both ways
          //if (total_objects < MAX_NMEA_OBJECTS || fop->addr != HP_addr) {
+
+         /* Skip $PFLAA for FANET traffic:
+          * - XCGuide gets it via #FNF
+          * - Other apps (XCTrack etc) get it via $FNNGB which includes pilot name */
+         if (fop->protocol == RF_PROTOCOL_FANET) {
+             if (fop->next >= MAX_TRACKING_OBJECTS)  break;
+             fop = &Container[fop->next];
+             --i;  /* don't count skipped FANET objects against MAX_NMEA_OBJECTS */
+             continue;
+         }
 
          uint8_t addr_type = fop->addr_type;
          if (addr_type > ADDR_TYPE_FLARM)
@@ -1561,9 +1977,11 @@ void NMEA_Export()
       }
     }
 
-    /* $FNNGB sentences for FANET traffic with known pilot names */
-    if (settings->rf_protocol == RF_PROTOCOL_FANET
-     || settings->altprotocol == RF_PROTOCOL_FANET) {
+    /* $FNNGB sentences for FANET traffic with known pilot names.
+     * Suppressed when XCGuide is connected — it gets names via #FNF type 2. */
+    if (!FNF_enabled &&
+        (settings->rf_protocol == RF_PROTOCOL_FANET
+      || settings->altprotocol == RF_PROTOCOL_FANET)) {
       for (int i = 0; i < FANET_NAME_TABLE_SIZE; i++) {
         if (fanet_name_table[i].addr == 0)
             continue;

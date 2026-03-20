@@ -17,6 +17,7 @@
  */
 
 bool BTactive = false;
+bool FNF_enabled = false;  /* set when XCGuide connects with MTU >= 247 */
 
 // XCsoar is confused by BLE "sensor" devices, so try and skip them
 // - uncomment this line to restore them:
@@ -1397,19 +1398,33 @@ void startAdv(void)
   Bluefruit.Advertising.start(0);                // 0 = Don't stop advertising after n seconds
 }
 
+static uint16_t ble_client_requested_mtu = 0;
+
+// BLE event callback — capture client's requested MTU before negotiation
+void ble_evt_callback(ble_evt_t* evt)
+{
+  if (evt->header.evt_id == BLE_GATTS_EVT_EXCHANGE_MTU_REQUEST) {
+    ble_client_requested_mtu = evt->evt.gatts_evt.params.exchange_mtu_request.client_rx_mtu;
+    Serial.print("BLE client requested MTU=");
+    Serial.println(ble_client_requested_mtu);
+  }
+}
+
 // callback invoked when central connects
 void connect_callback(uint16_t conn_handle)
 {
-#if DEBUG_BLE
-  // Get the reference to current connection
   BLEConnection* connection = Bluefruit.Connection(conn_handle);
+  ble_client_requested_mtu = 0;  /* reset for new connection */
 
+#if DEBUG_BLE
   char central_name[32] = { 0 };
   connection->getPeerName(central_name, sizeof(central_name));
 
   Serial.print("Connected to ");
   Serial.println(central_name);
 #endif
+
+  (void) connection;
 }
 
 /**
@@ -1419,8 +1434,11 @@ void connect_callback(uint16_t conn_handle)
  */
 void disconnect_callback(uint16_t conn_handle, uint8_t reason)
 {
-#if DEBUG_BLE
   (void) conn_handle;
+
+  FNF_enabled = false;
+
+#if DEBUG_BLE
   (void) reason;
 
   Serial.println();
@@ -1460,6 +1478,7 @@ void nRF52_Bluetooth_setup()
   Bluefruit.setName((BT_name+"-LE").c_str());
   Bluefruit.Periph.setConnectCallback(connect_callback);
   Bluefruit.Periph.setDisconnectCallback(disconnect_callback);
+  Bluefruit.setEventCallback(ble_evt_callback);
 
   // To be consistent OTA DFU should be added first if it exists
   bledfu.begin();
@@ -1522,6 +1541,13 @@ static void nRF52_Bluetooth_loop()
     bleuart_HM10.flushTXD();
 
     BLE_Notify_TimeMarker = millis();
+  }
+
+  /* Detect XCGuide: it requests MTU exactly 256 (others request 517+).
+   * Enable FNF mode for #FNF output and #FNG/#FNT input. */
+  if (Bluefruit.connected() && !FNF_enabled && ble_client_requested_mtu == 256) {
+    FNF_enabled = true;
+    Serial.println("FNF enabled (XCGuide detected, MTU request=256)");
   }
 
 #if defined(BLE_SENSORS)

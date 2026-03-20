@@ -1648,6 +1648,16 @@ Serial.println(which_rx_try);
       StdOut.println(RF_last_rssi);
     }
 
+    /* Send raw FANET frame as #FNF to XCGuide (if connected via BLE with high MTU).
+     * Use RF_last_rx_len (actual LoRa received length) not rx_size (fixed struct size),
+     * since FANET types 2/3 are variable-length. */
+    if (rf_protocol == RF_PROTOCOL_FANET) {
+        size_t fnf_len = RF_last_rx_len;
+        if (fnf_len > rx_size) fnf_len = rx_size;  /* safety clamp */
+        NMEA_FNF_Out(fo_raw, fnf_len);
+        FN_check_ack(fo_raw, fnf_len);
+    }
+
     EmptyFO(&fo);    /* to ensure no data from past packets remains in any field */
 
     if (protocol_decode == NULL) {

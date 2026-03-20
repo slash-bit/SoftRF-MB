@@ -565,6 +565,7 @@ extern uint8_t fanet_distress;
 extern uint32_t fanet_sos_last_ms;
 extern uint8_t  fanet_sos_count;
 extern uint8_t  fanet_landed;
+extern uint8_t  fanet_ground_type;  /* ground type set by #FNG command (0x0-0xF), 0xFF=not set */
 extern uint32_t sos_countdown_start_ms;
 extern int8_t geoid_from_setting;
 
