@@ -568,7 +568,7 @@ void this_airborne(bool validfix)
         if (settings->acft_type == AIRCRAFT_TYPE_PARAGLIDER
          || settings->acft_type == AIRCRAFT_TYPE_HANGGLIDER
          || settings->acft_type == AIRCRAFT_TYPE_BALLOON) {
-            speed_thresh = 10.0;                  /* 10 knots (~18 km/h) */
+            speed_thresh = 15.0;                  /* 15 knots (~28 km/h) */
             dist_thresh  = 0.0005f;               /* about 100 meters */
             alt_thresh   = 1.0f;                 /* 30 meters altitude change */
         }
