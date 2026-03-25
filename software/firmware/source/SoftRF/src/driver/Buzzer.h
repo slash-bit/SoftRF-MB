@@ -46,5 +46,6 @@ void Buzzer_setup(void);
 bool Buzzer_Notify(int8_t, bool);
 void Buzzer_loop(void);
 void Buzzer_fini(void);
+bool Buzzer_active(uint8_t *state = NULL);
 
 #endif /* BUZZERHELPER_H */

@@ -280,6 +280,12 @@ void LED_loop() {
         delay(50);
         SoC->Buzzer_tone(0, BUZZER_VOLUME_FULL);
       }
+    } else if (Buzzer_active(NULL)) {
+      /* TRAFFIC ALARM: red LED mirrors buzzer beeps, green off */
+      uint8_t bstate;
+      Buzzer_active(&bstate);
+      digitalWrite(green_led, LOW);
+      digitalWrite(SOC_GPIO_LED_T1000_RED, bstate ? HIGH : LOW);
     } else if (!isValidFix()) {
       /* NO GPS FIX: red+green (amber) flash 200ms every 1000ms */
       if (!t1000e_led_phase && (now_ms - t1000e_led_marker > 800)) {

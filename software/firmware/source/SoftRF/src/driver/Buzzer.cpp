@@ -23,13 +23,7 @@ void  Buzzer_setup()       {}
 bool  Buzzer_Notify(int8_t level, bool multi_alarm) {return false;}
 void  Buzzer_loop()        {}
 void  Buzzer_fini()        {}
-#else
-
-#if !defined(ESP32)
-void  Buzzer_setup()       {}
-bool  Buzzer_Notify(int8_t level, bool multi_alarm) {return false;}
-void  Buzzer_loop()        {}
-void  Buzzer_fini()        {}
+bool  Buzzer_active(uint8_t *state) {return false;}
 #else
 
 #include "Buzzer.h"
@@ -51,6 +45,7 @@ static bool double_beep = false;
 static uint16_t BuzzerToneHz = 0;    /* variable tone */
 static uint16_t BuzzerBeepMS = 0;    /* how long each beep */
 
+#if defined(ESP32)
 #include <toneAC.h>
 
 static uint8_t buzzer1pin = SOC_UNUSED_PIN;
@@ -60,22 +55,43 @@ void ext_buzzer(bool state)
 {
   if (buzzer1pin != SOC_UNUSED_PIN)
       digitalWrite(buzzer1pin, state? HIGH : LOW);
-#if 0
-if (state)
-Serial.print("buzzer on  at ");
-else
-Serial.print("buzzer off at ");
-Serial.println(millis());
+}
+#endif /* ESP32 */
+
+static int volume = 10;
+
+static inline void buzzer_on(uint16_t hz)
+{
+#if defined(ESP32)
+  if (settings->volume == BUZZER_EXT) {
+    ext_buzzer(true);
+  } else {
+    toneAC(hz, volume, 0, true);
+  }
+#else
+  SoC->Buzzer_tone(hz, settings->volume);
 #endif
 }
 
-static int volume = 10;
+static inline void buzzer_off(void)
+{
+#if defined(ESP32)
+  if (settings->volume == BUZZER_EXT) {
+    ext_buzzer(false);
+  } else {
+    noToneAC();
+  }
+#else
+  SoC->Buzzer_tone(0, settings->volume);
+#endif
+}
 
 void Buzzer_setup(void)
 {
   if (settings->volume == BUZZER_OFF)
       return;
 
+#if defined(ESP32)
   buzzer1pin = SOC_GPIO_PIN_BUZZER;
   if (buzzer1pin == SOC_UNUSED_PIN) {
       settings->volume = BUZZER_OFF;
@@ -108,10 +124,6 @@ void Buzzer_setup(void)
       ext_buzzer(true);
       delay(80);
       ext_buzzer(false);
-//      delay(100);
-//      ext_buzzer(true);
-//      delay(200);
-//      ext_buzzer(false);
   } else {
       if (ESP32_pin_reserved(buzzer2pin, false, "Buzzer")) {
           settings->volume = BUZZER_OFF;
@@ -120,6 +132,7 @@ void Buzzer_setup(void)
       toneAC_setup(buzzer2pin, buzzer1pin);
       volume = (settings->volume == BUZZER_VOLUME_LOW ? 8 : 10);
   }
+#endif /* ESP32 */
   BuzzerToneHz = 0;
   BuzzerBeepMS = 0;
   BuzzerBeeps = 0;
@@ -172,13 +185,7 @@ bool Buzzer_Notify(int8_t alarm_level, bool multi_alarm)
 
   BuzzerBeep = 1;  // starting the first beep
 
-  if (settings->volume == BUZZER_EXT) {
-    ext_buzzer(true);
-  } else {
-    int duration = 0;           // forever, until turned off
-    bool background = true;    // return to main thread while sounding tone
-    toneAC(BuzzerToneHz, volume, duration, background);
-  }
+  buzzer_on(BuzzerToneHz);
   BuzzerState = 1;
   BuzzerTimeMarker = millis() + BuzzerBeepMS;
 //if (settings->debug_flags & 0x80) {
@@ -198,10 +205,7 @@ void Buzzer_loop(void)
     if (BuzzerBeeps > 1) {
 
       if (BuzzerState == 1) {   /* a beep is ending */
-        if (settings->volume == BUZZER_EXT)
-          ext_buzzer(false);
-        else
-          noToneAC();
+        buzzer_off();
         BuzzerState = 0;
         uint32_t gap;
         if (double_beep && (BuzzerBeep & 1))
@@ -214,10 +218,7 @@ void Buzzer_loop(void)
 //NMEAOutD();
 //}
       } else {  /* sound is off, start another beep */
-        if (settings->volume == BUZZER_EXT)
-          ext_buzzer(true);
-        else
-          toneAC(BuzzerToneHz, volume, 0, true);
+        buzzer_on(BuzzerToneHz);
         BuzzerState = 1;
         --BuzzerBeeps;
         ++BuzzerBeep;
@@ -230,10 +231,7 @@ void Buzzer_loop(void)
 
     } else {   /* done beeping, turn it all off */
 
-      if (settings->volume == BUZZER_EXT)
-        ext_buzzer(false);
-      else
-        noToneAC();
+      buzzer_off();
       BuzzerTimeMarker = 0;
 //if (settings->debug_flags & 0x80) {
 //snprintf_P(NMEABuffer, sizeof(NMEABuffer),"... buzzer final off at  %d ms\r\n", millis());
@@ -259,23 +257,29 @@ void Buzzer_loop(void)
                multalarm = true;
           Buzzer_Notify(level, multalarm);
       } else {
+#if defined(USE_OLED)
           OLED_no_msg();
+#endif
           do_alarm_demo = false;
       }
   }
+}
+
+bool Buzzer_active(uint8_t *state)
+{
+  if (BuzzerTimeMarker == 0)
+      return false;
+  if (state)
+      *state = BuzzerState;  /* 1 = buzzing, 0 = gap between beeps */
+  return true;
 }
 
 void Buzzer_fini(void)
 {
   if (settings->volume == BUZZER_OFF)
       return;
-  if (settings->volume == BUZZER_EXT)
-    ext_buzzer(false);
-  else
-    noToneAC();
+  buzzer_off();
   BuzzerTimeMarker = 0;
 }
-
-#endif  /* ESP32 */
 
 #endif  /* EXCLUDE_BUZZER */
