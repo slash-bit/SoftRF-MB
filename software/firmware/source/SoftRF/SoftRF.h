@@ -36,9 +36,9 @@
 #endif /* RASPBERRY_PI */
 
 #define SOFTRF_FIRMWARE_VERSION "MB177"
-#define SOFTRF_IDENT            "SoftRF"
+#define SOFTRF_IDENT            "SoftRF" //temp changed from SoftRF
 #define SOFTRF_USB_FW_VERSION   0x0101
-#define SOFTRF_SUBVERSION       "VB008g"
+#define SOFTRF_SUBVERSION       "VB008j"
 #define SOFTRF_REVISION         "dev"
 
 #define ENTRY_EXPIRATION_TIME  30 /* seconds - was 17 - NMEA export limited further by 'expire' setting */
@@ -371,9 +371,9 @@ enum
 
 static inline uint32_t DevID_Mapper(uint32_t id)
 {
-  // switched to restricting device ID to a 20-bit range
+  // switched to restricting device ID to a 16-bit range
   // to avoid overlapping with any of FLARM ranges
-  return (0x800000 | (id & 0x000FFFFF));
+  return (0x800000 | (id & 0x0000FFFF));
 }
 
 extern container_t ThisAircraft;

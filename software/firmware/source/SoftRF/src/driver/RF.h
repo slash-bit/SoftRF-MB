@@ -65,13 +65,15 @@
  * - OGNTP:      20 bytes ├ù 2 (Manchester)                     = 40 bytes
  * - P3I:        24 bytes (no Manchester) + headers (6)        = 30 bytes
  * - FANET:      16 bytes (no Manchester, sizeof fanet_packet_t) = 16 bytes
+ *               BUT FANET message types (text, name) can be up to ~120 bytes
  * - UAT978:     34 bytes (no Manchester, LONG_FRAME_DATA_BYTES)= 34 bytes
  * - ADSL:       21 bytes ├ù 2 (Manchester) + CRC (2)           = 44 bytes
  *
- * Maximum required: 56 bytes (FLR_ADSL with Manchester encoding)
- * Using 64 bytes for safety margin and future protocols.
+ * Maximum required: 56 bytes for FSK protocols (FLR_ADSL with Manchester)
+ * FANET LoRa messages (text/name) need up to ~120 bytes.
+ * Using 128 bytes to accommodate FANET message frames.
  */
-#define MAX_PKT_SIZE  64
+#define MAX_PKT_SIZE  128
 #define RXADDR {0x31, 0xfa , 0xb6} // Address of this device (4 bytes)
 #define TXADDR {0x31, 0xfa , 0xb6} // Address of device to send to (4 bytes)
 

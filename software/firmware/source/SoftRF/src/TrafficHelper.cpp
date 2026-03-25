@@ -126,7 +126,7 @@ void EmptyContainer(container_t *p) { memset(p, 0, sizeof(CONTAINER)); }
 void EmptyFO(ufo_t *p) { memset(p, 0, sizeof(UFO)); }
 
 char fo_callsign[10];
-uint8_t fo_raw[34];
+uint8_t fo_raw[MAX_PKT_SIZE];
 traffic_by_dist_t traffic_by_dist[MAX_TRACKING_OBJECTS];
 int max_alarm_level = ALARM_LEVEL_NONE;
 int8_t maxrssi;
@@ -1640,7 +1640,15 @@ Serial.println(which_rx_try);
       return;
     }
 
-    memcpy(fo_raw, RxBuffer, rx_size);
+    /* For FANET, copy actual received length (variable-length types 2/3/4).
+     * For other protocols, rx_size (fixed struct size) is correct. */
+    size_t copy_len = rx_size;
+    if (rf_protocol == RF_PROTOCOL_FANET && RF_last_rx_len > rx_size) {
+        copy_len = RF_last_rx_len;
+        if (copy_len > sizeof(fo_raw)) copy_len = sizeof(fo_raw);
+    }
+    memcpy(fo_raw, RxBuffer, copy_len);
+
     if (settings->nmea_p) {
       StdOut.print(F("$PSRFI,"));
       StdOut.print((unsigned long) now()); StdOut.print(F(","));
@@ -1653,7 +1661,7 @@ Serial.println(which_rx_try);
      * since FANET types 2/3 are variable-length. */
     if (rf_protocol == RF_PROTOCOL_FANET) {
         size_t fnf_len = RF_last_rx_len;
-        if (fnf_len > rx_size) fnf_len = rx_size;  /* safety clamp */
+        if (fnf_len > sizeof(fo_raw)) fnf_len = sizeof(fo_raw);
         NMEA_FNF_Out(fo_raw, fnf_len);
         FN_check_ack(fo_raw, fnf_len);
     }

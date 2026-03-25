@@ -694,6 +694,11 @@ if (NMEA_Source != DEST_NONE) {     // only external sources
   case DEST_BLUETOOTH:
     {
       if (BTactive && SoC->Bluetooth_ops) {
+        if (settings->debug_flags & DEBUG_BLE_TX) {
+          Serial.print("BLE_TX: ");
+          Serial.write(buf, size);
+          if (!nl) Serial.println();
+        }
         SoC->Bluetooth_ops->write((const byte *) buf, size);
         if (nl)
           SoC->Bluetooth_ops->write((const byte *) "\r\n", 2);
@@ -787,6 +792,8 @@ bool NMEA_encode(const char *buf, const int len)
  * Format: #FNF src_manufacturer,src_id,broadcast,signature,type,length,payload\n
  * All header fields hex without leading zeros, payload bytes hex with leading zeros.
  */
+static void FN_transmit_ack(uint8_t dest_mfr, uint16_t dest_id);
+
 void NMEA_FNF_Out(const uint8_t *raw, size_t raw_len)
 {
     if (!FNF_enabled || raw_len < FANET_HEADER_SIZE)
@@ -805,10 +812,20 @@ void NMEA_FNF_Out(const uint8_t *raw, size_t raw_len)
     }
     uint8_t vendor = raw[1];
     uint16_t address = raw[2] | ((uint16_t)raw[3] << 8);
-    size_t payload_len = (raw_len > FANET_HEADER_SIZE) ? raw_len - FANET_HEADER_SIZE : 0;
 
+    /* Calculate actual payload offset — skip extended header if present */
     bool has_ext = raw[0] & 0x80;
-    bool unicast = (has_ext && raw_len >= 5) ? (raw[4] & (1 << 5)) : false;
+    bool unicast = false;
+    bool ack_requested = false;
+    size_t payload_offset = FANET_HEADER_SIZE;   /* 4 bytes basic header */
+    if (has_ext && raw_len > payload_offset) {
+        ack_requested = raw[payload_offset] & (1 << 6);
+        unicast = raw[payload_offset] & (1 << 5);
+        payload_offset += 1;                      /* +1 ext header byte */
+        if (unicast)
+            payload_offset += 3;                  /* +3 dest addr bytes */
+    }
+    size_t payload_len = (raw_len > payload_offset) ? raw_len - payload_offset : 0;
 
     if (type >= 2 && type <= 4) {
         Serial.print("FNF: RX Type ");
@@ -835,7 +852,7 @@ void NMEA_FNF_Out(const uint8_t *raw, size_t raw_len)
     int len = snprintf(NMEABuffer, sizeof(NMEABuffer), "#FNF %X,%X,%X,%X,%X,%X,",
         (unsigned)vendor,       /* src_manufacturer */
         (unsigned)address,      /* src_id */
-        1,                      /* broadcast (we only receive broadcasts) */
+        (unsigned)(unicast ? 0 : 1),  /* 1=broadcast, 0=unicast */
         0,                      /* signature (not used in SoftRF) */
         (unsigned)type,         /* FANET frame type */
         (unsigned)payload_len); /* payload length */
@@ -843,13 +860,23 @@ void NMEA_FNF_Out(const uint8_t *raw, size_t raw_len)
     /* Append payload bytes with leading zeros */
     for (size_t i = 0; i < payload_len && len < (int)sizeof(NMEABuffer) - 3; i++) {
         len += snprintf(NMEABuffer + len, sizeof(NMEABuffer) - len, "%02X",
-                        raw[FANET_HEADER_SIZE + i]);
+                        raw[payload_offset + i]);
     }
     NMEABuffer[len++] = '\n';
     NMEABuffer[len] = '\0';
 
     /* Send directly to BLE (FNF is BLE-only, not a standard NMEA sentence) */
     NMEA_Out(DEST_BLUETOOTH, NMEABuffer, len, false);
+
+    /* If this is a unicast message to us with ACK requested, send Type 0 ACK
+     * back to the sender so they know the message was delivered. */
+    if (unicast && ack_requested) {
+        Serial.print("FNF: sending delivery ACK to ");
+        Serial.print(vendor, HEX);
+        Serial.print(",");
+        Serial.println(address, HEX);
+        FN_transmit_ack(vendor, address);
+    }
 }
 
 /*
@@ -981,7 +1008,7 @@ static void FN_process_FNT(const char *args)
     Serial.print(" ack=");
     Serial.println(ack);
     memcpy(TxBuffer, frame, frame_len);
-    RF_Transmit(frame_len, true);
+    RF_Transmit(frame_len, false);  /* no-wait: user-initiated message, transmit immediately */
 
     /* If ACK requested for unicast, track it so we can match incoming Type 0 */
     if (ack && unicast) {
@@ -1124,6 +1151,69 @@ void FN_check_ack_timeout()
 }
 
 /*
+ * Process incoming #SYC commands from XCGuide (handshake/config protocol).
+ * Any #SYC command triggers FNF mode (XCGuide may send FNTPWR? before VER?).
+ * Queries are replied to, settings are acknowledged.
+ */
+static bool SYC_process_command(char *buf, int len)
+{
+    if (len < 8 || buf[0] != '#' || buf[1] != 'S' || buf[2] != 'Y' || buf[3] != 'C')
+        return false;
+
+    /* Strip trailing \r\n */
+    while (len > 0 && (buf[len-1] == '\r' || buf[len-1] == '\n'))
+        len--;
+    buf[len] = '\0';
+
+    char *arg = buf + 5;  /* skip "#SYC " */
+
+    /* Any #SYC command from XCGuide enables FNF mode — it may send
+     * FNTPWR? or other queries before VER?, so don't wait for VER?. */
+    if (!FNF_enabled) {
+        FNF_enabled = true;
+        Serial.println("FNF enabled by #SYC handshake");
+    }
+
+    /* NMEA_Out anti-echo guard blocks DEST_BLUETOOTH when NMEA_Source is
+     * DEST_BLUETOOTH (we're called from the BLE input loop).
+     * Temporarily clear it so replies go through. */
+    uint8_t saved_source = NMEA_Source;
+    NMEA_Source = DEST_NONE;
+
+    if (strcmp(arg, "VER?") == 0) {
+        NMEA_Out(DEST_BLUETOOTH, "#SYC VER=v008.1\n", 16, false);
+        NMEA_Source = saved_source;
+        return true;
+    }
+    if (strcmp(arg, "FNTPWR?") == 0) {
+        NMEA_Out(DEST_BLUETOOTH, "#SYC FNTPWR=14\n", 15, false);
+        NMEA_Source = saved_source;
+        return true;
+    }
+    if (strcmp(arg, "RFMODE?") == 0) {
+        NMEA_Out(DEST_BLUETOOTH, "#SYC RFMODE=15\n", 15, false);
+        NMEA_Source = saved_source;
+        return true;
+    }
+    if (strcmp(arg, "NAME?") == 0) {
+        char reply[64];
+        int rlen = snprintf(reply, sizeof(reply), "#SYC NAME=%s\n", settings->fanet_name);
+        NMEA_Out(DEST_BLUETOOTH, reply, rlen, false);
+        NMEA_Source = saved_source;
+        return true;
+    }
+    /* Statements like MODE=0, FNTPWR=14, TYPE=1, NAME=xxx — acknowledge */
+    if (strchr(arg, '=') != NULL) {
+        NMEA_Out(DEST_BLUETOOTH, "#SYC OK\n", 8, false);
+        NMEA_Source = saved_source;
+        return true;
+    }
+
+    NMEA_Source = saved_source;
+    return false;
+}
+
+/*
  * Process incoming #FN commands received from BLE
  * Returns true if the line was handled as an #FN command.
  */
@@ -1138,6 +1228,11 @@ bool FN_process_command(char *buf, int len)
         Serial.println("FNF enabled by #FN command");
     }
 
+    /* Clear NMEA_Source so replies via NMEA_Out(DEST_BLUETOOTH) are not
+     * blocked by the anti-echo guard (we're called from BLE input loop). */
+    uint8_t saved_source = NMEA_Source;
+    NMEA_Source = DEST_NONE;
+
     /* Strip trailing \r\n */
     while (len > 0 && (buf[len-1] == '\r' || buf[len-1] == '\n'))
         len--;
@@ -1145,10 +1240,14 @@ bool FN_process_command(char *buf, int len)
 
     if (buf[3] == 'G' && len >= 5) {
         FN_process_FNG(buf + 4 + (buf[4] == ' ' ? 1 : 0));
+        NMEA_Source = saved_source;
         return true;
     }
     if (buf[3] == 'T' && buf[4] == ' ' && len > 5) {
+        Serial.print("FN_cmd: received #FNT len=");
+        Serial.println(len);
         FN_process_FNT(buf + 5);
+        NMEA_Source = saved_source;
         return true;
     }
     /* #FNR ACK,manufacturer,id — app acknowledges receipt of a message,
@@ -1164,9 +1263,11 @@ bool FN_process_command(char *buf, int len)
                 FN_transmit_ack((uint8_t)mfr, (uint16_t)aid);
             }
         }
+        NMEA_Source = saved_source;
         return true;
     }
 
+    NMEA_Source = saved_source;
     return false;
 }
 
@@ -1245,7 +1346,7 @@ void NMEA_bridge_buf(char c, char* buf, int& n)
         // fall through to buf[n++] = c;
     } else if (c == '#') {
         n = 0;
-        // start #FN command (XCGuide protocol)
+        // start #FN/#SYC command (XCGuide protocol)
         // fall through to buf[n++] = c;
     } else if (n == 0) {      // wait for a '$' (or '!' or '#')
         if (c != '!')
@@ -1253,17 +1354,23 @@ void NMEA_bridge_buf(char c, char* buf, int& n)
         // if '!', start new sentence of some related protocols
         // fall through to buf[n++] = c;
     } else if (c=='\r' || c=='\n') {
-        if (n > 3 && n <= 128) {
+        int maxlen = (buf[0] == '#') ? 256 : 128;
+        if (n > 3 && n <= maxlen) {
             /* Debug: log complete sentences received from BLE */
             if (NMEA_Source == DEST_BLUETOOTH) {
                 buf[n] = '\0';
                 Serial.print("BLE_RX: ");
                 Serial.println(buf);
             }
-            /* #FN commands: no checksum required */
+            /* #FN / #SYC commands: no checksum required */
             if (buf[0] == '#' && buf[1] == 'F' && buf[2] == 'N') {
                 buf[n] = '\0';
                 FN_process_command(buf, n);
+                NMEA_bridge_sent = true;
+            }
+            else if (buf[0] == '#' && buf[1] == 'S' && buf[2] == 'Y') {
+                buf[n] = '\0';
+                SYC_process_command(buf, n);
                 NMEA_bridge_sent = true;
             }
             // sentences missing "*xx" ending are ignored unless started with '!'
@@ -1277,7 +1384,7 @@ void NMEA_bridge_buf(char c, char* buf, int& n)
         }
         n = 0;
         return;
-    } else if (n >= 128) {
+    } else if (n >= ((buf[0] == '#') ? 256 : 128)) {
         n = 0;
         return;
     }
@@ -1409,13 +1516,34 @@ void NMEA_loop()
   }  // end if (is_a_prime_mk2)
 #endif
 
-    static char bt_buf[128+3];
+    static char bt_buf[256+3];
     static int bt_n = 0;
     if (SoC->Bluetooth_ops) {
       gdl90 = (settings->gdl90_in == DEST_BLUETOOTH);
       while (BTactive && SoC->Bluetooth_ops->available() > 0) {
           NMEA_Source = DEST_BLUETOOTH;
           int c = SoC->Bluetooth_ops->read();
+          if ((settings->debug_flags & DEBUG_BLE_TX) && c >= 0) {
+              /* Log raw BLE RX: start line on '#', end on \n */
+              static bool ble_rx_tracing = false;
+              if (c == '#') {
+                  ble_rx_tracing = true;
+                  Serial.print("BLE_RAW: ");
+              } else if (c == '$') {
+                  if (ble_rx_tracing) Serial.println(" [CUT BY $]");
+                  ble_rx_tracing = false;
+              }
+              if (ble_rx_tracing) {
+                  if (c == '\n') {
+                      Serial.println("\\n");
+                      ble_rx_tracing = false;
+                  } else if (c == '\r') {
+                      Serial.print("\\r");
+                  } else {
+                      Serial.write((char)c);
+                  }
+              }
+          }
 #if defined(ESP32)
           if (gdl90)
               GDL90_bridge_buf(c, bt_buf, bt_n);

@@ -518,6 +518,7 @@ typedef union EEPROM_U {
 #define DEBUG_LEGACY 0x08
 #define DEBUG_DEEPER 0x10
 #define DEBUG_DEEPER2 0x20
+#define DEBUG_BLE_TX 0x40
 // now debug_flags is 24 bits so can have many other specific values
 #define DEBUG_RELAY 0x800
 #define DEBUG_SIMULATE 0x800000

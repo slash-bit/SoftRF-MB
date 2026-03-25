@@ -34,6 +34,7 @@
 #include "RF.h"
 #include "Battery.h"
 #include "../protocol/data/D1090.h"
+#include "Bluetooth.h"
 
 #if defined(USE_EGM96)
 //#include <egm96s.h>
@@ -2425,7 +2426,8 @@ void PickGNSSFix()
       c = Serial_GNSS_In.read();
     } else if (Serial.available() > 0) {
       c = Serial.read();
-    } else if (SoC->Bluetooth_ops && SoC->Bluetooth_ops->available() > 0) {
+    } else if (!FNF_enabled &&
+               SoC->Bluetooth_ops && SoC->Bluetooth_ops->available() > 0) {
       c = SoC->Bluetooth_ops->read();
     } else {
       /* return back if no input data */
@@ -2448,8 +2450,11 @@ void PickGNSSFix()
      * 'Dongle', 'Retro', 'Uni', 'Mini', 'Badge', 'Academy' and 'Lego' Editions
      */
 
-    /* Bluetooth input is first */
-    if (SoC->Bluetooth_ops && SoC->Bluetooth_ops->available() > 0) {
+    /* Bluetooth input is first — but NOT when FNF (XCGuide) is active,
+     * because NMEA_loop() handles BLE input for #FNT/#SYC/#FNG commands.
+     * Reading BLE here would consume those commands as garbage GNSS data. */
+    if (!FNF_enabled &&
+        SoC->Bluetooth_ops && SoC->Bluetooth_ops->available() > 0) {
       c = SoC->Bluetooth_ops->read();
 
       NMEA_Source = DEST_BLUETOOTH;

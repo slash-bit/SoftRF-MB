@@ -17,7 +17,7 @@
  */
 
 bool BTactive = false;
-bool FNF_enabled = false;  /* set when XCGuide connects with MTU >= 247 */
+bool FNF_enabled = false;  /* set when XCGuide sends #SYC VER? handshake */
 
 // XCsoar is confused by BLE "sensor" devices, so try and skip them
 // - uncomment this line to restore them:
@@ -1310,9 +1310,9 @@ static unsigned long BLE_SensBox_TimeMarker = 0;
 // BLE Service
 BLEDfu        bledfu;       // OTA DFU service
 BLEDis        bledis;       // device information
-BLEUart_HM10  bleuart_HM10; // TI UART over BLE
+BLEUart_HM10  bleuart_HM10(512); // TI UART over BLE — 512 byte RX FIFO (XCGuide bursts ~200 bytes)
 #if !defined(EXCLUDE_NUS)
-BLEUart       bleuart_NUS;  // Nordic UART over BLE
+BLEUart       bleuart_NUS(512);  // Nordic UART over BLE — 512 byte RX FIFO
 #endif /* EXCLUDE_NUS */
 BLEBas        blebas;       // battery
 BLESensBox    blesens;      // SensBox
@@ -1446,6 +1446,14 @@ void disconnect_callback(uint16_t conn_handle, uint8_t reason)
 #endif
 }
 
+static void ble_rx_overflow_cb(uint16_t conn_hdl, uint16_t leftover)
+{
+  (void) conn_hdl;
+  Serial.print("BLE_RX OVERFLOW! ");
+  Serial.print(leftover);
+  Serial.println(" bytes dropped");
+}
+
 void nRF52_Bluetooth_setup()
 {
   if (settings->bluetooth != BLUETOOTH_LE_HM10_SERIAL)
@@ -1459,7 +1467,7 @@ void nRF52_Bluetooth_setup()
       BT_name = settings->myssid;
   } else {
       BT_name = HOSTNAME;    // "SoftRF"
-      //BT_name += "-";
+      BT_name += "-";
       BT_name += String(SoC->getChipId() & 0x00FFFFFFU, HEX);
   }
 
@@ -1495,9 +1503,11 @@ void nRF52_Bluetooth_setup()
 
   // Configure and Start BLE Uart Service
   bleuart_HM10.begin();
+  bleuart_HM10.setRxOverflowCallback(ble_rx_overflow_cb);
 #if !defined(EXCLUDE_NUS)
   bleuart_NUS.begin();
   bleuart_NUS.bufferTXD(true);
+  bleuart_NUS.setRxOverflowCallback(ble_rx_overflow_cb);
 #endif /* EXCLUDE_NUS */
 
 #if defined(BLE_SENSORS)
@@ -1543,12 +1553,7 @@ static void nRF52_Bluetooth_loop()
     BLE_Notify_TimeMarker = millis();
   }
 
-  /* Detect XCGuide: it requests MTU exactly 256 (others request 517+).
-   * Enable FNF mode for #FNF output and #FNG/#FNT input. */
-  if (Bluefruit.connected() && !FNF_enabled && ble_client_requested_mtu == 256) {
-    FNF_enabled = true;
-    Serial.println("FNF enabled (XCGuide detected, MTU request=256)");
-  }
+  /* XCGuide detection is now via #SYC VER? handshake, not MTU-based */
 
 #if defined(BLE_SENSORS)
   if (isTimeToBattery()) {
