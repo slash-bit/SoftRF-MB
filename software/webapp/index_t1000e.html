@@ -1192,6 +1192,9 @@ const SETTINGS_META = [
     type:'select', options:[
       {v:'0',l:'None'},{v:'1',l:'Distance'},{v:'2',l:'Vector'},{v:'3',l:'Latest'}],
     desc:'Collision alarm type' },
+  { key:'alarm_demo', label:'Alarm Demo', tab:'basic', group:'Radio',
+    type:'button', buttonLabel:'Start Demo', desc:'Test buzzer alarm sounds',
+    action: async () => { await App.ble.sendNmea('PSRFC,DEM'); } },
   { key:'tx_power', label:'TX Power', tab:'basic', group:'Radio',
     type:'select', options:[{v:'0',l:'Off'},{v:'1',l:'Low'},{v:'2',l:'Full'}],
     desc:'Transmit power level' },
@@ -2328,6 +2331,13 @@ App.ui = {
       if (meta.maxlen) inp.maxLength = meta.maxlen;
       inp.onchange = () => App.settings.onChange(meta.key, inp.value);
       ctrl.appendChild(inp);
+    } else if (meta.type === 'button') {
+      const btn = document.createElement('button');
+      btn.id = 'ctrl-' + meta.key;
+      btn.className = 'btn-action';
+      btn.textContent = meta.buttonLabel || meta.label;
+      btn.onclick = () => { if (meta.action) meta.action(); };
+      ctrl.appendChild(btn);
     }
 
     row.appendChild(info);
