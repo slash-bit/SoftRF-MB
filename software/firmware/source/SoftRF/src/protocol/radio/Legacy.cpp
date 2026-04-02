@@ -33,6 +33,7 @@
 #include "../../driver/Filesys.h"
 #include "../data/IGC.h"
 #include "../data/NMEA.h"
+#include "../../driver/Bluetooth.h"
 
 const rf_proto_desc_t legacy_proto_desc = {
   "Legacy",
@@ -508,6 +509,10 @@ bool latest_decode(void* buffer, container_t* this_aircraft, ufo_t* fop)
 
 bool legacy_decode(void *buffer, container_t *this_aircraft, ufo_t *fop) {
 
+    /* RFMODE bit 2: FLARM RX — skip if disabled by XCGuide */
+    if (!(fnf_rfmode & FNF_RFMODE_FLARM_RX))
+      return false;
+
     legacy_packet_t *pkt = (legacy_packet_t *) buffer;
 
     fop->addr = pkt->addr;
@@ -913,6 +918,10 @@ Serial.printf("RF_time=%d but should be %d\r\n", (uint32_t) RF_time, timestamp);
 
 size_t legacy_encode(void *pkt_buffer, container_t *aircraft)
 {
+    /* RFMODE bit 3: FLARM TX — skip if disabled by XCGuide */
+    if (!(fnf_rfmode & FNF_RFMODE_FLARM_TX))
+      return 0;
+
     legacy_packet_t *pkt = (legacy_packet_t *) pkt_buffer;
 
     uint32_t id = aircraft->addr;

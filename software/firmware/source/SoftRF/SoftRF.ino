@@ -673,6 +673,10 @@ SoC->Buzzer_GPSfix();
 if (rx_success) which_rx_try = 1;
       // if received a packet, postpone transmission until next time around the loop().
 
+      /* Transmit queued FANET frame (ACK or #FNT) if slot available — priority over tracking */
+      if (!rx_success)
+          FN_TX_check();
+
       if (!rx_success && RF_Transmit_Ready(true)
           && (relay_waiting == NULL || RF_current_slot == 0)
           && settings->relay < RELAY_ONLY) {

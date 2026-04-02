@@ -868,9 +868,11 @@ void NMEA_FNF_Out(const uint8_t *raw, size_t raw_len)
     /* Send directly to BLE (FNF is BLE-only, not a standard NMEA sentence) */
     NMEA_Out(DEST_BLUETOOTH, NMEABuffer, len, false);
 
-    /* If this is a unicast message to us with ACK requested, send Type 0 ACK
-     * back to the sender so they know the message was delivered. */
-    if (unicast && ack_requested) {
+    /* For any unicast message to us, send Type 0 ACK back to the sender
+     * so they know the message was delivered to this device.
+     * When the pilot presses OK in XCGuide, the app sends a separate
+     * "read ACK" (#FNT) which we transmit as a second acknowledgement. */
+    if (unicast) {
         Serial.print("FNF: sending delivery ACK to ");
         Serial.print(vendor, HEX);
         Serial.print(",");
@@ -913,6 +915,10 @@ static void FN_process_FNG(const char *args)
         NMEA_Out(DEST_BLUETOOTH, "#FNR ERR,22,Bad ground type\n", 28, false);
     }
 }
+
+/* Pending FANET TX queue — frames queued here and transmitted in next available TX slot */
+static uint8_t  fn_tx_pending_buf[MAX_PKT_SIZE];
+static size_t   fn_tx_pending_len = 0;
 
 /* Pending ACK tracking for unicast messages sent via #FNT */
 static uint8_t  fnf_ack_pending_mfr = 0;
@@ -1007,8 +1013,9 @@ static void FN_process_FNT(const char *args)
     }
     Serial.print(" ack=");
     Serial.println(ack);
-    memcpy(TxBuffer, frame, frame_len);
-    RF_Transmit(frame_len, false);  /* no-wait: user-initiated message, transmit immediately */
+    /* Queue for transmission in next available FANET TX slot */
+    memcpy(fn_tx_pending_buf, frame, frame_len);
+    fn_tx_pending_len = frame_len;
 
     /* If ACK requested for unicast, track it so we can match incoming Type 0 */
     if (ack && unicast) {
@@ -1042,17 +1049,13 @@ static void FN_transmit_ack(uint8_t dest_mfr, uint16_t dest_id)
     frame[6] = dest_id & 0xFF;
     frame[7] = (dest_id >> 8) & 0xFF;
 
-    Serial.print("FN_transmit_ack: Type 0 ACK to ");
+    Serial.print("FN_transmit_ack: Type 0 ACK queued to ");
     Serial.print(dest_mfr, HEX);
     Serial.print(",");
     Serial.println(dest_id, HEX);
-    memcpy(TxBuffer, frame, 8);
-    RF_Transmit(8, true);
-
-    Serial.print("FN ACK sent to ");
-    Serial.print(dest_mfr, HEX);
-    Serial.print(":");
-    Serial.println(dest_id, HEX);
+    /* Queue for transmission in next available FANET TX slot */
+    memcpy(fn_tx_pending_buf, frame, 8);
+    fn_tx_pending_len = 8;
 }
 
 /*
@@ -1151,6 +1154,27 @@ void FN_check_ack_timeout()
 }
 
 /*
+ * Transmit pending FANET frame if TX slot is available.
+ * Called from main loop. Returns true if a frame was transmitted.
+ */
+bool FN_TX_check()
+{
+    if (fn_tx_pending_len == 0)
+        return false;
+
+    if (!RF_Transmit_Ready(true))
+        return false;
+
+    memcpy(TxBuffer, fn_tx_pending_buf, fn_tx_pending_len);
+    size_t len = fn_tx_pending_len;
+    fn_tx_pending_len = 0;   /* clear before transmit so re-entry is safe */
+    RF_Transmit(len, true);
+    Serial.print("FN_TX: transmitted queued frame, len=");
+    Serial.println(len);
+    return true;
+}
+
+/*
  * Process incoming #SYC commands from XCGuide (handshake/config protocol).
  * Any #SYC command triggers FNF mode (XCGuide may send FNTPWR? before VER?).
  * Queries are replied to, settings are acknowledged.
@@ -1191,19 +1215,70 @@ static bool SYC_process_command(char *buf, int len)
         return true;
     }
     if (strcmp(arg, "RFMODE?") == 0) {
-        NMEA_Out(DEST_BLUETOOTH, "#SYC RFMODE=15\n", 15, false);
+        char reply[32];
+        int rlen = snprintf(reply, sizeof(reply), "#SYC RFMODE=%u\n", fnf_rfmode);
+        NMEA_Out(DEST_BLUETOOTH, reply, rlen, false);
         NMEA_Source = saved_source;
         return true;
     }
     if (strcmp(arg, "NAME?") == 0) {
         char reply[64];
-        int rlen = snprintf(reply, sizeof(reply), "#SYC NAME=%s\n", settings->fanet_name);
+        const char *name = fnf_session_name[0] ? fnf_session_name : settings->fanet_name;
+        int rlen = snprintf(reply, sizeof(reply), "#SYC NAME=%s\n", name);
         NMEA_Out(DEST_BLUETOOTH, reply, rlen, false);
         NMEA_Source = saved_source;
         return true;
     }
-    /* Statements like MODE=0, FNTPWR=14, TYPE=1, NAME=xxx — acknowledge */
+    if (strcmp(arg, "AIRMODE?") == 0) {
+        char reply[32];
+        int rlen = snprintf(reply, sizeof(reply), "#SYC AIRMODE=%u\n", fnf_airmode);
+        NMEA_Out(DEST_BLUETOOTH, reply, rlen, false);
+        NMEA_Source = saved_source;
+        return true;
+    }
+    if (strcmp(arg, "TYPE?") == 0) {
+        char reply[32];
+        int rlen = snprintf(reply, sizeof(reply), "#SYC TYPE=%u\n",
+                            AT_TO_FANET(ThisAircraft.aircraft_type));
+        NMEA_Out(DEST_BLUETOOTH, reply, rlen, false);
+        NMEA_Source = saved_source;
+        return true;
+    }
+    /* Statements with '=' — parse known settings, acknowledge all */
     if (strchr(arg, '=') != NULL) {
+        char *eq = strchr(arg, '=');
+        *eq = '\0';
+        const char *val = eq + 1;
+
+        if (strcmp(arg, "NAME") == 0) {
+            strncpy(fnf_session_name, val, sizeof(fnf_session_name) - 1);
+            fnf_session_name[sizeof(fnf_session_name) - 1] = '\0';
+            Serial.printf("FNF session name set: %s\n", fnf_session_name);
+        }
+        else if (strcmp(arg, "AIRMODE") == 0) {
+            uint8_t mode = (uint8_t)atoi(val);
+            fnf_airmode = (mode == 1) ? 1 : 0;
+            if (fnf_airmode) {
+                ThisAircraft.airborne = 1;
+                fanet_landed = 0;
+            }
+            Serial.printf("FNF airmode set: %u\n", fnf_airmode);
+        }
+        else if (strcmp(arg, "TYPE") == 0) {
+            uint8_t ftype = (uint8_t)atoi(val);
+            if (ftype <= 7) {
+                ThisAircraft.aircraft_type = AT_FROM_FANET(ftype);
+                Serial.printf("FNF aircraft type set: FANET %u -> SoftRF %u\n",
+                              ftype, ThisAircraft.aircraft_type);
+            }
+        }
+        else if (strcmp(arg, "RFMODE") == 0) {
+            uint8_t mode = (uint8_t)atoi(val);
+            fnf_rfmode = mode & 0x0F;
+            Serial.printf("FNF rfmode set: %u\n", fnf_rfmode);
+        }
+
+        *eq = '=';  /* restore buffer */
         NMEA_Out(DEST_BLUETOOTH, "#SYC OK\n", 8, false);
         NMEA_Source = saved_source;
         return true;

@@ -16,8 +16,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdint.h>
+
 bool BTactive = false;
 bool FNF_enabled = false;  /* set when XCGuide sends #SYC VER? handshake */
+char fnf_session_name[20] = "";  /* session override for fanet_name, cleared on reboot */
+uint8_t fnf_airmode = 0;   /* 0=auto (default), 1=forced airborne */
+uint8_t fnf_rfmode = 15;   /* bit0:FANET_RX bit1:FANET_TX bit2:FLARM_RX bit3:FLARM_TX, default=15 (all on) */
 
 // XCsoar is confused by BLE "sensor" devices, so try and skip them
 // - uncomment this line to restore them:

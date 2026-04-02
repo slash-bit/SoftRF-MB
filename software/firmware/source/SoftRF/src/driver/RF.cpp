@@ -2870,8 +2870,8 @@ void set_protocol_for_slot()
       RF_chip_channel(current_RX_protocol);
     } else {
       /* Protocol unchanged, just update frequency/channel */
-      Serial.print("[Channel change] calling RF_chip_channel: ");
-      Serial.println(current_RX_protocol);
+      // Serial.print("[Channel change] calling RF_chip_channel: ");
+      // Serial.println(current_RX_protocol);
       RF_chip_channel(current_RX_protocol);
     }
   } else
@@ -2981,7 +2981,7 @@ void RF_loop()
   if (ms_since_pps >= 380 && ms_since_pps < 800) {
 
     if (RF_current_slot != 0) {
-      Serial.print("Switching to Slot 0 at PPS+"); Serial.print(ms_since_pps); Serial.println(" ms");
+      // Serial.print("Switching to Slot 0 at PPS+"); Serial.print(ms_since_pps); Serial.println(" ms");
       RF_current_slot = 0;
       set_protocol_for_slot();
     }
@@ -3000,7 +3000,7 @@ void RF_loop()
   } else if (ms_since_pps >= 800 && ms_since_pps < 1300) {
 
     if (RF_current_slot != 1) {
-      Serial.print("Switching to Slot 1 at PPS+"); Serial.print(ms_since_pps); Serial.println(" ms");
+      // Serial.print("Switching to Slot 1 at PPS+"); Serial.print(ms_since_pps); Serial.println(" ms");
       RF_current_slot = 1;
       set_protocol_for_slot();
     }

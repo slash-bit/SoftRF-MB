@@ -160,6 +160,14 @@ const char *fanet_name_lookup(uint32_t addr);
 void fanet_name_set_type(uint32_t addr, uint8_t type_status);
 
 extern const rf_proto_desc_t fanet_proto_desc;
+extern const uint8_t aircraft_type_to_fanet[];
+extern const uint8_t aircraft_type_from_fanet[];
+
+#define AT_TO_FANET(x)  ((x) > 16 ? \
+   FANET_AIRCRAFT_TYPE_OTHER : pgm_read_byte(&aircraft_type_to_fanet[(x)]))
+
+#define AT_FROM_FANET(x)  ((x) > 7 ? \
+   AIRCRAFT_TYPE_UNKNOWN : pgm_read_byte(&aircraft_type_from_fanet[(x)]))
 
 bool fanet_decode(void *, container_t *, ufo_t *);
 size_t fanet_encode(void *, container_t *);

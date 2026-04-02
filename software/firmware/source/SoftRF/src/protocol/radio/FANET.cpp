@@ -33,6 +33,7 @@
 #include "../../driver/RF.h"
 #include "../../driver/Settings.h"
 #include "../../protocol/data/NMEA.h"
+#include "../../driver/Bluetooth.h"
 
 const rf_proto_desc_t fanet_proto_desc = {
   "FANET",
@@ -101,11 +102,7 @@ const uint8_t aircraft_type_from_fanet[] PROGMEM = {
 	AIRCRAFT_TYPE_UAV
 };
 
-#define AT_TO_FANET(x)  (x > 16 ? \
-   FANET_AIRCRAFT_TYPE_OTHER : pgm_read_byte(&aircraft_type_to_fanet[x]))
-
-#define AT_FROM_FANET(x)  (x > 7 ? \
-   AIRCRAFT_TYPE_UNKNOWN : pgm_read_byte(&aircraft_type_from_fanet[x]))
+/* AT_TO_FANET and AT_FROM_FANET macros are in FANET.h */
 
 /* FANET name table: stores pilot names received via Type 2 packets */
 fanet_name_entry_t fanet_name_table[FANET_NAME_TABLE_SIZE];
@@ -252,6 +249,10 @@ static void payload_absolut2coord(float *lat, float *lon, uint8_t *buf)
 #endif
 
 bool fanet_decode(void *fanet_pkt, container_t *this_aircraft, ufo_t *fop) {
+
+  /* RFMODE bit 0: FANET RX — skip if disabled by XCGuide */
+  if (!(fnf_rfmode & FNF_RFMODE_FANET_RX))
+    return false;
 
   fanet_packet_t *pkt = (fanet_packet_t *) fanet_pkt;
   unsigned int altitude;
@@ -407,7 +408,7 @@ uint8_t  fanet_sos_count    = 0;
 
 static size_t fanet_type2_encode(void *fanet_pkt, container_t *this_aircraft) {
 
-  const char *name = settings->fanet_name;
+  const char *name = fnf_session_name[0] ? fnf_session_name : settings->fanet_name;
   if (name[0] == '\0')
     return 0;
 
@@ -563,10 +564,14 @@ static size_t fanet_type1_encode(void *fanet_pkt, container_t *this_aircraft) {
 
 size_t fanet_encode(void *fanet_pkt, container_t *this_aircraft) {
 
+  /* RFMODE bit 1: FANET TX — skip if disabled by XCGuide */
+  if (!(fnf_rfmode & FNF_RFMODE_FANET_TX))
+    return 0;
+
   uint32_t now = millis();
 
   /* Every 2 minutes, send a Name packet (Type 2) instead of tracking */
-  if (settings->fanet_name[0] != '\0' &&
+  if ((fnf_session_name[0] || settings->fanet_name[0] != '\0') &&
       (now - fanet_name_last_ms) >= FANET_NAME_INTERVAL_MS) {
     fanet_name_last_ms = now;
     size_t s = fanet_type2_encode(fanet_pkt, this_aircraft);
@@ -581,7 +586,7 @@ size_t fanet_encode(void *fanet_pkt, container_t *this_aircraft) {
       fanet_sos_last_ms = now;
       fanet_sos_count++;
       char sos_msg[60];
-      snprintf(sos_msg, sizeof(sos_msg), "SOS! Pilot in distress %.5f,%.5f",
+      snprintf(sos_msg, sizeof(sos_msg), "SOS message Pilot in distress %.5f,%.5f",
                this_aircraft->latitude, this_aircraft->longitude);
       return fanet_type3_encode(fanet_pkt, this_aircraft, sos_msg);
     }
@@ -599,3 +604,4 @@ size_t fanet_encode(void *fanet_pkt, container_t *this_aircraft) {
   /* Otherwise send normal Tracking (Type 1) */
   return fanet_type1_encode(fanet_pkt, this_aircraft);
 }
+ 

@@ -29,6 +29,7 @@
 #include "protocol/data/NMEA.h"
 #include "protocol/data/IGC.h"
 #include "protocol/data/GNS5892.h"
+#include "driver/Bluetooth.h"
 
 float wind_best_ns = 0.0;  /* mps */
 float wind_best_ew = 0.0;
@@ -525,6 +526,13 @@ void this_airborne(bool validfix)
     static float initial_latitude = 0;
     static float initial_longitude = 0;
     static float initial_altitude = 0;
+
+    /* XCGuide forced air mode: skip auto-detection, stay airborne */
+    if (fnf_airmode) {
+        airborne = 60;
+        ThisAircraft.airborne = 1;
+        return;
+    }
 
     if (initial_latitude == 0) {
       /* set initial location */

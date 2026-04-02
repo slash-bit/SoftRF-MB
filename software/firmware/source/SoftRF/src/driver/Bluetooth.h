@@ -31,6 +31,13 @@ enum
 
 extern bool BTactive;
 extern bool FNF_enabled;  /* XCGuide connected with high MTU — send #FNF, accept #FNG/#FNT */
+extern char fnf_session_name[20];  /* session override for fanet_name, cleared on reboot */
+extern uint8_t fnf_airmode;   /* 0=auto, 1=forced airborne */
+extern uint8_t fnf_rfmode;    /* bit0:FANET_RX bit1:FANET_TX bit2:FLARM_RX bit3:FLARM_TX */
+#define FNF_RFMODE_FANET_RX  0x01
+#define FNF_RFMODE_FANET_TX  0x02
+#define FNF_RFMODE_FLARM_RX  0x04
+#define FNF_RFMODE_FLARM_TX  0x08
 
 #if defined(ESP32)
 #include "sdkconfig.h"
