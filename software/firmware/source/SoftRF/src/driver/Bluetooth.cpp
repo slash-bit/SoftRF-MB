@@ -1297,6 +1297,9 @@ bool BLESensBox::notify_sys(uint8_t status)
 
 static unsigned long BLE_Notify_TimeMarker  = 0;
 static unsigned long BLE_SensBox_TimeMarker = 0;
+static unsigned long BLE_No_Client_Time_ms  = 0;
+
+static void nRF52_Bluetooth_fini();  /* forward declaration for power-save timeout */
 
 /*********************************************************************
  This is an example for our nRF52 based Bluefruit LE modules
@@ -1540,6 +1543,7 @@ void nRF52_Bluetooth_setup()
 
   BLE_Notify_TimeMarker  = millis();
   BLE_SensBox_TimeMarker = millis();
+  BLE_No_Client_Time_ms  = millis();
 }
 
 /*********************************************************************
@@ -1572,6 +1576,17 @@ static void nRF52_Bluetooth_loop()
     blesens.notify_gps2(sens_status);
     blesens.notify_sys (sens_status);
     BLE_SensBox_TimeMarker = millis();
+  }
+#endif
+
+#if defined(POWER_SAVING_BLE_TIMEOUT)
+  /* On nRF52 there is no WiFi, so POWER_SAVE_WIFI (1) also triggers BLE shutdown */
+  if (settings->power_save & (POWER_SAVE_BLUETOOTH | POWER_SAVE_WIFI)) {
+    if (Bluefruit.connected()) {
+      BLE_No_Client_Time_ms = millis();
+    } else if ((millis() - BLE_No_Client_Time_ms) > POWER_SAVING_BLE_TIMEOUT) {
+      nRF52_Bluetooth_fini();
+    }
   }
 #endif
 }

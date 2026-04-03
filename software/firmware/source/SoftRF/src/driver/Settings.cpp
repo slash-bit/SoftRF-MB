@@ -286,7 +286,7 @@ static void init_stgdesc()
   stgcomment[STG_PFLAA_CS]   = yesno;
   stgcomment[STG_STEALTH]    = yesno;
   stgcomment[STG_NO_TRACK]   = yesno;
-  stgcomment[STG_POWER_SAVE] = "1=turn off wifi after 10min";
+  stgcomment[STG_POWER_SAVE] = "1=turn off wifi/BT after 10min";
   stgcomment[STG_POWER_EXT]  = "1=allow dual-power boot, shutdown long after USB off";
   stgcomment[STG_RFC]        = "freq correction +-30";
   stgcomment[STG_LEAPSECS]   = "leap seconds - automatic";
