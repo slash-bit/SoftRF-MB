@@ -413,6 +413,9 @@ Serial.println("");
 
 void shutparts()
 {
+#if defined(FILESYS)
+  BatteryLog_PowerOff();
+#endif
   SoC->WDT_fini();
   if (SoC->Bluetooth_ops)
      SoC->Bluetooth_ops->fini();
@@ -566,6 +569,9 @@ gnss.location.lat(), gnss.location.lng(),
 gnss.date.year(), gnss.date.month(), gnss.date.day(),
 gnss.time.hour(), gnss.time.minute(), gnss.time.second());
 SoC->Buzzer_GPSfix();
+#if defined(FILESYS)
+        BatteryLog_PowerOn();
+#endif
         (void) leap_seconds_valid();    // computes leap_seconds_correction
       } else {
         validfix = false;          // do not transmit yet

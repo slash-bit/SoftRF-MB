@@ -23,6 +23,8 @@
 #include "../system/SoC.h"
 #include "Settings.h"
 #include "Battery.h"
+#include "GNSS.h"
+#include "Filesys.h"
 
 unsigned long Battery_TimeMarker        = 0;
 
@@ -118,3 +120,77 @@ void Battery_loop()
     Battery_TimeMarker = millis();
   }
 }
+
+/* ---- Battery log ---- */
+#if defined(FILESYS)
+#define BATTERYLOG_FILE    "/batterylog.txt"
+#define BATTERYLOG_MAXLINES 20
+
+static bool BatteryLog_PowerOn_done = false;
+
+void BatteryLog_write(uint8_t on_off)
+{
+    if (!FS_is_mounted) return;
+
+    char line[48];
+    snprintf(line, sizeof(line), "%04d-%02d-%02d %02d:%02d:%02d,%d,%d\r\n",
+        gnss.date.year(), gnss.date.month(), gnss.date.day(),
+        gnss.time.hour(), gnss.time.minute(), gnss.time.second(),
+        (int)Battery_charge(), on_off);
+
+    /* --- read existing lines --- */
+    char lines[BATTERYLOG_MAXLINES][48];
+    int count = 0;
+    if (FILESYS.exists(BATTERYLOG_FILE)) {
+        File f = FILESYS.open(BATTERYLOG_FILE, FILE_READ);
+        if (f) {
+            while (count < BATTERYLOG_MAXLINES && f.available()) {
+                int len = 0;
+                char c;
+                while (f.available() && len < 47) {
+                    c = f.read();
+                    if (c == '\n') break;
+                    if (c != '\r')
+                        lines[count][len++] = c;
+                }
+                lines[count][len] = '\0';
+                if (len > 0) count++;
+            }
+            f.close();
+        }
+    }
+
+    /* --- trim: keep last (MAXLINES-1) entries, then append new --- */
+    int start = 0;
+    if (count >= BATTERYLOG_MAXLINES)
+        start = count - (BATTERYLOG_MAXLINES - 1);
+
+    FILESYS.remove(BATTERYLOG_FILE);
+    File f = FILESYS.open(BATTERYLOG_FILE, (O_WRITE | O_CREAT));
+    if (f) {
+        for (int i = start; i < count; i++) {
+            f.write((const uint8_t *)lines[i], strlen(lines[i]));
+            f.write((const uint8_t *)"\r\n", 2);
+        }
+        f.write((const uint8_t *)line, strlen(line));
+        f.close();
+        Serial.print(F("Battery log: "));
+        Serial.print(line);
+    }
+}
+
+void BatteryLog_PowerOn()
+{
+    if (!BatteryLog_PowerOn_done) {
+        BatteryLog_write(1);
+        BatteryLog_PowerOn_done = true;
+    }
+}
+
+void BatteryLog_PowerOff()
+{
+    if (GNSSTimeMarker != 0)   /* only log if we had a GPS fix (valid datetime) */
+        BatteryLog_write(0);
+}
+
+#endif /* FILESYS */

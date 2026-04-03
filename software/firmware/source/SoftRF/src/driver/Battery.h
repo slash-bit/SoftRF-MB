@@ -72,4 +72,8 @@ uint8_t Battery_charge(void);
 
 extern unsigned long Battery_TimeMarker;
 
+void    BatteryLog_write(uint8_t on_off);
+void    BatteryLog_PowerOn(void);
+void    BatteryLog_PowerOff(void);
+
 #endif /* BATTERYHELPER_H */
