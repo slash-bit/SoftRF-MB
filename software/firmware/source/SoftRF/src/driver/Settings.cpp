@@ -291,7 +291,7 @@ static void init_stgdesc()
   stgcomment[STG_RFC]        = "freq correction +-30";
   stgcomment[STG_LEAPSECS]   = "leap seconds - automatic";
   stgcomment[STG_ALARMLOG]   = yesno;
-  stgcomment[STG_FANET_SOS]  = "0=auto 1=manual 2=off";
+  stgcomment[STG_FANET_SOS]  = "0=off 1=manual 2=auto";
   stgcomment[STG_LOG_NMEA]   = "1 = log all NMEA output to SD card";
   stgcomment[STG_LOGFLIGHT]  = "0=off 1=always 2=airborne 3=traffic";
   stgcomment[STG_LOGINTERVAL]= "seconds, 1-255";

@@ -408,7 +408,7 @@ typedef struct Settings {
     int8_t   expire;
     bool     pflaa_cs;
     bool     logalarms;
-    uint8_t  auto_sos;      /* if 1, auto-distress 60s after landing unless button double-pressed */
+    uint8_t  auto_sos;      /* 0=off, 1=manual(button), 2=auto(60s after landing) */
     uint32_t debug_flags;   /* each bit activates output of some debug info */
 
 //#if defined(ESP32)

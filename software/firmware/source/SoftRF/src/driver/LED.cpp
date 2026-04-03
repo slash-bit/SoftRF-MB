@@ -230,7 +230,7 @@ void LED_loop() {
 
     if (fanet_landed == 1) {
       /* AUTO-SOS COUNTDOWN: accelerating red blink + beeps */
-      #define SOS_COUNTDOWN_MS  60000UL
+      #define SOS_COUNTDOWN_MS  180000UL  /* 3 minutes */
       uint32_t elapsed = now_ms - sos_countdown_start_ms;
       if (elapsed >= SOS_COUNTDOWN_MS) {
         /* Countdown expired — activate distress */
@@ -273,12 +273,43 @@ void LED_loop() {
           digitalWrite(green_led, HIGH);
         }
       }
-      /* DISTRESS buzzer: short beep every 2000ms */
-      if (now_ms - t1000e_buzz_marker > 2000) {
-        t1000e_buzz_marker = now_ms;
-        SoC->Buzzer_tone(3000, BUZZER_VOLUME_FULL);
-        delay(50);
-        SoC->Buzzer_tone(0, BUZZER_VOLUME_FULL);
+      /* DISTRESS buzzer: SOS morse code  ··· −−− ···  */
+      /* dot=100ms, dash=300ms, element gap=100ms, letter gap=300ms, repeat gap=1500ms */
+      {
+        #define SOS_DOT_MS   100
+        #define SOS_DASH_MS  300
+        #define SOS_GAP_MS   100
+        #define SOS_LGAP_MS  300
+        #define SOS_REPEAT_MS 1500
+        #define SOS_FREQ     3000
+        /* pattern: tone durations and gaps, terminated by repeat gap */
+        /* S=···  O=−−−  S=···  */
+        static const uint16_t sos_pattern[] = {
+          SOS_DOT_MS,  SOS_GAP_MS,   /* S dot 1 */
+          SOS_DOT_MS,  SOS_GAP_MS,   /* S dot 2 */
+          SOS_DOT_MS,  SOS_LGAP_MS,  /* S dot 3 + letter gap */
+          SOS_DASH_MS, SOS_GAP_MS,   /* O dash 1 */
+          SOS_DASH_MS, SOS_GAP_MS,   /* O dash 2 */
+          SOS_DASH_MS, SOS_LGAP_MS,  /* O dash 3 + letter gap */
+          SOS_DOT_MS,  SOS_GAP_MS,   /* S dot 1 */
+          SOS_DOT_MS,  SOS_GAP_MS,   /* S dot 2 */
+          SOS_DOT_MS,  SOS_REPEAT_MS /* S dot 3 + repeat gap */
+        };
+        #define SOS_PATTERN_LEN (sizeof(sos_pattern)/sizeof(sos_pattern[0]))
+        static uint8_t sos_step = 0;
+        static bool    sos_tone_on = true;  /* even steps = tone, odd = silence */
+
+        if (now_ms - t1000e_buzz_marker >= sos_pattern[sos_step]) {
+          t1000e_buzz_marker = now_ms;
+          sos_step++;
+          if (sos_step >= SOS_PATTERN_LEN) {
+            sos_step = 0;
+            sos_tone_on = true;
+          } else {
+            sos_tone_on = !sos_tone_on;
+          }
+          SoC->Buzzer_tone(sos_tone_on ? SOS_FREQ : 0, BUZZER_VOLUME_FULL);
+        }
       }
     } else if (Buzzer_active(NULL)) {
       /* TRAFFIC ALARM: red LED mirrors buzzer beeps, green off */

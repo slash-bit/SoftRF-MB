@@ -623,7 +623,7 @@ void this_airborne(bool validfix)
       if (settings->auto_sos && !fanet_distress) {
         fanet_landed = 1;  // SOS countdown active
         sos_countdown_start_ms = millis();
-        Serial.println(F("Auto-SOS countdown started (60s)"));
+        Serial.println(F("Auto-SOS countdown started (3min)"));
       } else {
         fanet_landed = 2;  // landed OK (no auto-sos)
       }

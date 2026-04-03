@@ -1079,12 +1079,12 @@ void parseJSettings(JsonObject root)
   key = "auto_sos";
   if (root.containsKey(key)) {
     const char *s = root[key].as<const char*>();
-    /* 0=AUTO, 1=MANUAL, 2=OFF; legacy YES→0(auto), NO→1(manual) */
-    if      (!strcmp(s,"AUTO") || !strcmp(s,"YES") || !strcmp(s,"0"))
+    /* 0=OFF, 1=MANUAL, 2=AUTO; legacy YES→2(auto), NO→1(manual) */
+    if      (!strcmp(s,"OFF") || !strcmp(s,"0"))
       settings->auto_sos = 0;
     else if (!strcmp(s,"MANUAL") || !strcmp(s,"NO") || !strcmp(s,"1"))
       settings->auto_sos = 1;
-    else if (!strcmp(s,"OFF") || !strcmp(s,"2"))
+    else if (!strcmp(s,"AUTO") || !strcmp(s,"YES") || !strcmp(s,"2"))
       settings->auto_sos = 2;
   }
 
@@ -1092,9 +1092,9 @@ void parseJSettings(JsonObject root)
   key = "fanet_sos";
   if (root.containsKey(key)) {
     const char *s = root[key].as<const char*>();
-    if      (!strcmp(s,"AUTO") || !strcmp(s,"0"))    settings->auto_sos = 0;
+    if      (!strcmp(s,"OFF") || !strcmp(s,"0"))     settings->auto_sos = 0;
     else if (!strcmp(s,"MANUAL") || !strcmp(s,"1"))  settings->auto_sos = 1;
-    else if (!strcmp(s,"OFF") || !strcmp(s,"2"))     settings->auto_sos = 2;
+    else if (!strcmp(s,"AUTO") || !strcmp(s,"2"))    settings->auto_sos = 2;
   }
 
   key = "logflight";
@@ -1276,8 +1276,8 @@ bool writeJSettings(JsonObject obj)
 
   obj["alarmlog"] = settings->logalarms ? "YES" : "NO";
   obj["fanet_sos"] =
-    (settings->auto_sos == 0) ? "AUTO"   :
-    (settings->auto_sos == 1) ? "MANUAL" : "OFF";
+    (settings->auto_sos == 0) ? "OFF"    :
+    (settings->auto_sos == 1) ? "MANUAL" : "AUTO";
 
   obj["logflight"] =
     (settings->logflight == FLIGHT_LOG_NONE)     ? "OFF"      :
