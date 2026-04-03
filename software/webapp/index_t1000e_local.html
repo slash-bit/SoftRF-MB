@@ -189,43 +189,6 @@ body {
   pointer-events: none;
 }
 
-.connect-group {
-  display: flex;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.btn-connect-usb {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border: none;
-  border-radius: 20px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all var(--transition);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.btn-connect-usb.disconnected {
-  background: var(--bg-input);
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
-}
-.btn-connect-usb.disconnected:hover { background: var(--bg-input-focus); border-color: var(--primary); color: var(--primary); }
-.btn-connect-usb.connected {
-  background: rgba(239,68,68,0.15);
-  color: var(--danger);
-}
-.btn-connect-usb.connected:hover { background: rgba(239,68,68,0.25); }
-.btn-connect-usb.connecting {
-  background: rgba(251,191,36,0.15);
-  color: var(--warning);
-  pointer-events: none;
-}
-
 .status-dot {
   width: 8px;
   height: 8px;
@@ -671,7 +634,6 @@ body {
   color: var(--text-secondary);
   margin-bottom: 20px;
   line-height: 1.5;
-  white-space: pre-line;
 }
 .modal-actions {
   display: flex;
@@ -1012,15 +974,10 @@ body {
       <div class="header-device" id="deviceName">Not connected</div>
     </div>
   </div>
-  <div class="connect-group" id="connectGroup">
-    <button class="btn-connect disconnected" id="btnConnect" onclick="App.transport.toggle()">
-      <span class="status-dot"></span>
-      <span id="btnConnectText">BLE</span>
-    </button>
-    <button class="btn-connect-usb disconnected" id="btnUSB" onclick="App.serial.toggle()">
-      <span id="btnUSBText">USB</span>
-    </button>
-  </div>
+  <button class="btn-connect disconnected" id="btnConnect" onclick="App.ble.toggle()">
+    <span class="status-dot"></span>
+    <span id="btnConnectText">Connect</span>
+  </button>
 </header>
 
 <!-- ═══════════════════ Tab Bar ═══════════════════ -->
@@ -1203,10 +1160,6 @@ const ALT_PROTOCOL_NAMES = {
    Settings Metadata
    ═══════════════════════════════════════════════════════════════ */
 const SETTINGS_META = [
-  // ══════════════════════════════════════════════════════════════
-  //  BASIC TAB
-  // ══════════════════════════════════════════════════════════════
-
   // ── Basic: Radio ──
   { key:'protocol', label:'Protocol', tab:'basic', group:'Radio',
     type:'select', options:[
@@ -1215,7 +1168,7 @@ const SETTINGS_META = [
     desc:'Primary radio protocol' },
   { key:'altprotocol', label:'Alt Protocol', tab:'basic', group:'Radio',
     type:'select', options:[
-      {v:'0',l:'None'},{v:'1',l:'OGNTP'},{v:'5',l:'FANET'},{v:'6',l:'Legacy'},{v:'8',l:'ADSL'}],
+      {v:'0',l:'None'},{v:'1',l:'OGNTP'},{v:'5',l:'FANET'},{v:'6',l:'Legacy'},{v:'8',l:'ADSL'},{v:'3',l:'1090ES'}],
     desc:'Secondary protocol' },
   { key:'band', label:'Region', tab:'basic', group:'Radio',
     type:'select', options:[
@@ -1238,54 +1191,43 @@ const SETTINGS_META = [
     desc:'Collision alarm algorithm' },
   { key:'alarm_demo', label:'Alarm Demo', tab:'basic', group:'Radio',
     type:'button', buttonLabel:'Start Demo', desc:'Test buzzer alarm sounds',
-    action: async () => { await App.transport.sendNmea('PSRFC,DEM'); } },
+    action: async () => { await App.ble.sendNmea('PSRFC,DEM'); } },
   { key:'tx_power', label:'TX Power', tab:'basic', group:'Radio',
     type:'select', options:[{v:'0',l:'Off'},{v:'1',l:'Low'},{v:'2',l:'Full'}],
     desc:'Transmit power level' },
 
-  // ── Basic: Audio & Visual ──
-  { key:'volume', label:'Volume', tab:'basic', group:'Audio & Visual',
+  // ── Basic: FANET ──
+  { key:'fanet_name', label:'FANET Name', tab:'basic', group:'FANET',
+    type:'text', maxlen:20, desc:'Your name on FANET network' },
+
+  // ── Basic: Audio & Logging ──
+  { key:'volume', label:'Volume', tab:'basic', group:'Audio & Logging',
     type:'select', options:[
       {v:'0',l:'Off'},{v:'1',l:'Low'},{v:'2',l:'Full'},{v:'3',l:'External'}],
     desc:'Buzzer volume' },
-
-  // ── Basic: FANET ──
-  { key:'fanet_name', label:'FANET Name', tab:'basic', group:'FANET',
-    type:'text', maxlen:19, desc:'Your name on FANET network' },
-  { key:'fanet_sos', label:'FANET Distress', tab:'basic', group:'FANET',
-    type:'select', options:[
-      {v:'0',l:'Auto'},{v:'1',l:'Manual'},{v:'2',l:'Off'}],
-    desc:'Initiate distress state on landing' },
-
-  // ── Basic: Logging ──
-  { key:'alarmlog', label:'Alarm Log', tab:'basic', group:'Logging',
+  { key:'alarmlog', label:'Alarm Log', tab:'basic', group:'Audio & Logging',
     type:'toggle', desc:'Log alarm events' },
-  { key:'logflight', label:'Flight Log', tab:'basic', group:'Logging',
+  { key:'logflight', label:'Flight Log', tab:'basic', group:'Audio & Logging',
     type:'select', options:[
       {v:'0',l:'Off'},{v:'1',l:'Always'},{v:'2',l:'Airborne'},{v:'3',l:'Traffic'}],
     desc:'IGC flight logging mode' },
-  { key:'loginterval', label:'Log Interval', tab:'basic', group:'Logging',
+  { key:'loginterval', label:'Log Interval', tab:'basic', group:'Audio & Logging',
     type:'number', min:1, max:255, desc:'Logging interval in seconds' },
-  { key:'igc_pilot', label:'Pilot Name', tab:'basic', group:'Logging',
-    type:'text', maxlen:31, desc:'IGC pilot name' },
-  { key:'igc_type', label:'Aircraft Make/Model', tab:'basic', group:'Logging',
-    type:'text', maxlen:19, desc:'IGC aircraft make and model' },
-  { key:'igc_reg', label:'Registration', tab:'basic', group:'Logging',
-    type:'text', maxlen:11, desc:'IGC aircraft registration' },
-  { key:'igc_cs', label:'Callsign', tab:'basic', group:'Logging',
-    type:'text', maxlen:7, desc:'IGC aircraft callsign' },
 
-  // ══════════════════════════════════════════════════════════════
-  //  ADVANCED TAB
-  // ══════════════════════════════════════════════════════════════
-
+  // ── Basic: IGC ──
+  { key:'igc_pilot', label:'Pilot Name', tab:'basic', group:'IGC',
+    type:'text', maxlen:32, desc:'IGC pilot name' },
+  { key:'igc_type', label:'Aircraft Type', tab:'basic', group:'IGC',
+    type:'text', maxlen:20, desc:'IGC aircraft type string' },
+  { key:'igc_reg', label:'Registration', tab:'basic', group:'IGC',
+    type:'text', maxlen:12, desc:'IGC aircraft registration' },
 
   // ── Advanced: Identity ──
   { key:'aircraft_id', label:'Aircraft ID', tab:'advanced', group:'Identity',
     type:'hex6', desc:'24-bit hex aircraft address (000000=auto)' },
   { key:'id_method', label:'ID Method', tab:'advanced', group:'Identity',
     type:'select', options:[
-      {v:'1',l:'ICAO'},{v:'2',l:'Device'}],
+      {v:'0',l:'Random'},{v:'1',l:'ICAO'},{v:'2',l:'Device'},{v:'3',l:'Anonymous'}],
     desc:'Aircraft identification method' },
   { key:'ignore_id', label:'Ignore ID', tab:'advanced', group:'Identity',
     type:'hex6', desc:'Ignore traffic from this ID' },
@@ -1293,76 +1235,50 @@ const SETTINGS_META = [
     type:'hex6', desc:'Prioritise traffic from this ID' },
 
   // ── Advanced: NMEA Output 1 ──
-  { key:'nmea_out', label:'Output Destination', tab:'advanced', group:'NMEA Output 1',
+  { key:'nmea_out', label:'Output 1', tab:'advanced', group:'NMEA Output 1',
     type:'select', options:[
       {v:'0',l:'Off'},{v:'1',l:'Serial'},{v:'2',l:'UDP'},{v:'3',l:'TCP'},
       {v:'4',l:'USB'},{v:'5',l:'Bluetooth'},{v:'6',l:'Serial 2'}],
     desc:'Primary NMEA output destination' },
-  { key:'baud_rate', label:'Baud Rate', tab:'advanced', group:'NMEA Output 1',
-    type:'select', options:[
-      {v:'0',l:'Default (38400)'},{v:'2',l:'9600'},{v:'3',l:'19200'},
-      {v:'4',l:'38400'},{v:'5',l:'57600'},{v:'6',l:'115200'}],
-    desc:'Serial baud rate' },
-  { key:'nmea_g', label:'GNSS Sentences', tab:'advanced', group:'NMEA Output 1',
-      type:'select', options:[
-      {v:'00',l:'Off'},{v:'01',l:'Basic'},{v:'03',l:'GSA'},{v:'0f',l:'All'}],
-    desc:'Output GNSS sentence Types'},
-  { key:'nmea_s', label:'Sensor Sentences', tab:'advanced', group:'NMEA Output 1',
-    type:'select', options:[
-      {v:'00',l:'Off'},{v:'01',l:'Basic'},{v:'03',l:'LK8EX1'}],
-    desc:'Barometric sensor sentences' },
-  { key:'nmea_t', label:'Traffic Sentences', tab:'advanced', group:'NMEA Output 1',
-    type:'toggle', desc:'PFLAU/PFLAA traffic sentences' },
-  { key:'nmea_e', label:'External Input', tab:'advanced', group:'NMEA Output 1',
-    type:'select', options:[
-      {v:'00',l:'Off'},{v:'01',l:'Tunnel'},{v:'02',l:'Output'},{v:'03',l:'Both'}],
-    desc:'External NMEA bridging' },
-  { key:'nmea_d', label:'Debug Sentences', tab:'advanced', group:'NMEA Output 1',
-    type:'toggle', desc:'Include debug NMEA output' },
+  { key:'nmea_g', label:'GNSS', tab:'advanced', group:'NMEA Output 1',
+    type:'hex2', desc:'GNSS sentences (00=off, 01=basic, 03=GSA, 0F=all)' },
+  { key:'nmea_p', label:'Private', tab:'advanced', group:'NMEA Output 1',
+    type:'hex2', desc:'PFLAU/PFLAA sentences' },
+  { key:'nmea_t', label:'Traffic', tab:'advanced', group:'NMEA Output 1',
+    type:'hex2', desc:'Traffic sentences (00=off, 01=basic)' },
+  { key:'nmea_s', label:'Sensors', tab:'advanced', group:'NMEA Output 1',
+    type:'hex2', desc:'Sensor sentences (00=off, 01=basic, 03=LK8EX1)' },
+  { key:'nmea_d', label:'Debug', tab:'advanced', group:'NMEA Output 1',
+    type:'toggle', desc:'Debug NMEA sentences' },
+  { key:'nmea_e', label:'External', tab:'advanced', group:'NMEA Output 1',
+    type:'hex2', desc:'External NMEA (00=off, 01=tunnel, 02=output, 03=both)' },
 
   // ── Advanced: NMEA Output 2 ──
-  { key:'nmea_out2', label:'Output Destination', tab:'advanced', group:'NMEA Output 2',
+  { key:'nmea_out2', label:'Output 2', tab:'advanced', group:'NMEA Output 2',
     type:'select', options:[
       {v:'0',l:'Off'},{v:'1',l:'Serial'},{v:'2',l:'UDP'},{v:'3',l:'TCP'},
       {v:'4',l:'USB'},{v:'5',l:'Bluetooth'},{v:'6',l:'Serial 2'}],
     desc:'Secondary NMEA output destination' },
-  { key:'baudrate2', label:'Baud Rate 2', tab:'advanced', group:'NMEA Output 2',
-    type:'select', options:[
-      {v:'0',l:'Off'},{v:'2',l:'9600'},{v:'3',l:'19200'},
-      {v:'4',l:'38400'},{v:'5',l:'57600'},{v:'6',l:'115200'}],
-    desc:'Second serial port baud rate' },
-  { key:'nmea2_g', label:'GNSS Sentences', tab:'advanced', group:'NMEA Output 2',
-      type:'select', options:[
-      {v:'00',l:'Off'},{v:'01',l:'Basic'},{v:'03',l:'GSA'},{v:'0f',l:'All'}],
-    desc:'Output GNSS sentence Types'},
-  { key:'nmea2_s', label:'Sensor Sentences', tab:'advanced', group:'NMEA Output 2',
-    type:'select', options:[
-      {v:'00',l:'Off'},{v:'01',l:'Basic'},{v:'03',l:'LK8EX1'}],
-    desc:'Barometric sensor sentences' },
-  { key:'nmea2_t', label:'Traffic Sentences', tab:'advanced', group:'NMEA Output 2',
-    type:'toggle', desc:'PFLAU/PFLAA traffic sentences' },
-  { key:'nmea2_e', label:'External Input', tab:'advanced', group:'NMEA Output 2',
-    type:'select', options:[
-      {v:'00',l:'Off'},{v:'01',l:'Tunnel'},{v:'02',l:'Output'},{v:'03',l:'Both'}],
-    desc:'External NMEA bridging' },
-  { key:'nmea2_d', label:'Debug Sentences', tab:'advanced', group:'NMEA Output 2',
-    type:'toggle', desc:'Include debug NMEA output' },
-
-  // ── Advanced: Radio ──
-  { key:'flr_adsl', label:'FLARM+ADSL', tab:'advanced', group:'Radio',
-    type:'toggle', desc:'Simultaneous FLARM and ADSL receive' },
+  { key:'nmea2_g', label:'GNSS 2', tab:'advanced', group:'NMEA Output 2',
+    type:'hex2', desc:'Secondary GNSS sentences' },
+  { key:'nmea2_p', label:'Private 2', tab:'advanced', group:'NMEA Output 2',
+    type:'hex2', desc:'Secondary PFLAU/PFLAA' },
+  { key:'nmea2_t', label:'Traffic 2', tab:'advanced', group:'NMEA Output 2',
+    type:'hex2', desc:'Secondary traffic sentences' },
+  { key:'nmea2_s', label:'Sensors 2', tab:'advanced', group:'NMEA Output 2',
+    type:'hex2', desc:'Secondary sensor sentences' },
+  { key:'nmea2_d', label:'Debug 2', tab:'advanced', group:'NMEA Output 2',
+    type:'toggle', desc:'Secondary debug output' },
+  { key:'nmea2_e', label:'External 2', tab:'advanced', group:'NMEA Output 2',
+    type:'hex2', desc:'Secondary external tunnel' },
 
   // ── Advanced: Protocols ──
-  { key:'relay', label:'Relay', tab:'advanced', group:'Protocols',
-    type:'select', options:[
-      {v:'0',l:'Off'},{v:'1',l:'Landed'},{v:'2',l:'All'},{v:'3',l:'Only'}],
-    desc:'Relay received traffic' },
-  { key:'expire', label:'Traffic Expiry', tab:'advanced', group:'Protocols',
+  { key:'expire', label:'Expire', tab:'advanced', group:'Protocols',
     type:'number', min:1, max:30, desc:'Traffic expiration time (seconds)' },
-  { key:'pflaa_cs', label:'ADSB Callsign in PFLAA', tab:'advanced', group:'Protocols',
-    type:'toggle', desc:'Include ADSB callsign in PFLAA sentences' },
-  { key:'gn_to_gp', label:'GN to GP', tab:'advanced', group:'Protocols',
-    type:'toggle', desc:'Convert GNGGA to GPGGA' },
+  { key:'pflaa_cs', label:'PFLAA Checksum', tab:'advanced', group:'Protocols',
+    type:'toggle', desc:'Include checksum in PFLAA' },
+  { key:'flr_adsl', label:'FLARM+ADSL', tab:'advanced', group:'Protocols',
+    type:'toggle', desc:'Simultaneous FLARM and ADSL receive (in development)' },
 
   // ── Advanced: Privacy ──
   { key:'stealth', label:'Stealth', tab:'advanced', group:'Privacy',
@@ -1370,9 +1286,9 @@ const SETTINGS_META = [
   { key:'no_track', label:'No Track', tab:'advanced', group:'Privacy',
     type:'toggle', desc:'Request no tracking by OGN' },
 
-  // ── Advanced: System ──
-  { key:'power_save', label:'Power Save', tab:'advanced', group:'System',
-    type:'toggle', desc:'Turn off WiFi after 10 minutes' },
+  // ── Advanced: Safety ──
+  { key:'auto_sos', label:'Auto SOS (FANET)', tab:'advanced', group:'Safety',
+    type:'toggle', desc:'Automatic distress beacon via FANET' },
 
   // ── Advanced: Debug (collapsible) ──
   { key:'rfc', label:'Freq Correction', tab:'advanced', group:'Debug',
@@ -1520,150 +1436,70 @@ App.nmea = {
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   Transport Abstraction — unified send/disconnect for BLE & Serial
+   BLE Module
    ═══════════════════════════════════════════════════════════════ */
-App.transport = {
-  type: null,  // 'ble' or 'serial'
+App.ble = {
+  device: null,
+  server: null,
+  service: null,
+  rxChar: null,  // write to device
+  txChar: null,  // read/notify from device
+
+  SERVICE_UUID:  '6e400001-b5a3-f393-e0a9-e50e24dcca9e',
+  RX_CHAR_UUID:  '6e400002-b5a3-f393-e0a9-e50e24dcca9e',
+  TX_CHAR_UUID:  '6e400003-b5a3-f393-e0a9-e50e24dcca9e',
 
   async toggle() {
     if (App.state.connected) {
       this.disconnect();
     } else {
-      await App.ble.connect();
+      await this.connect();
     }
   },
-
-  disconnect() {
-    if (this.type === 'ble') {
-      App.ble.disconnect();
-    } else if (this.type === 'serial') {
-      App.serial.disconnect();
-    }
-  },
-
-  async send(text) {
-    if (this.type === 'ble') {
-      await App.ble.send(text);
-    } else if (this.type === 'serial') {
-      await App.serial.send(text);
-    } else {
-      App.toast('Not connected', 'error');
-    }
-  },
-
-  async sendNmea(body) {
-    const sentence = App.nmea.build(body);
-    await this.send(sentence);
-  },
-
-  _onConnected(type, name) {
-    this.type = type;
-    App.state.connected = true;
-    App.state.deviceName = name;
-    App.ui.setConnState('connected');
-    App.ui.hideLoading();
-    App.toast('Connected to ' + name + ' (' + type.toUpperCase() + ')', 'success');
-    setTimeout(() => App.commands.refreshSettings(), 500);
-  },
-
-  _onDisconnected() {
-    this.type = null;
-    App.state.connected = false;
-    App.ui.setConnState('disconnected');
-    App.toast('Device disconnected', 'info');
-  }
-};
-
-/* ═══════════════════════════════════════════════════════════════
-   BLE Module — Nordic UART (NUS) + HM-10 auto-detect
-   ═══════════════════════════════════════════════════════════════ */
-App.ble = {
-  device: null,
-  server: null,
-  writeChar: null,   // characteristic to write data to device
-  profile: null,     // 'nus' or 'hm10'
-
-  // Nordic UART Service
-  NUS_SERVICE:  '6e400001-b5a3-f393-e0a9-e50e24dcca9e',
-  NUS_RX_CHAR:  '6e400002-b5a3-f393-e0a9-e50e24dcca9e',  // write to device
-  NUS_TX_CHAR:  '6e400003-b5a3-f393-e0a9-e50e24dcca9e',  // notify from device
-
-  // HM-10 (CC2541 / ESP32 BLE Serial)
-  HM10_SERVICE: '0000ffe0-0000-1000-8000-00805f9b34fb',
-  HM10_CHAR:    '0000ffe1-0000-1000-8000-00805f9b34fb',  // read + write + notify
 
   async connect() {
     if (!navigator.bluetooth) {
       App.toast('Web Bluetooth not supported in this browser', 'error');
       return;
     }
-    if (App.state.connected) return;
 
     try {
       App.ui.setConnState('connecting');
-      App.ui.showLoading('Scanning for BLE devices...');
+      App.ui.showLoading('Scanning for devices...');
 
       this.device = await navigator.bluetooth.requestDevice({
-        filters: [
-          { services: [this.NUS_SERVICE] },
-          { services: [this.HM10_SERVICE] }
-        ]
+        filters: [{ services: [this.SERVICE_UUID] }],
+        optionalServices: []
       });
 
-      this.device.addEventListener('gattserverdisconnected', () => this._onDisconnect());
+      this.device.addEventListener('gattserverdisconnected', () => this.onDisconnect());
 
       App.ui.showLoading('Connecting to ' + (this.device.name || 'device') + '...');
       this.server = await this.device.gatt.connect();
 
-      // Auto-detect: try NUS first, then HM-10
-      App.ui.showLoading('Detecting BLE profile...');
-      let connected = false;
+      App.ui.showLoading('Getting UART service...');
+      this.service = await this.server.getPrimaryService(this.SERVICE_UUID);
 
-      // Try Nordic UART Service
-      try {
-        const nusService = await this.server.getPrimaryService(this.NUS_SERVICE);
-        const txChar = await nusService.getCharacteristic(this.NUS_TX_CHAR);
-        this.writeChar = await nusService.getCharacteristic(this.NUS_RX_CHAR);
+      this.txChar = await this.service.getCharacteristic(this.TX_CHAR_UUID);
+      this.rxChar = await this.service.getCharacteristic(this.RX_CHAR_UUID);
 
-        await txChar.startNotifications();
-        txChar.addEventListener('characteristicvaluechanged', (e) => this._onData(e));
-        this.profile = 'nus';
-        connected = true;
-        App.debug('[BLE] Connected via Nordic UART Service');
-      } catch (e) {
-        App.debug('[BLE] NUS not available: ' + e.message);
-      }
+      await this.txChar.startNotifications();
+      this.txChar.addEventListener('characteristicvaluechanged', (e) => this.onData(e));
 
-      // Try HM-10 if NUS failed
-      if (!connected) {
-        try {
-          const hm10Service = await this.server.getPrimaryService(this.HM10_SERVICE);
-          const char = await hm10Service.getCharacteristic(this.HM10_CHAR);
-          this.writeChar = char;
+      App.state.connected = true;
+      App.state.deviceName = this.device.name || 'SoftRF';
+      App.ui.setConnState('connected');
+      App.ui.hideLoading();
+      App.toast('Connected to ' + App.state.deviceName, 'success');
 
-          await char.startNotifications();
-          char.addEventListener('characteristicvaluechanged', (e) => this._onData(e));
-          this.profile = 'hm10';
-          connected = true;
-          App.debug('[BLE] Connected via HM-10 profile');
-        } catch (e) {
-          App.debug('[BLE] HM-10 not available: ' + e.message);
-        }
-      }
-
-      if (!connected) {
-        this.device.gatt.disconnect();
-        throw new Error('Device does not support NUS or HM-10 BLE UART');
-      }
-
-      const name = this.device.name || 'SoftRF';
-      App.transport._onConnected('ble', name);
+      // Auto-query settings
+      setTimeout(() => App.commands.refreshSettings(), 500);
 
     } catch (err) {
       App.ui.hideLoading();
       App.ui.setConnState('disconnected');
-      if (err.name !== 'NotFoundError') {
-        App.toast('BLE connection failed: ' + err.message, 'error');
+      if (err.name !== 'NotFoundError') { // User cancelled picker
+        App.toast('Connection failed: ' + err.message, 'error');
       }
     }
   },
@@ -1672,25 +1508,29 @@ App.ble = {
     if (this.device && this.device.gatt.connected) {
       this.device.gatt.disconnect();
     }
-    this._onDisconnect();
+    this.onDisconnect();
   },
 
-  _onDisconnect() {
+  onDisconnect() {
+    App.state.connected = false;
+    App.ui.setConnState('disconnected');
+    App.toast('Device disconnected', 'info');
     this.device = null;
     this.server = null;
-    this.writeChar = null;
-    this.profile = null;
-    App.transport._onDisconnected();
+    this.service = null;
+    this.rxChar = null;
+    this.txChar = null;
   },
 
-  _onData(event) {
-    const text = new TextDecoder().decode(event.target.value);
+  onData(event) {
+    const value = event.target.value;
+    const text = new TextDecoder().decode(value);
     App.nmea.feed(text);
   },
 
   async send(text) {
-    if (!this.writeChar) {
-      App.toast('BLE not connected', 'error');
+    if (!this.rxChar) {
+      App.toast('Not connected', 'error');
       return;
     }
     const data = new TextEncoder().encode(text + '\r\n');
@@ -1698,114 +1538,13 @@ App.ble = {
     const CHUNK = 20;
     for (let i = 0; i < data.length; i += CHUNK) {
       const chunk = data.slice(i, Math.min(i + CHUNK, data.length));
-      await this.writeChar.writeValueWithoutResponse(chunk);
-    }
-  }
-};
-
-/* ═══════════════════════════════════════════════════════════════
-   Web Serial Module — USB connection
-   ═══════════════════════════════════════════════════════════════ */
-App.serial = {
-  port: null,
-  reader: null,
-  writer: null,
-  readLoop: null,   // running promise
-
-  async toggle() {
-    if (App.state.connected && App.transport.type === 'serial') {
-      this.disconnect();
-    } else if (!App.state.connected) {
-      await this.connect();
+      await this.rxChar.writeValueWithoutResponse(chunk);
     }
   },
 
-  async connect() {
-    if (!navigator.serial) {
-      App.toast('Web Serial not supported. Use Chrome or Edge, and serve over HTTPS.', 'error');
-      return;
-    }
-    if (App.state.connected) return;
-
-    try {
-      App.ui.setConnState('connecting');
-      App.ui.showLoading('Select a USB serial port...');
-
-      this.port = await navigator.serial.requestPort();
-      await this.port.open({ baudRate: 115200 });
-
-      this.writer = this.port.writable.getWriter();
-
-      // Start reading in background
-      this._startReading();
-
-      App.debug('[Serial] Connected at 115200 baud');
-      App.transport._onConnected('serial', 'USB Serial');
-
-    } catch (err) {
-      App.ui.hideLoading();
-      App.ui.setConnState('disconnected');
-      if (err.name !== 'NotFoundError') {
-        App.toast('USB connection failed: ' + err.message, 'error');
-      }
-    }
-  },
-
-  _startReading() {
-    const decoder = new TextDecoder();
-    this.reader = this.port.readable.getReader();
-    let buffer = '';
-
-    this.readLoop = (async () => {
-      try {
-        while (true) {
-          const { value, done } = await this.reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
-          for (const raw of lines) {
-            const line = raw.replace(/\r$/, '').trim();
-            if (line) App.nmea.feed(line + '\n');
-          }
-        }
-      } catch (err) {
-        if (err.name !== 'NetworkError') {
-          App.debug('[Serial] Read error: ' + err.message);
-        }
-      }
-    })();
-  },
-
-  async disconnect() {
-    try {
-      if (this.reader) {
-        await this.reader.cancel();
-        this.reader.releaseLock();
-        this.reader = null;
-      }
-      if (this.writer) {
-        this.writer.releaseLock();
-        this.writer = null;
-      }
-      if (this.port) {
-        await this.port.close();
-        this.port = null;
-      }
-    } catch (e) {
-      App.debug('[Serial] Disconnect error: ' + e.message);
-    }
-    App.transport._onDisconnected();
-  },
-
-  async send(text) {
-    if (!this.writer) {
-      App.toast('USB not connected', 'error');
-      return;
-    }
-    const data = new TextEncoder().encode(text + '\r\n');
-    App.debug('> ' + text);
-    await this.writer.write(data);
+  async sendNmea(body) {
+    const sentence = App.nmea.build(body);
+    await this.send(sentence);
   }
 };
 
@@ -2269,7 +2008,7 @@ App.commands = {
     if (!App.state.connected) return;
     App.state.settingsLoaded = false;
     App.ui.showLoading('Reading settings...', 'This may take a few seconds');
-    await App.transport.sendNmea('PSRFS,?');
+    await App.ble.sendNmea('PSRFS,?');
   },
 
   reboot() {
@@ -2277,7 +2016,7 @@ App.commands = {
       { text: 'Cancel', cls: 'btn-ghost', action: () => App.modal.hide() },
       { text: 'Reboot', cls: 'btn-primary', action: async () => {
         App.modal.hide();
-        await App.transport.sendNmea('PSRFC,RST');
+        await App.ble.sendNmea('PSRFC,RST');
         App.ui.showLoading('Rebooting...', 'Device will disconnect');
         setTimeout(() => App.ui.hideLoading(), 5000);
       }}
@@ -2289,7 +2028,7 @@ App.commands = {
       { text: 'Cancel', cls: 'btn-ghost', action: () => App.modal.hide() },
       { text: 'Shutdown', cls: 'btn-primary', action: async () => {
         App.modal.hide();
-        await App.transport.sendNmea('PSRFC,OFF');
+        await App.ble.sendNmea('PSRFC,OFF');
         App.toast('Shutdown command sent', 'info');
       }}
     ]);
@@ -2371,7 +2110,7 @@ App.settings = {
       for (let i = 0; i < keys.length; i++) {
         const key = keys[i];
         const val = App.state.formValues[key];
-        await App.transport.sendNmea('PSRFS,0,' + key + ',' + val);
+        await App.ble.sendNmea('PSRFS,0,' + key + ',' + val);
         // Small delay between commands
         if (i < keys.length - 1) {
           await new Promise(r => setTimeout(r, 80));
@@ -2379,7 +2118,7 @@ App.settings = {
       }
       // Now save and reboot
       await new Promise(r => setTimeout(r, 100));
-      await App.transport.sendNmea('PSRFC,SAV');
+      await App.ble.sendNmea('PSRFC,SAV');
       App.ui.showLoading('Rebooting...', 'Bluetooth connection will be lost. Please re-connect after the device restarts.');
       App.state.dirty.clear();
       App.ui.updateSaveBar();
@@ -2648,40 +2387,20 @@ App.ui = {
   },
 
   setConnState(state) {
-    const bleBtn = document.getElementById('btnConnect');
-    const bleText = document.getElementById('btnConnectText');
-    const usbBtn = document.getElementById('btnUSB');
-    const usbText = document.getElementById('btnUSBText');
+    const btn = document.getElementById('btnConnect');
+    const text = document.getElementById('btnConnectText');
     const device = document.getElementById('deviceName');
-    const tType = App.transport.type;
 
+    btn.className = 'btn-connect ' + state;
     if (state === 'connected') {
+      text.textContent = 'Disconnect';
       device.textContent = App.state.deviceName;
-      if (tType === 'ble') {
-        bleBtn.className = 'btn-connect connected';
-        bleText.textContent = 'Disconnect';
-        usbBtn.className = 'btn-connect-usb disconnected';
-        usbBtn.style.display = 'none';
-      } else if (tType === 'serial') {
-        usbBtn.className = 'btn-connect-usb connected';
-        usbText.textContent = 'Disconnect';
-        bleBtn.className = 'btn-connect disconnected';
-        bleBtn.style.display = 'none';
-      }
     } else if (state === 'connecting') {
+      text.textContent = 'Connecting...';
       device.textContent = 'Connecting...';
-      bleBtn.className = 'btn-connect connecting';
-      bleText.textContent = 'Connecting...';
-      usbBtn.className = 'btn-connect-usb connecting';
-      usbText.textContent = '...';
     } else {
+      text.textContent = 'Connect';
       device.textContent = 'Not connected';
-      bleBtn.className = 'btn-connect disconnected';
-      bleText.textContent = 'BLE';
-      bleBtn.style.display = '';
-      usbBtn.className = 'btn-connect-usb disconnected';
-      usbText.textContent = 'USB';
-      usbBtn.style.display = '';
     }
   },
 
@@ -2727,17 +2446,6 @@ App.debug = function(msg) {
    ═══════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
   App.ui.init();
-
-  // Hide connect buttons for unsupported APIs
-  if (!navigator.bluetooth) {
-    document.getElementById('btnConnect').style.display = 'none';
-  }
-  if (!navigator.serial) {
-    document.getElementById('btnUSB').style.display = 'none';
-  }
-  if (!navigator.bluetooth && !navigator.serial) {
-    App.toast('This browser does not support Web Bluetooth or Web Serial. Use Chrome or Edge.', 'error');
-  }
 });
 </script>
 </body>
