@@ -1153,6 +1153,43 @@ void parseJSettings(JsonObject root)
     if (s) settings->debug_flags = strtoul(s, NULL, 16);
   }
 
+  /* Generic pass: apply any remaining stgdesc settings found in the JSON.
+   * This covers NMEA, relay, stealth, privacy, power_save, baud_rate, etc.
+   * Skip settings already parsed above in human-readable form — those use
+   * string values like "FLARM" that would be mangled by load_setting().
+   */
+  static const char * const handled[] = {
+    "protocol", "altprotocol", "band", "acft_type", "id_method",
+    "aircraft_id", "ignore_id", "alarm", "txpower", "tx_power",
+    "volume", "alarmlog", "auto_sos", "fanet_sos", "logflight",
+    "loginterval", "igc_pilot", "igc_type", "igc_reg", "fanet_name",
+    "debug_flags", "flr_adsl", "aircraft_type",
+    NULL
+  };
+  for (int i = STG_MODE; i < STG_END; i++) {
+    int t = stgdesc[i].type;
+    if (t == STG_VOID || t == STG_OBSOLETE)
+      continue;
+    const char *lbl = stgdesc[i].label;
+    if (!root.containsKey(lbl))
+      continue;
+    /* Skip keys already handled by the human-readable section above */
+    bool skip = false;
+    for (const char * const *h = handled; *h; h++) {
+      if (strcmp(lbl, *h) == 0) { skip = true; break; }
+    }
+    if (skip) continue;
+    /* For numeric types stored as integers in JSON, convert to string for load_setting */
+    if (root[lbl].is<int>()) {
+      char buf[12];
+      snprintf(buf, sizeof(buf), "%d", root[lbl].as<int>());
+      load_setting(i, buf);
+    } else {
+      const char *s = root[lbl].as<const char*>();
+      if (s) load_setting(i, s);
+    }
+  }
+
   /* sw_version is read-only / informational, not applied */
 }
 
@@ -1257,6 +1294,52 @@ bool writeJSettings(JsonObject obj)
 
   snprintf(hexbuf, sizeof(hexbuf), "%06X", (unsigned int)(settings->debug_flags & 0xFFFFFF));
   obj["debug_flags"] = hexbuf;
+
+  /* Write all remaining stgdesc settings not already covered above.
+   * Uses the setting label as key and the numeric value as an integer.
+   * String settings and settings already present are skipped.
+   * Also skip stgdesc entries whose human-readable counterparts use
+   * a different JSON key name (e.g. acft_type -> aircraft_type).
+   */
+  for (int i = STG_MODE; i < STG_END; i++) {
+    int t = stgdesc[i].type;
+    if (t == STG_VOID || t == STG_OBSOLETE)
+      continue;
+    const char *lbl = stgdesc[i].label;
+    if (obj.containsKey(lbl))   // already written above in human-readable form
+      continue;
+    /* Skip entries handled above under a different JSON key name */
+    if (i == STG_ACFT_TYPE || i == STG_TXPOWER || i == STG_OLD_TXPWR ||
+        i == STG_AUTO_SOS)
+      continue;
+    char *v = stgdesc[i].value;
+    switch (t) {
+    case STG_INT1:
+    case STG_HIDDEN:
+      obj[lbl] = (int)(*(int8_t*)v);
+      break;
+    case STG_UINT1:
+      obj[lbl] = (int)(*(uint8_t*)v);
+      break;
+    case STG_HEX2:
+      { char h[3];
+        snprintf(h, sizeof(h), "%02X", (int)(*(uint8_t*)v));
+        obj[lbl] = String(h);
+      }
+      break;
+    case STG_HEX6:
+      // debug_flags already handled above; skip other HEX6 fields that are already there
+      { char h6[7];
+        snprintf(h6, sizeof(h6), "%06X", (int)(*(uint32_t*)v));
+        obj[lbl] = String(h6);
+      }
+      break;
+    default:
+      if (t >= STG_STR)
+        obj[lbl] = (const char*)v;
+      break;
+    }
+  }
 
   /* firmware version stamp - informational, not parsed on load */
   obj["sw_version"] = String(SOFTRF_IDENT) + "-" + String(SOFTRF_FIRMWARE_VERSION)
