@@ -2776,8 +2776,11 @@ void NMEA_Process_SRF_SKV_Sentences()
         label0 = *S_label.value();
 
     if (version0 == '?' || label0 == '?') {   // treat $PSRFS,0,?*xx same as $PSRFS,?*xx
-      // reply in the same format as the settings file, including comments
+      // reply with settings visible on this board, in settings-file format
+      uint8_t board_bit = board_visibility_bit();
       for (int i=STG_MODE; i<STG_END; i++) {
+         if (!(stgdesc[i].visible & board_bit))
+               continue;
          if (format_setting(i, true) == false)
                continue;
          nmea_cfg_reply(false);  // do not add blank lines between the settings

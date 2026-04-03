@@ -1079,7 +1079,22 @@ void parseJSettings(JsonObject root)
   key = "auto_sos";
   if (root.containsKey(key)) {
     const char *s = root[key].as<const char*>();
-    settings->auto_sos = (!strcmp(s,"YES") || !strcmp(s,"1")) ? 1 : 0;
+    /* 0=AUTO, 1=MANUAL, 2=OFF; legacy YES→0(auto), NO→1(manual) */
+    if      (!strcmp(s,"AUTO") || !strcmp(s,"YES") || !strcmp(s,"0"))
+      settings->auto_sos = 0;
+    else if (!strcmp(s,"MANUAL") || !strcmp(s,"NO") || !strcmp(s,"1"))
+      settings->auto_sos = 1;
+    else if (!strcmp(s,"OFF") || !strcmp(s,"2"))
+      settings->auto_sos = 2;
+  }
+
+  /* "fanet_sos" is an alias for "auto_sos" in JSON */
+  key = "fanet_sos";
+  if (root.containsKey(key)) {
+    const char *s = root[key].as<const char*>();
+    if      (!strcmp(s,"AUTO") || !strcmp(s,"0"))    settings->auto_sos = 0;
+    else if (!strcmp(s,"MANUAL") || !strcmp(s,"1"))  settings->auto_sos = 1;
+    else if (!strcmp(s,"OFF") || !strcmp(s,"2"))     settings->auto_sos = 2;
   }
 
   key = "logflight";
@@ -1223,7 +1238,9 @@ bool writeJSettings(JsonObject obj)
   obj["ignore_id"] = hexbuf;
 
   obj["alarmlog"] = settings->logalarms ? "YES" : "NO";
-  obj["auto_sos"] = settings->auto_sos ? "YES" : "NO";
+  obj["fanet_sos"] =
+    (settings->auto_sos == 0) ? "AUTO"   :
+    (settings->auto_sos == 1) ? "MANUAL" : "OFF";
 
   obj["logflight"] =
     (settings->logflight == FLIGHT_LOG_NONE)     ? "OFF"      :

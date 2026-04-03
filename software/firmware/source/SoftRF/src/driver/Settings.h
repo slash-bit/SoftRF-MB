@@ -244,6 +244,8 @@ enum stgidx {
     STG_EPD_AGHOST,
     STG_EPD_TEAM,
 //#endif
+    STG_FANET_NAME,
+    STG_FANET_SOS,
     STG_DEBUG_FLAGS,
     STG_END
 };
@@ -259,10 +261,21 @@ enum stgtyp {
     STG_STR   = 1        // strings' "type" value equals their length
 };
 
+/* Board visibility bitmask for $PSRFS,? filtering.
+ * When a board bit is set the setting is included in the "query all" response.
+ * Individual set/get by label is always allowed regardless of visibility.
+ */
+#define STG_VIS_CARD    0x01   /* T1000E  */
+#define STG_VIS_BADGE   0x02   /* T-Echo  */
+#define STG_VIS_TBEAM   0x04   /* T-Beam  */
+#define STG_VIS_MINI    0x08   /* M3/Mini */
+#define STG_VIS_ALL     0x0F   /* shown on every board */
+
 struct setting_struct {
     const char *label;
     char *value;
     int8_t type;
+    uint8_t visible;   /* bitmask of boards that show this setting */
 };
 
 typedef struct __attribute__((packed)) PackedSettings {
@@ -544,6 +557,7 @@ bool load_settings_from_file(void);
 void save_settings_to_json(void);
 bool load_settings_from_json(void);
 #endif
+uint8_t board_visibility_bit(void);
 const char *settings_message(const char *msg=NULL, const char *submsg=NULL, const int val=0);
 void do_test_mode(void);
 

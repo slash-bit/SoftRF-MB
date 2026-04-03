@@ -93,7 +93,7 @@ struct setting_minmax {
     int8_t min;
     int8_t max;
 };
-#define NUM_MINMAX 6    // may need to manually enlarge this
+#define NUM_MINMAX 7    // may need to manually enlarge this
 setting_minmax stgminmax[NUM_MINMAX];
 
 inline int8_t esp_only(int8_t stg_type)
@@ -114,97 +114,119 @@ inline int8_t epd_only(int8_t stg_type)
 #endif
 }
 
+uint8_t board_visibility_bit()
+{
+    switch (hw_info.model) {
+        case SOFTRF_MODEL_CARD:      return STG_VIS_CARD;
+        case SOFTRF_MODEL_BADGE:     return STG_VIS_BADGE;
+        case SOFTRF_MODEL_PRIME_MK3: return STG_VIS_TBEAM;
+        case SOFTRF_MODEL_MINI:      return STG_VIS_MINI;
+        default:                     return STG_VIS_ALL;
+    }
+}
+
 static void init_stgdesc()
 {
-  stgdesc[STG_NONE]       = { "none",       (char*)&settings->version,    STG_VOID };
-  stgdesc[STG_VERSION]    = { "SoftRF",     (char*)&settings->version,    STG_HIDDEN };
-  stgdesc[STG_MODE]       = { "mode",       (char*)&settings->mode,       STG_UINT1 };
-  stgdesc[STG_PROTOCOL]   = { "protocol",   (char*)&settings->rf_protocol,STG_UINT1 };
-  stgdesc[STG_ALTPROTOCOL]= { "altprotocol",(char*)&settings->altprotocol,STG_UINT1 };
-  stgdesc[STG_FLR_ADSL]   = { "flr_adsl",   (char*)&settings->flr_adsl,   STG_UINT1 };
-  stgdesc[STG_BAND]       = { "band",       (char*)&settings->band,       STG_UINT1 };
-  stgdesc[STG_ACFT_TYPE]  = { "acft_type",  (char*)&settings->acft_type,  STG_UINT1 };
-  stgdesc[STG_ID_METHOD]  = { "id_method",  (char*)&settings->id_method,  STG_UINT1 };
-  stgdesc[STG_AIRCRAFT_ID]= { "aircraft_id",(char*)&settings->aircraft_id,STG_HEX6 };
-  stgdesc[STG_IGNORE_ID]  = { "ignore_id",  (char*)&settings->ignore_id,  STG_HEX6 };
-  stgdesc[STG_FOLLOW_ID]  = { "follow_id",  (char*)&settings->follow_id,  STG_HEX6 };
-  stgdesc[STG_ALARM]      = { "alarm",      (char*)&settings->alarm,      STG_UINT1 };
-  stgdesc[STG_HRANGE]     = { "hrange",     (char*)&settings->hrange,     STG_UINT1 };
-  stgdesc[STG_VRANGE]     = { "vrange",     (char*)&settings->vrange,     STG_UINT1 };
-  stgdesc[STG_OLD_TXPWR]  = { "txpower",    (char*)&settings->old_txpwr,  STG_OBSOLETE }; // old label for old coding
-  stgdesc[STG_TXPOWER]    = { "tx_power",   (char*)&settings->txpower,    STG_HIDDEN };   // new label for new coding
-  stgdesc[STG_VOLUME]     = { "volume",     (char*)&settings->volume,     STG_UINT1 };
-  stgdesc[STG_POINTER]    = { "pointer",    (char*)&settings->pointer,    STG_UINT1 };
-  stgdesc[STG_STROBE]     = { "strobe",     (char*)&settings->strobe,     esp_only(STG_UINT1) };
-  stgdesc[STG_VOICE]      = { "voice",      (char*)&settings->voice,      esp_only(STG_UINT1) };
-  stgdesc[STG_OWNSSID]    = { "myssid",     settings->myssid,      esp_only(sizeof(settings->myssid)) };
-  stgdesc[STG_EXTSSID]    = { "ssid",       settings->ssid,        esp_only(sizeof(settings->ssid)) };
-  stgdesc[STG_PSK]        = { "psk",        settings->psk,         esp_only(sizeof(settings->psk)) };
-  stgdesc[STG_HOST_IP]    = { "host_ip",    settings->host_ip,     esp_only(sizeof(settings->host_ip)) };
-  stgdesc[STG_TCPMODE]    = { "tcpmode",    (char*)&settings->tcpmode,    esp_only(STG_UINT1) };
-  stgdesc[STG_TCPPORT]    = { "tcpport",    (char*)&settings->tcpport,    esp_only(STG_UINT1) };
-  stgdesc[STG_BLUETOOTH]  = { "bluetooth",  (char*)&settings->bluetooth,  STG_UINT1 };
-  stgdesc[STG_BAUD_RATE]  = { "baud_rate",  (char*)&settings->baud_rate,  STG_UINT1 };
-  stgdesc[STG_NMEA_OUT]   = { "nmea_out",   (char*)&settings->nmea_out,   STG_UINT1 };
-  stgdesc[STG_NMEA_G]     = { "nmea_g",     (char*)&settings->nmea_g,     STG_HEX2 };
-  stgdesc[STG_NMEA_P]     = { "nmea_p",     (char*)&settings->nmea_p,     STG_HEX2 };
-  stgdesc[STG_NMEA_T]     = { "nmea_t",     (char*)&settings->nmea_t,     STG_HEX2 };
-  stgdesc[STG_NMEA_S]     = { "nmea_s",     (char*)&settings->nmea_s,     STG_HEX2 };
-  stgdesc[STG_NMEA_D]     = { "nmea_d",     (char*)&settings->nmea_d,     STG_HEX2 };
-  stgdesc[STG_NMEA_E]     = { "nmea_e",     (char*)&settings->nmea_e,     STG_HEX2 };
-  stgdesc[STG_NMEA_OUT2]  = { "nmea_out2",  (char*)&settings->nmea_out2,  STG_UINT1 };
-  stgdesc[STG_NMEA2_G]    = { "nmea2_g",    (char*)&settings->nmea2_g,    STG_HEX2 };
-  stgdesc[STG_NMEA2_P]    = { "nmea2_p",    (char*)&settings->nmea2_p,    STG_HEX2 };
-  stgdesc[STG_NMEA2_T]    = { "nmea2_t",    (char*)&settings->nmea2_t,    STG_HEX2 };
-  stgdesc[STG_NMEA2_S]    = { "nmea2_s",    (char*)&settings->nmea2_s,    STG_HEX2 };
-  stgdesc[STG_NMEA2_D]    = { "nmea2_d",    (char*)&settings->nmea2_d,    STG_HEX2 };
-  stgdesc[STG_NMEA2_E]    = { "nmea2_e",    (char*)&settings->nmea2_e,    STG_HEX2 };
-  stgdesc[STG_ALTPIN0]    = { "altpin0",    (char*)&settings->altpin0,    esp_only(STG_UINT1) };
-  stgdesc[STG_BAUDRATE2]  = { "baudrate2",  (char*)&settings->baudrate2,  esp_only(STG_UINT1) };
-  stgdesc[STG_INVERT2]    = { "invert2",    (char*)&settings->invert2,    esp_only(STG_UINT1) };
-  stgdesc[STG_ALT_UDP]    = { "alt_udp",    (char*)&settings->alt_udp,    esp_only(STG_UINT1) };
-  stgdesc[STG_RX1090]     = { "rx1090",     (char*)&settings->rx1090,     esp_only(STG_UINT1) };
-  stgdesc[STG_RX1090X]    = { "rx1090x",    (char*)&settings->rx1090x,    esp_only(STG_UINT1) };
-  stgdesc[STG_MODE_S]     = { "mode_s",     (char*)&settings->mode_s,     esp_only(STG_INT1) };
-  stgdesc[STG_HRANGE1090] = { "hrange1090", (char*)&settings->hrange1090, STG_UINT1 };
-  stgdesc[STG_VRANGE1090] = { "vrange1090", (char*)&settings->vrange1090, STG_UINT1 };
-  stgdesc[STG_GDL90_IN]   = { "gdl90_in",   (char*)&settings->gdl90_in,   esp_only(STG_UINT1) };
-  stgdesc[STG_GDL90]      = { "gdl90",      (char*)&settings->gdl90,      STG_UINT1 };
-  stgdesc[STG_D1090]      = { "d1090",      (char*)&settings->d1090,      STG_UINT1 };
-  stgdesc[STG_RELAY]      = { "relay",      (char*)&settings->relay,      STG_UINT1 };
-  stgdesc[STG_EXPIRE]     = { "expire",     (char*)&settings->expire,     STG_INT1 };
-  stgdesc[STG_PFLAA_CS]   = { "pflaa_cs",   (char*)&settings->pflaa_cs,   STG_UINT1 };
-  stgdesc[STG_STEALTH]    = { "stealth",    (char*)&settings->stealth,    STG_UINT1 };
-  stgdesc[STG_NO_TRACK]   = { "no_track",   (char*)&settings->no_track,   STG_UINT1 };
-  stgdesc[STG_POWER_SAVE] = { "power_save", (char*)&settings->power_save, STG_UINT1 };
-  stgdesc[STG_POWER_EXT]  = { "power_ext",  (char*)&settings->power_ext,  STG_UINT1 };
-  stgdesc[STG_RFC]        = { "rfc",        (char*)&settings->freq_corr,  STG_HIDDEN };
-  stgdesc[STG_ALARMLOG]   = { "alarmlog",   (char*)&settings->logalarms,  STG_UINT1 };
-  stgdesc[STG_AUTO_SOS]   = { "auto_sos",   (char*)&settings->auto_sos,   STG_UINT1 };
-  stgdesc[STG_LOG_NMEA]   = { "log_nmea",   (char*)&settings->log_nmea,   esp_only(STG_UINT1) };
-  stgdesc[STG_GNSS_PINS]  = { "gnss_pins",  (char*)&settings->gnss_pins,  esp_only(STG_UINT1) };
-  stgdesc[STG_PPSWIRE]    = { "ppswire",    (char*)&settings->ppswire,    esp_only(STG_UINT1) };
-  stgdesc[STG_SD_CARD]    = { "sd_card",    (char*)&settings->sd_card,    esp_only(STG_UINT1) };
-  stgdesc[STG_LOGFLIGHT]  = { "logflight",  (char*)&settings->logflight,  STG_UINT1 };
-  stgdesc[STG_LOGINTERVAL]= { "loginterval",(char*)&settings->loginterval,STG_UINT1 };
-  stgdesc[STG_COMPFLASH]  = { "compflash",  (char*)&settings->compflash,  STG_UINT1 };
-  stgdesc[STG_IGC_PILOT]  = { "igc_pilot",   settings->igc_pilot,         sizeof(settings->igc_pilot) };
-  stgdesc[STG_IGC_TYPE]   = { "igc_type",    settings->igc_type,          sizeof(settings->igc_type) };
-  stgdesc[STG_IGC_REG]    = { "igc_reg",     settings->igc_reg,           sizeof(settings->igc_reg) };
-  stgdesc[STG_IGC_CS]     = { "igc_cs",      settings->igc_cs,            sizeof(settings->igc_cs) };
-  stgdesc[STG_GN_TO_GP]   = { "gn_to_gp",   (char*)&settings->gn_to_gp,   STG_HIDDEN };
-  stgdesc[STG_GEOID]      = { "geoid",      (char*)&settings->geoid,      STG_HIDDEN };
-  stgdesc[STG_LEAPSECS]   = { "leapsecs",   (char*)&settings->leapsecs,   STG_HIDDEN };
-  stgdesc[STG_EPD_UNITS]  = { "units",      (char*)&settings->units,      epd_only(STG_UINT1) };
-  stgdesc[STG_EPD_ZOOM]   = { "zoom",       (char*)&settings->zoom,       epd_only(STG_UINT1) };
-  stgdesc[STG_EPD_ROTATE] = { "rotate",     (char*)&settings->rotate,     epd_only(STG_UINT1) };
-  stgdesc[STG_EPD_ORIENT] = { "orientation",(char*)&settings->orientation,epd_only(STG_UINT1) };
-  stgdesc[STG_EPD_ADB]    = { "adb",        (char*)&settings->adb,        epd_only(STG_UINT1) };
-  stgdesc[STG_EPD_IDPREF] = { "epdidpref",  (char*)&settings->epdidpref,  epd_only(STG_UINT1) };
-  stgdesc[STG_EPD_VMODE]  = { "viewmode",   (char*)&settings->viewmode,   epd_only(STG_UINT1) };
-  stgdesc[STG_EPD_AGHOST] = { "antighost",  (char*)&settings->antighost,  epd_only(STG_UINT1) };
-  stgdesc[STG_EPD_TEAM]   = { "team",       (char*)&settings->team,       epd_only(STG_HEX6) };
-  stgdesc[STG_DEBUG_FLAGS]= { "debug_flags",(char*)&settings->debug_flags,STG_HEX6 };
+  /* Visibility key:  C=CARD(T1000E), B=BADGE(T-Echo), T=TBEAM, M=M3 */
+  #define V_ALL   STG_VIS_ALL
+  #define V_C     STG_VIS_CARD
+  #define V_B     STG_VIS_BADGE
+  #define V_T     STG_VIS_TBEAM
+  #define V_M     STG_VIS_MINI
+  #define V_BTM   (V_B|V_T|V_M)
+  #define V_CBT   (V_C|V_B|V_T)
+
+  stgdesc[STG_NONE]       = { "none",       (char*)&settings->version,    STG_VOID,    0 };
+  stgdesc[STG_VERSION]    = { "SoftRF",     (char*)&settings->version,    STG_HIDDEN,  V_ALL };
+  stgdesc[STG_MODE]       = { "mode",       (char*)&settings->mode,       STG_UINT1,   V_T };
+  stgdesc[STG_PROTOCOL]   = { "protocol",   (char*)&settings->rf_protocol,STG_UINT1,   V_ALL };
+  stgdesc[STG_ALTPROTOCOL]= { "altprotocol",(char*)&settings->altprotocol,STG_UINT1,   V_ALL };
+  stgdesc[STG_FLR_ADSL]   = { "flr_adsl",   (char*)&settings->flr_adsl,   STG_UINT1,   V_ALL };
+  stgdesc[STG_BAND]       = { "band",       (char*)&settings->band,       STG_UINT1,   V_ALL };
+  stgdesc[STG_ACFT_TYPE]  = { "acft_type",  (char*)&settings->acft_type,  STG_UINT1,   V_ALL };
+  stgdesc[STG_ID_METHOD]  = { "id_method",  (char*)&settings->id_method,  STG_UINT1,   V_ALL };
+  stgdesc[STG_AIRCRAFT_ID]= { "aircraft_id",(char*)&settings->aircraft_id,STG_HEX6,    V_ALL };
+  stgdesc[STG_IGNORE_ID]  = { "ignore_id",  (char*)&settings->ignore_id,  STG_HEX6,    V_ALL };
+  stgdesc[STG_FOLLOW_ID]  = { "follow_id",  (char*)&settings->follow_id,  STG_HEX6,    V_ALL };
+  stgdesc[STG_ALARM]      = { "alarm",      (char*)&settings->alarm,      STG_UINT1,   V_ALL };
+  stgdesc[STG_HRANGE]     = { "hrange",     (char*)&settings->hrange,     STG_UINT1,   V_BTM };
+  stgdesc[STG_VRANGE]     = { "vrange",     (char*)&settings->vrange,     STG_UINT1,   V_BTM };
+  stgdesc[STG_OLD_TXPWR]  = { "txpower",    (char*)&settings->old_txpwr,  STG_OBSOLETE,0 };
+  stgdesc[STG_TXPOWER]    = { "tx_power",   (char*)&settings->txpower,    STG_HIDDEN,  V_ALL };
+  stgdesc[STG_VOLUME]     = { "volume",     (char*)&settings->volume,     STG_UINT1,   V_C|V_T|V_M };
+  stgdesc[STG_POINTER]    = { "pointer",    (char*)&settings->pointer,    STG_UINT1,   V_T };
+  stgdesc[STG_STROBE]     = { "strobe",     (char*)&settings->strobe,     esp_only(STG_UINT1), V_T };
+  stgdesc[STG_VOICE]      = { "voice",      (char*)&settings->voice,      esp_only(STG_UINT1), V_T };
+  stgdesc[STG_OWNSSID]    = { "myssid",     settings->myssid,      esp_only(sizeof(settings->myssid)), V_T };
+  stgdesc[STG_EXTSSID]    = { "ssid",       settings->ssid,        esp_only(sizeof(settings->ssid)),    V_T };
+  stgdesc[STG_PSK]        = { "psk",        settings->psk,         esp_only(sizeof(settings->psk)),     V_T };
+  stgdesc[STG_HOST_IP]    = { "host_ip",    settings->host_ip,     esp_only(sizeof(settings->host_ip)), V_T };
+  stgdesc[STG_TCPMODE]    = { "tcpmode",    (char*)&settings->tcpmode,    esp_only(STG_UINT1), V_T };
+  stgdesc[STG_TCPPORT]    = { "tcpport",    (char*)&settings->tcpport,    esp_only(STG_UINT1), V_T };
+  stgdesc[STG_BLUETOOTH]  = { "bluetooth",  (char*)&settings->bluetooth,  STG_UINT1,   V_T };
+  stgdesc[STG_BAUD_RATE]  = { "baud_rate",  (char*)&settings->baud_rate,  STG_UINT1,   V_ALL };
+  stgdesc[STG_NMEA_OUT]   = { "nmea_out",   (char*)&settings->nmea_out,   STG_UINT1,   V_ALL };
+  stgdesc[STG_NMEA_G]     = { "nmea_g",     (char*)&settings->nmea_g,     STG_HEX2,    V_ALL };
+  stgdesc[STG_NMEA_P]     = { "nmea_p",     (char*)&settings->nmea_p,     STG_HEX2,    0 };
+  stgdesc[STG_NMEA_T]     = { "nmea_t",     (char*)&settings->nmea_t,     STG_HEX2,    V_ALL };
+  stgdesc[STG_NMEA_S]     = { "nmea_s",     (char*)&settings->nmea_s,     STG_HEX2,    V_ALL };
+  stgdesc[STG_NMEA_D]     = { "nmea_d",     (char*)&settings->nmea_d,     STG_HEX2,    V_ALL };
+  stgdesc[STG_NMEA_E]     = { "nmea_e",     (char*)&settings->nmea_e,     STG_HEX2,    V_ALL };
+  stgdesc[STG_NMEA_OUT2]  = { "nmea_out2",  (char*)&settings->nmea_out2,  STG_UINT1,   V_ALL };
+  stgdesc[STG_NMEA2_G]    = { "nmea2_g",    (char*)&settings->nmea2_g,    STG_HEX2,    V_ALL };
+  stgdesc[STG_NMEA2_P]    = { "nmea2_p",    (char*)&settings->nmea2_p,    STG_HEX2,    0 };
+  stgdesc[STG_NMEA2_T]    = { "nmea2_t",    (char*)&settings->nmea2_t,    STG_HEX2,    V_ALL };
+  stgdesc[STG_NMEA2_S]    = { "nmea2_s",    (char*)&settings->nmea2_s,    STG_HEX2,    V_ALL };
+  stgdesc[STG_NMEA2_D]    = { "nmea2_d",    (char*)&settings->nmea2_d,    STG_HEX2,    V_ALL };
+  stgdesc[STG_NMEA2_E]    = { "nmea2_e",    (char*)&settings->nmea2_e,    STG_HEX2,    V_ALL };
+  stgdesc[STG_ALTPIN0]    = { "altpin0",    (char*)&settings->altpin0,    esp_only(STG_UINT1), V_T };
+  stgdesc[STG_BAUDRATE2]  = { "baudrate2",  (char*)&settings->baudrate2,  esp_only(STG_UINT1), V_ALL };
+  stgdesc[STG_INVERT2]    = { "invert2",    (char*)&settings->invert2,    esp_only(STG_UINT1), V_T };
+  stgdesc[STG_ALT_UDP]    = { "alt_udp",    (char*)&settings->alt_udp,    esp_only(STG_UINT1), V_T };
+  stgdesc[STG_RX1090]     = { "rx1090",     (char*)&settings->rx1090,     esp_only(STG_UINT1), V_T };
+  stgdesc[STG_RX1090X]    = { "rx1090x",    (char*)&settings->rx1090x,    esp_only(STG_UINT1), V_T };
+  stgdesc[STG_MODE_S]     = { "mode_s",     (char*)&settings->mode_s,     esp_only(STG_INT1),  V_T };
+  stgdesc[STG_HRANGE1090] = { "hrange1090", (char*)&settings->hrange1090, STG_UINT1,   V_T };
+  stgdesc[STG_VRANGE1090] = { "vrange1090", (char*)&settings->vrange1090, STG_UINT1,   V_T };
+  stgdesc[STG_GDL90_IN]   = { "gdl90_in",   (char*)&settings->gdl90_in,   esp_only(STG_UINT1), V_T };
+  stgdesc[STG_GDL90]      = { "gdl90",      (char*)&settings->gdl90,      STG_UINT1,   V_T };
+  stgdesc[STG_D1090]      = { "d1090",      (char*)&settings->d1090,      STG_UINT1,   V_T };
+  stgdesc[STG_RELAY]      = { "relay",      (char*)&settings->relay,      STG_UINT1,   V_ALL };
+  stgdesc[STG_EXPIRE]     = { "expire",     (char*)&settings->expire,     STG_INT1,    V_ALL };
+  stgdesc[STG_PFLAA_CS]   = { "pflaa_cs",   (char*)&settings->pflaa_cs,   STG_UINT1,   V_ALL };
+  stgdesc[STG_STEALTH]    = { "stealth",    (char*)&settings->stealth,    STG_UINT1,   V_ALL };
+  stgdesc[STG_NO_TRACK]   = { "no_track",   (char*)&settings->no_track,   STG_UINT1,   V_ALL };
+  stgdesc[STG_POWER_SAVE] = { "power_save", (char*)&settings->power_save, STG_UINT1,   V_ALL };
+  stgdesc[STG_POWER_EXT]  = { "power_ext",  (char*)&settings->power_ext,  STG_UINT1,   V_T };
+  stgdesc[STG_RFC]        = { "rfc",        (char*)&settings->freq_corr,  STG_HIDDEN,  V_ALL };
+  stgdesc[STG_ALARMLOG]   = { "alarmlog",   (char*)&settings->logalarms,  STG_UINT1,   V_CBT };
+  stgdesc[STG_AUTO_SOS]   = { "auto_sos",   (char*)&settings->auto_sos,   STG_UINT1,   0 };
+  stgdesc[STG_LOG_NMEA]   = { "log_nmea",   (char*)&settings->log_nmea,   esp_only(STG_UINT1), V_T };
+  stgdesc[STG_GNSS_PINS]  = { "gnss_pins",  (char*)&settings->gnss_pins,  esp_only(STG_UINT1), V_T };
+  stgdesc[STG_PPSWIRE]    = { "ppswire",    (char*)&settings->ppswire,    esp_only(STG_UINT1), V_T };
+  stgdesc[STG_SD_CARD]    = { "sd_card",    (char*)&settings->sd_card,    esp_only(STG_UINT1), V_T };
+  stgdesc[STG_LOGFLIGHT]  = { "logflight",  (char*)&settings->logflight,  STG_UINT1,   V_CBT };
+  stgdesc[STG_LOGINTERVAL]= { "loginterval",(char*)&settings->loginterval,STG_UINT1,   V_CBT };
+  stgdesc[STG_COMPFLASH]  = { "compflash",  (char*)&settings->compflash,  STG_UINT1,   V_B|V_T };
+  stgdesc[STG_IGC_PILOT]  = { "igc_pilot",   settings->igc_pilot,         sizeof(settings->igc_pilot), V_CBT };
+  stgdesc[STG_IGC_TYPE]   = { "igc_type",    settings->igc_type,          sizeof(settings->igc_type),  V_CBT };
+  stgdesc[STG_IGC_REG]    = { "igc_reg",     settings->igc_reg,           sizeof(settings->igc_reg),   V_CBT };
+  stgdesc[STG_IGC_CS]     = { "igc_cs",      settings->igc_cs,            sizeof(settings->igc_cs),    V_CBT };
+  stgdesc[STG_GN_TO_GP]   = { "gn_to_gp",   (char*)&settings->gn_to_gp,   STG_HIDDEN,  V_ALL };
+  stgdesc[STG_GEOID]      = { "geoid",      (char*)&settings->geoid,      STG_HIDDEN,  V_B|V_T };
+  stgdesc[STG_LEAPSECS]   = { "leapsecs",   (char*)&settings->leapsecs,   STG_HIDDEN,  V_B };
+  stgdesc[STG_EPD_UNITS]  = { "units",      (char*)&settings->units,      epd_only(STG_UINT1), V_B };
+  stgdesc[STG_EPD_ZOOM]   = { "zoom",       (char*)&settings->zoom,       epd_only(STG_UINT1), V_B };
+  stgdesc[STG_EPD_ROTATE] = { "rotate",     (char*)&settings->rotate,     epd_only(STG_UINT1), V_B };
+  stgdesc[STG_EPD_ORIENT] = { "orientation",(char*)&settings->orientation,epd_only(STG_UINT1), V_B };
+  stgdesc[STG_EPD_ADB]    = { "adb",        (char*)&settings->adb,        epd_only(STG_UINT1), V_B };
+  stgdesc[STG_EPD_IDPREF] = { "epdidpref",  (char*)&settings->epdidpref,  epd_only(STG_UINT1), V_B };
+  stgdesc[STG_EPD_VMODE]  = { "viewmode",   (char*)&settings->viewmode,   epd_only(STG_UINT1), V_B };
+  stgdesc[STG_EPD_AGHOST] = { "antighost",  (char*)&settings->antighost,  epd_only(STG_UINT1), V_B };
+  stgdesc[STG_EPD_TEAM]   = { "team",       (char*)&settings->team,       epd_only(STG_HEX6),  V_B };
+  stgdesc[STG_FANET_NAME] = { "fanet_name",  settings->fanet_name,        sizeof(settings->fanet_name), V_ALL };
+  stgdesc[STG_FANET_SOS]  = { "fanet_sos",  (char*)&settings->auto_sos,   STG_UINT1,   V_C };
+  stgdesc[STG_DEBUG_FLAGS]= { "debug_flags",(char*)&settings->debug_flags,STG_HEX6,    V_ALL };
 
   // ensure no null labels in the array
   for (int i=0; i<STG_END; i++) {
@@ -269,6 +291,7 @@ static void init_stgdesc()
   stgcomment[STG_RFC]        = "freq correction +-30";
   stgcomment[STG_LEAPSECS]   = "leap seconds - automatic";
   stgcomment[STG_ALARMLOG]   = yesno;
+  stgcomment[STG_FANET_SOS]  = "0=auto 1=manual 2=off";
   stgcomment[STG_LOG_NMEA]   = "1 = log all NMEA output to SD card";
   stgcomment[STG_LOGFLIGHT]  = "0=off 1=always 2=airborne 3=traffic";
   stgcomment[STG_LOGINTERVAL]= "seconds, 1-255";
@@ -290,6 +313,7 @@ static void init_stgdesc()
   stgminmax[3] = { STG_TXPOWER,     0,  2 };
   stgminmax[4] = { STG_EXPIRE,      1, ENTRY_EXPIRATION_TIME };
   stgminmax[5] = { STG_MODE_S,      0,  9 };
+  stgminmax[6] = { STG_FANET_SOS,   0,  2 };
 }
 
 // copy the settings from settingb (EEPROM) to settings (file)
