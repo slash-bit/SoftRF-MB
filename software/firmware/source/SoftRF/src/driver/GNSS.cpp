@@ -1735,10 +1735,10 @@ byte GNSS_setup() {
 
   //gnss_id_t gnss_id = GNSS_MODULE_NONE;
 
-#if defined(USE_SD_CARD)
-  if ((! is_prime_mk2) || (settings->debug_flags & DEBUG_SIMULATE) == 0
+#if defined(USE_SD_CARD) || defined(ARDUINO_ARCH_NRF52)
+  if ((! is_prime_mk2 && ! SIMfileOpen) || (settings->debug_flags & DEBUG_SIMULATE) == 0
       || ((! SIMfileOpen) && (settings->gnss_pins != EXT_GNSS_NONE))) {
-         // this assumes SD_setup() is called before GNSS_setup()
+         // this assumes SD_setup()/Filesys_setup() is called before GNSS_setup()
 #else
   if ((! is_prime_mk2) || (settings->debug_flags & DEBUG_SIMULATE) == 0
       || (settings->gnss_pins != EXT_GNSS_NONE)) {
@@ -1750,7 +1750,11 @@ byte GNSS_setup() {
       delay(500);  // added to make sure swSer is ready
   }
 
-  if (is_prime_mk2 && settings->debug_flags & DEBUG_SIMULATE) {
+  if ((is_prime_mk2
+#if defined(ARDUINO_ARCH_NRF52)
+       || SIMfileOpen
+#endif
+      ) && settings->debug_flags & DEBUG_SIMULATE) {
       const char *psrf_p = "PFSIM";
       int term_num = 1;
       P_timestamp.begin (gnss, psrf_p, term_num++);   // for "target" data sentences
@@ -2280,11 +2284,15 @@ void PickGNSSFix()
 {
   uint8_t c = 0;
 
-  if (is_prime_mk2) {
+  if (is_prime_mk2
+#if defined(ARDUINO_ARCH_NRF52)
+      || SIMfileOpen
+#endif
+     ) {
 
     if (settings->debug_flags & DEBUG_SIMULATE) {
       static uint8_t SentenceType = 0;
-#if defined(USE_SD_CARD)
+#if defined(USE_SD_CARD) || defined(ARDUINO_ARCH_NRF52)
       if (TARGETfileOpen && GNSS_cnt == 0) {
         add_pfsim_traffic();   // if any waiting and its time has arrived
         while (! pfsim.waiting) {
@@ -2314,7 +2322,7 @@ void PickGNSSFix()
 //Serial.printf("PickGNSSFix(): millis %d next_burst %d\r\n", millis(), next_burst);
       bool ext_gnss = (settings->gnss_pins != EXT_GNSS_NONE);
       while (true) {
-#if defined(USE_SD_CARD)
+#if defined(USE_SD_CARD) || defined(ARDUINO_ARCH_NRF52)
         if (SIMfileOpen) {
           if (millis() < next_burst)        // ignore input until next simulated second
               return;

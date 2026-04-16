@@ -297,6 +297,13 @@ uint32_t FILESYS_free_kb()
 
 #if defined(ARDUINO_ARCH_NRF52)
 
+#include "Settings.h"
+
+File SIMfile;
+File TARGETfile;
+bool SIMfileOpen = false;
+bool TARGETfileOpen = false;
+
 void Filesys_setup() {
   // fatfs was already mounted in SoC setup
 #if defined(SOFTRF_NRF52_T1000E)
@@ -305,6 +312,29 @@ void Filesys_setup() {
       FILESYS.mkdir("/Tracklogs");
   }
 #endif
+
+  if (FS_is_mounted && (settings->debug_flags & DEBUG_SIMULATE)) {
+      SIMfile = FILESYS.open("/logs/simulate.txt", FILE_READ);
+      if (! SIMfile) {
+          Serial.println("File /logs/simulate.txt not found");
+      } else if (SIMfile.size() == 0) {
+          SIMfile.close();
+          Serial.println("Empty /logs/simulate.txt");
+      } else {
+          SIMfileOpen = true;
+          Serial.println("File /logs/simulate.txt found");
+      }
+      TARGETfile = FILESYS.open("/logs/target.txt", FILE_READ);
+      if (! TARGETfile) {
+          Serial.println("File /logs/target.txt not found");
+      } else if (TARGETfile.size() == 0) {
+          TARGETfile.close();
+          Serial.println("Empty /logs/target.txt");
+      } else {
+          TARGETfileOpen = true;
+          Serial.println("File /logs/target.txt found");
+      }
+  }
 }
 
 // get free space in FATFS

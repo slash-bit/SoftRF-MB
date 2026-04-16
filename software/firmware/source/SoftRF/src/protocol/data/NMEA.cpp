@@ -1521,6 +1521,8 @@ void NMEA_loop()
         || SIMfileOpen
 #endif
         || (settings->gnss_pins != EXT_GNSS_NONE)
+#elif defined(ARDUINO_ARCH_NRF52)
+        || SIMfileOpen
 #endif
         ) {      // if not reading sim data from Serial, poll Serial here:
 

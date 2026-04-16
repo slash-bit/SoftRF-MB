@@ -54,6 +54,11 @@ extern bool TARGETfileOpen;
 #define IGCFILESYS fatfs
 #define IGCFS_is_mounted FATFS_is_mounted
 
+extern File SIMfile;
+extern File TARGETfile;
+extern bool SIMfileOpen;
+extern bool TARGETfileOpen;
+
 #endif
 
 void Filesys_setup();
