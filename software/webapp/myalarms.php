@@ -1,3 +1,33 @@
+<?php
+/* ---- Aircraft label lookup ---- */
+if (isset($_GET['lookup'])) {
+    header('Content-Type: application/json');
+    $ids = array_filter(array_map('trim', explode(',', $_GET['lookup'])));
+    if (empty($ids)) { echo '{}'; exit; }
+
+    /* Try production path first, then local */
+    $dbPath = __DIR__ . '/../ogn_tools/db/aircraft_labels.db';
+    if (!file_exists($dbPath)) {
+        $dbPath = __DIR__ . '/aircraft_labels.db';
+    }
+    if (!file_exists($dbPath)) { echo '{}'; exit; }
+
+    $db = new SQLite3($dbPath, SQLITE3_OPEN_READONLY);
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $stmt = $db->prepare("SELECT hex, label FROM labels WHERE hex IN ($placeholders)");
+    foreach (array_values($ids) as $i => $id) {
+        $stmt->bindValue($i + 1, strtoupper($id), SQLITE3_TEXT);
+    }
+    $result = $stmt->execute();
+    $map = [];
+    while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+        $map[$row['hex']] = $row['label'];
+    }
+    $db->close();
+    echo json_encode($map);
+    exit;
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -273,13 +303,14 @@ const App = {
   map: null,
   alarmData: null,   /* { takeoff, alarms } */
   igcTrack: null,    /* [ {timeSec, lat, lon, altGPS} ] */
+  labelCache: {},    /* hex -> name */
 
   init() {
     this.setupUpload('uploadAlarm', 'alarmInput', 'alarmFileName', file => {
       const reader = new FileReader();
       reader.onload = e => {
         this.alarmData = this.parseAlarmLog(e.target.result);
-        if (this.alarmData) this.refresh();
+        if (this.alarmData) this.fetchLabelsAndRefresh();
       };
       reader.readAsText(file);
     });
@@ -287,10 +318,32 @@ const App = {
       const reader = new FileReader();
       reader.onload = e => {
         this.igcTrack = this.parseIGC(e.target.result);
-        if (this.alarmData) this.refresh();
+        if (this.alarmData) this.fetchLabelsAndRefresh();
       };
       reader.readAsText(file);
     });
+  },
+
+  /* Fetch aircraft labels from DB, then refresh */
+  fetchLabelsAndRefresh() {
+    const ids = [...new Set(this.alarmData.alarms.map(a => a.id))];
+    const uncached = ids.filter(id => !(id in this.labelCache));
+    if (uncached.length === 0) { this.refresh(); return; }
+    fetch('?lookup=' + encodeURIComponent(uncached.join(',')))
+      .then(r => r.json())
+      .then(map => {
+        Object.assign(this.labelCache, map);
+        /* Mark missing IDs so we don't re-fetch */
+        uncached.forEach(id => { if (!(id in this.labelCache)) this.labelCache[id] = null; });
+        this.refresh();
+      })
+      .catch(() => this.refresh());  /* on error, just show IDs */
+  },
+
+  /* Display name: label if found, otherwise hex ID */
+  displayName(id) {
+    const label = this.labelCache[id];
+    return label ? `${label} (${id})` : id;
   },
 
   setupUpload(areaId, inputId, nameId, handler) {
@@ -500,7 +553,7 @@ const App = {
         <td><span class="level-badge level-${a.level}">${
           a.level === 1 ? 'Low' : a.level === 2 ? 'Important' : 'Urgent'
         }</span></td>
-        <td><span class="id-badge">${a.id}</span></td>
+        <td><span class="id-badge">${this.displayName(a.id)}</span></td>
         <td>${this.bearingToClock(a.relBearing)}</td>
         <td>${a.hDist}</td>
         <td>${a.vDist >= 0 ? '+' : ''}${a.vDist}</td>
@@ -593,7 +646,7 @@ const App = {
             Level ${a.level} (${levelNames[a.level]})
           </span><br>
           <b>Time:</b> ${this.formatTime(a.date, a.time)} UTC<br>
-          <b>Aircraft:</b> ${a.id}<br>
+          <b>Aircraft:</b> ${this.displayName(a.id)}<br>
           <b>Target:</b> ${clockStr} (${a.relBearing}&deg;)<br>
           <b>H Distance:</b> ${a.hDist} m<br>
           <b>V Distance:</b> ${a.vDist >= 0 ? '+' : ''}${a.vDist} m<br>
