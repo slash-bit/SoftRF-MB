@@ -119,6 +119,7 @@ struct rst_info {
 #endif
 
 #define DFU_MAGIC_SKIP        (0x6d)
+#define SHUTDOWN_MAGIC        (0x5D)
 #define BME280_ADDRESS        (0x77)
 #define MPU9250_ADDRESS       (0x68)
 

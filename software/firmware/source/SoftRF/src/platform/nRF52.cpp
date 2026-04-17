@@ -601,8 +601,11 @@ static void nRF52_setup()
       Serial.println("[SETUP] Initializing T1000-E GPIO pins...");
 
       if (reset_reason & POWER_RESETREAS_VBUS_Msk ||
-          reset_reason & POWER_RESETREAS_RESETPIN_Msk) {
-        NRF_POWER->GPREGRET = DFU_MAGIC_SKIP;
+          reset_reason & POWER_RESETREAS_RESETPIN_Msk ||
+          (reset_reason & POWER_RESETREAS_SREQ_Msk &&
+           NRF_POWER->GPREGRET2 == SHUTDOWN_MAGIC)) {
+        NRF_POWER->GPREGRET  = DFU_MAGIC_SKIP;
+        NRF_POWER->GPREGRET2 = 0;
         pinMode(SOC_GPIO_PIN_IO_PWR, INPUT);
         pinMode(SOC_GPIO_PIN_T1000_BUTTON, INPUT_PULLDOWN_SENSE /* INPUT_SENSE_HIGH */);
 
@@ -1231,18 +1234,41 @@ static void nRF52_fini(int reason)
       pinMode(SOC_GPIO_PIN_3V3_PWR, INPUT_PULLDOWN);
       break;
     case NRF52_SEEED_T1000E:
-      pinMode(SOC_GPIO_PIN_GNSS_T1000_RINT, INPUT_PULLDOWN);
-      pinMode(SOC_GPIO_PIN_GNSS_T1000_SINT, INPUT_PULLDOWN);
-      pinMode(SOC_GPIO_PIN_GNSS_T1000_RST,  INPUT_PULLDOWN);
-      pinMode(SOC_GPIO_PIN_GNSS_T1000_VRTC, INPUT_PULLUP);
-      pinMode(SOC_GPIO_PIN_GNSS_T1000_EN,   INPUT_PULLDOWN);
+      /* Drive all power-enable pins LOW before switching to INPUT.
+         OUTPUT LOW clears the output latch AND actively shuts off
+         the external regulator before we release the pin. */
+      digitalWrite(SOC_GPIO_PIN_GNSS_T1000_EN,   LOW);
+      pinMode(SOC_GPIO_PIN_GNSS_T1000_EN,   OUTPUT);
+      digitalWrite(SOC_GPIO_PIN_GNSS_T1000_VRTC, LOW);
+      pinMode(SOC_GPIO_PIN_GNSS_T1000_VRTC, OUTPUT);
+      digitalWrite(SOC_GPIO_PIN_T1000_3V3_EN,    LOW);
+      pinMode(SOC_GPIO_PIN_T1000_3V3_EN,    OUTPUT);
+      digitalWrite(SOC_GPIO_PIN_T1000_BUZZER_EN, LOW);
+      pinMode(SOC_GPIO_PIN_T1000_BUZZER_EN, OUTPUT);
+      digitalWrite(SOC_GPIO_PIN_SFL_T1000_EN,    LOW);
+      pinMode(SOC_GPIO_PIN_SFL_T1000_EN,    OUTPUT);
+#if !defined(EXCLUDE_IMU)
+      digitalWrite(SOC_GPIO_PIN_T1000_ACC_EN,    LOW);
+      pinMode(SOC_GPIO_PIN_T1000_ACC_EN,    OUTPUT);
+#endif /* EXCLUDE_IMU */
+      delay(20);
 
+      /* Now release to INPUT_PULLDOWN for minimum SYSTEMOFF current */
+      pinMode(SOC_GPIO_PIN_GNSS_T1000_EN,   INPUT_PULLDOWN);
+      pinMode(SOC_GPIO_PIN_GNSS_T1000_VRTC, INPUT_PULLDOWN);
+      pinMode(SOC_GPIO_PIN_T1000_3V3_EN,    INPUT_PULLDOWN);
+      pinMode(SOC_GPIO_PIN_T1000_BUZZER_EN, INPUT_PULLDOWN);
+      pinMode(SOC_GPIO_PIN_SFL_T1000_EN,    INPUT_PULLDOWN);
 #if !defined(EXCLUDE_IMU)
       pinMode(SOC_GPIO_PIN_T1000_ACC_EN,    INPUT_PULLDOWN);
 #endif /* EXCLUDE_IMU */
-      pinMode(SOC_GPIO_PIN_T1000_BUZZER_EN, INPUT_PULLDOWN);
-      pinMode(SOC_GPIO_PIN_T1000_3V3_EN,    INPUT_PULLDOWN);
 
+      /* GNSS control pins */
+      pinMode(SOC_GPIO_PIN_GNSS_T1000_RINT, INPUT_PULLDOWN);
+      pinMode(SOC_GPIO_PIN_GNSS_T1000_SINT, INPUT_PULLDOWN);
+      pinMode(SOC_GPIO_PIN_GNSS_T1000_RST,  INPUT_PULLDOWN);
+
+      /* LR1110 NSS must stay high to prevent spurious wakeup */
       pinMode(SOC_GPIO_PIN_T1000_SS,        INPUT_PULLUP);
 
       /* LR1110 SPI pins - set to INPUT to prevent current leakage */
@@ -1254,9 +1280,9 @@ static void nRF52_fini(int reason)
       pinMode(SOC_GPIO_PIN_T1000_DIO9,    INPUT);
       pinMode(SOC_GPIO_PIN_T1000_BUSY,    INPUT);
 
+      /* LEDs off */
       digitalWrite(SOC_GPIO_LED_T1000_GREEN, 1-LED_STATE_ON);
       digitalWrite(SOC_GPIO_LED_T1000_RED, LOW);
-      pinMode(SOC_GPIO_PIN_SFL_T1000_EN,    INPUT);
       pinMode(SOC_GPIO_LED_T1000_GREEN,     INPUT);
       pinMode(SOC_GPIO_LED_T1000_RED,       INPUT);
       break;
@@ -1305,6 +1331,25 @@ static void nRF52_fini(int reason)
 #endif
 
   Serial_GNSS_In.end();
+
+  /* nRF52 PAN-58 / erratum 12: Serial.end() leaves UARTE peripheral partially
+   * active (~1 mA leak) until force-disabled via the hidden power register.
+   * Applied only on T1000E where the deep-sleep drain was observed. */
+  if (nRF52_board == NRF52_SEEED_T1000E) {
+    NRF_UARTE0->TASKS_STOPRX = 1;
+    NRF_UARTE0->TASKS_STOPTX = 1;
+    NRF_UARTE0->ENABLE       = 0;
+    *(volatile uint32_t *)0x40002FFC = 0;
+    *(volatile uint32_t *)0x40002FFC;
+    *(volatile uint32_t *)0x40002FFC = 1;
+
+    NRF_UARTE1->TASKS_STOPRX = 1;
+    NRF_UARTE1->TASKS_STOPTX = 1;
+    NRF_UARTE1->ENABLE       = 0;
+    *(volatile uint32_t *)0x40028FFC = 0;
+    *(volatile uint32_t *)0x40028FFC;
+    *(volatile uint32_t *)0x40028FFC = 1;
+  }
 
   // pinMode(SOC_GPIO_PIN_GNSS_RX, INPUT);
   // pinMode(SOC_GPIO_PIN_GNSS_TX, INPUT);
@@ -1369,10 +1414,19 @@ static void nRF52_fini(int reason)
   {
   case SOFTRF_SHUTDOWN_BUTTON:
   case SOFTRF_SHUTDOWN_LOWBAT:
+    if (nRF52_board == NRF52_SEEED_T1000E) {
+      /* Reset-based shutdown: reboot into a clean-slate state, then
+         nRF52_setup() detects SHUTDOWN_MAGIC and enters SYSTEMOFF
+         with all peripherals at power-on defaults. This replicates
+         the low-drain path observed when USB is unplugged post-shutdown. */
+      NRF_POWER->GPREGRET  = DFU_MAGIC_SKIP;
+      NRF_POWER->GPREGRET2 = SHUTDOWN_MAGIC;
+      Serial.end();
+      NVIC_SystemReset();
+      while(1);
+    }
     NRF_POWER->GPREGRET = DFU_MAGIC_SKIP;
-    pinMode(mode_button_pin, nRF52_board == NRF52_SEEED_T1000E ?
-                             INPUT_PULLDOWN_SENSE /* INPUT_SENSE_HIGH */ :
-                             INPUT_PULLUP_SENSE   /* INPUT_SENSE_LOW  */);
+    pinMode(mode_button_pin, INPUT_PULLUP_SENSE /* INPUT_SENSE_LOW */);
     break;
 #if defined(USE_SERIAL_DEEP_SLEEP)
   case SOFTRF_SHUTDOWN_NMEA:
