@@ -2901,14 +2901,40 @@ void set_protocol_for_slot()
 */
 }
 
+/* Set the RF band from GPS coordinates when settings->band == RF_BAND_AUTO.
+ * Uses float lat/lon directly (no integer scaling).
+ * Called from SoftRF.ino at stable GPS fix time. */
+void RF_SetBandAuto(float lat, float lon)
+{
+  if (settings->band != RF_BAND_AUTO)
+    return;
+
+  uint8_t band;
+  if (lon >= -20.0f && lon <= 60.0f) {
+    band = RF_BAND_EU;    // Europe + Africa: 868 MHz
+  } else if (lat < 20.0f) {
+    if (lon > 164.0f && lat < -30.0f && lat > -48.0f)
+      band = RF_BAND_NZ;  // New Zealand: 869.25 MHz
+    else
+      band = RF_BAND_AU;  // Australia + South America: 921 MHz
+  } else {
+    band = RF_BAND_US;    // USA + Canada: 915 MHz
+  }
+
+  settings->band = band;
+  RF_FreqPlan.setPlan(settings->band, current_RX_protocol);
+  Serial.printf("Auto RF band: %s (lat=%.4f lon=%.4f)\r\n",
+      RF_FreqPlan.getPlanName(band), lat, lon);
+}
+
 void RF_loop()
 {
   if (!RF_ready) {
-    if (RF_FreqPlan.Plan == RF_BAND_AUTO) {   // never happens, since setup() overrode AUTO
+    if (RF_FreqPlan.Plan == RF_BAND_AUTO) {
+      /* Band still AUTO — waiting for RF_SetBandAuto() call from SoftRF.ino.
+       * Fallback: if ThisAircraft coords are available, resolve now. */
       if (ThisAircraft.latitude || ThisAircraft.longitude) {
-        settings->band = RF_FreqPlan.calcPlan((int32_t)(ThisAircraft.latitude  * 600000),
-                                              (int32_t)(ThisAircraft.longitude * 600000));
-        RF_FreqPlan.setPlan(settings->band, current_RX_protocol);
+        RF_SetBandAuto(ThisAircraft.latitude, ThisAircraft.longitude);
         RF_ready = true;
       }
     } else {

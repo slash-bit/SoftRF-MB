@@ -183,6 +183,7 @@ extern uint32_t rx_packets_counter, tx_packets_counter;
 
 void    RF_chip_reset(uint8_t protocol);
 void    RF_protocol_switch(uint8_t new_main, uint8_t new_alt);
+void    RF_SetBandAuto(float lat, float lon);
 
 /* #define TIMETEST */
 #ifdef TIMETEST

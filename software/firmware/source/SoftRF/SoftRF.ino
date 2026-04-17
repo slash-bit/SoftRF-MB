@@ -561,6 +561,7 @@ Serial.println("Tentative GNSS fix");
           || (settings->debug_flags & DEBUG_SIMULATE)) {
         /* 20 sec after first fix, or 5 sec after re-fix (but no wait if simulating) */
         GNSSTimeMarker = millis();
+        RF_SetBandAuto(gnss.location.lat(), gnss.location.lng());
 Serial.printf("Stable GNSS fix:\r\n\
     lat/lon: %.5f %.5f\r\n\
     date: %d %d %d\r\n\
