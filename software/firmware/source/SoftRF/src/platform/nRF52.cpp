@@ -1414,6 +1414,7 @@ static void nRF52_fini(int reason)
   {
   case SOFTRF_SHUTDOWN_BUTTON:
   case SOFTRF_SHUTDOWN_LOWBAT:
+  case SOFTRF_SHUTDOWN_NMEA:
     if (nRF52_board == NRF52_SEEED_T1000E) {
       /* Reset-based shutdown: reboot into a clean-slate state, then
          nRF52_setup() detects SHUTDOWN_MAGIC and enters SYSTEMOFF
