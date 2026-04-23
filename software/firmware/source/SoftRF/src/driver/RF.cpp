@@ -4372,8 +4372,7 @@ if (lr11xx_receive_complete == true) {
           {
             update_crc8(&crc8, (u1_t)(RL_rxPacket_ptr->payload[i + offset]));
             if (i < sizeof(RxBuffer)) {
-              RxBuffer[i] = RL_rxPacket_ptr->payload[i + offset] ^
-                            pgm_read_byte(&whitening_pattern[i]);
+              RxBuffer[i] = RL_rxPacket_ptr->payload[i + offset];  // no whitening (new PAW uses ADS-L payload)
             }
           }
 

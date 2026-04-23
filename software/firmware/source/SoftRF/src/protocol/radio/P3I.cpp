@@ -24,6 +24,7 @@
 #include "../../../SoftRF.h"
 #include "../../driver/RF.h"
 #include "../../driver/Settings.h"
+#include "ADSL.h"
 
 
 const rf_proto_desc_t p3i_proto_desc = {
@@ -44,7 +45,7 @@ const rf_proto_desc_t p3i_proto_desc = {
 
   .bitrate          = RF_BITRATE_38400,
   .deviation        = P3I_FDEV,
-  .whitening        = RF_WHITENING_NICERF,
+  .whitening        = RF_WHITENING_NONE,   // new PAW uses ADS-L payload, no NiceRF whitening
   .bandwidth        = P3I_BANDWIDTH,
 
   .air_time         = P3I_AIR_TIME,
@@ -56,101 +57,39 @@ const rf_proto_desc_t p3i_proto_desc = {
   .slot1            = {0, 0}
 };
 
+// whitening_pattern kept for reference; no longer used with new PAW protocol
 const uint8_t whitening_pattern[] PROGMEM = { 0x05, 0xb4, 0x05, 0xae, 0x14, 0xda,
   0xbf, 0x83, 0xc4, 0x04, 0xb2, 0x04, 0xd6, 0x4d, 0x87, 0xe2, 0x01, 0xa3, 0x26,
   0xac, 0xbb, 0x63, 0xf1, 0x01, 0xca, 0x07, 0xbd, 0xaf, 0x60, 0xc8, 0x12, 0xed,
   0x04, 0xbc, 0xf6, 0x12, 0x2c, 0x01, 0xd9, 0x04, 0xb1, 0xd5, 0x03, 0xab, 0x06,
   0xcf, 0x08, 0xe6, 0xf2, 0x07, 0xd0, 0x12, 0xc2, 0x09, 0x34, 0x20 };
 
-bool p3i_decode(void *p3i_pkt, container_t *this_aircraft, ufo_t *fop) {
+// New PAW protocol: outer layer is old P3I frame (CRC8), payload is ADS-L (21 bytes + 3-byte CRC24).
+// RF.cpp already verified the CRC8; here we check the inner ADS-L CRC24 then delegate to adsl_decode().
+bool p3i_decode(void *pkt, container_t *this_aircraft, ufo_t *fop) {
 
-  p3i_packet_t *pkt = (p3i_packet_t *) p3i_pkt;
-
-  uint32_t timestamp = (uint32_t) this_aircraft->timestamp;
-
-  uint8_t cs = 0;
-  uint8_t *p = (uint8_t *)pkt;
-
-  for (int i=0; i<sizeof(p3i_packet_t); i++) {
-    cs ^= *p++;
+  if (ADSL_Packet::checkPI((uint8_t *) pkt, (uint8_t) P3I_PAYLOAD_SIZE)) {
+    Serial.println("PAW internal CRC24 wrong");
+    return false;
   }
-  if (cs)
-    return(false);
+
+  ++rx_packets_counter;
+
+  if (adsl_decode(pkt, this_aircraft, fop) == false)
+    return false;
 
   fop->protocol = RF_PROTOCOL_P3I;
-
-  fop->addr = pkt->icao;
-
-  if (fop->addr == settings->ignore_id)
-         return true;                 /* ID told in settings to ignore */
-  if (fop->addr == ThisAircraft.addr)
-         return true;                 /* same ID as this aircraft - ignore */
-
-  fop->addr_type = ADDR_TYPE_ICAO;     // was ADDR_TYPE_P3I but can't report that?
-  fop->timestamp = timestamp;
-  fop->gnsstime_ms = millis();
-
-  fop->latitude = pkt->latitude;
-  fop->longitude = pkt->longitude;
-  fop->altitude = (float) pkt->altitude;
-  fop->aircraft_type = (pkt->aircraft & 0x0F);   // higher bits signal packet is relayed
-  fop->course = (float) pkt->track;
-  fop->speed = (float) pkt->knots;
-
-  fop->vs = 0;
-  fop->stealth = 0;
-  fop->no_track = 0;
-/*
-  fop->ns[0] = 0; fop->ns[1] = 0;
-  fop->ns[2] = 0; fop->ns[3] = 0;
-  fop->ew[0] = 0; fop->ew[1] = 0;
-  fop->ew[2] = 0; fop->ew[3] = 0;
-*/
   return true;
 }
 
-size_t p3i_encode(void *p3i_pkt, container_t *this_aircraft) {
+size_t p3i_encode(void *pkt, container_t *aircraft) {
 
-  p3i_packet_t *pkt = (p3i_packet_t *) p3i_pkt;
-
-  uint32_t id = this_aircraft->addr; 
-  float lat = this_aircraft->latitude;
-  float lon = this_aircraft->longitude;
-  int16_t alt = (int16_t) this_aircraft->altitude;
-  unsigned int aircraft_type = this_aircraft->aircraft_type;
-  if (aircraft_type == AIRCRAFT_TYPE_WINCH)
-        aircraft_type = AIRCRAFT_TYPE_STATIC;
-
-  uint8_t cs = 0;
-  uint8_t *p = (uint8_t *)pkt;
-
-  pkt->sync = '$'; 
-  pkt->icao = id & 0x00FFFFFF;
-  pkt->longitude = lon;  // IEEE-754
-  pkt->latitude = lat;   // IEEE-754
-  pkt->altitude = (uint16_t) alt; // metres
-
-  pkt->track = (uint16_t) this_aircraft->course; // degrees relative to true north
-  pkt->knots = (uint16_t) this_aircraft->speed;  // knots
-
-/*
-"Pilotaware changed something a couple of years ago that stopped Soft-RF
- from being seen by OGN - we re-enabled this by setting the following
- pkt->msd[0] = 0x0f; // Old code pkt->msd[0] = 0;
- pkt->msd[1] = 0x05;;// Old code pkt->msd[1] = 0"
-*/
-  pkt->msd[0] = 0x0F;
-  pkt->msd[1] = 0x05;
-  pkt->msd[2] = 0;
-  pkt->msd[3] = 0;
-
-  pkt->aircraft = aircraft_type;
-
-  for (int i=0; i<(sizeof(p3i_packet_t)-1); i++) {
-    cs ^= *p++;
+  size_t size = adsl_encode(pkt, aircraft);
+  if (size != ADSL_PAYLOAD_SIZE + ADSL_CRC_SIZE  // 24
+   || size != P3I_PAYLOAD_SIZE) {                // 24
+    Serial.print("p3i_encode() error: adsl_encode() returned ");
+    Serial.println(size);
+    return 0;
   }
-
-  pkt->crc = cs;
-
-  return sizeof(p3i_packet_t);
+  return P3I_PAYLOAD_SIZE;   // 24
 }
