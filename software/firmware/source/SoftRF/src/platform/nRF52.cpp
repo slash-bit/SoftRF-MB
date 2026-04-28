@@ -1145,10 +1145,10 @@ static void nRF52_fini(int reason)
      Must happen first — T1000E BUZZER_EN is cut later in this function. */
   if (settings->volume != BUZZER_OFF) {
     uint8_t v = settings->volume;
-    SoC->Buzzer_tone(840, v); delay(400); SoC->Buzzer_tone(0, v); delay(100);
-    SoC->Buzzer_tone(640, v); delay(600); SoC->Buzzer_tone(0, v);
+    SoC->Buzzer_tone(840, v); delay(200); SoC->Buzzer_tone(0, v); delay(50);
+    SoC->Buzzer_tone(640, v); delay(400); SoC->Buzzer_tone(0, v);
   }
-
+s
   if (nRF52_has_spiflash) {
     usb_msc.setUnitReady(false);
 //  usb_msc.end(); /* N/A */
