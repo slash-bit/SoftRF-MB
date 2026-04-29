@@ -520,25 +520,13 @@ FlightLogComment(NMEABuffer);
 /* keep track of whether this aircraft is airborne */
 void this_airborne(bool validfix)
 {
-    /* static vars to keep track of 'airborne' status: */
     static int airborne = -4;
-    static float prevspeed = 0;
-    static float initial_latitude = 0;
-    static float initial_longitude = 0;
-    static float initial_altitude = 0;
 
     /* XCGuide forced air mode: skip auto-detection, stay airborne */
     if (fnf_airmode) {
         airborne = 60;
         ThisAircraft.airborne = 1;
         return;
-    }
-
-    if (initial_latitude == 0) {
-      /* set initial location */
-      initial_latitude  = ThisAircraft.latitude;
-      initial_longitude = ThisAircraft.longitude;
-      initial_altitude  = ThisAircraft.altitude;
     }
 
     int was_airborne = airborne;
@@ -555,57 +543,31 @@ void this_airborne(bool validfix)
 
       return;      /* wait for stable fix */
 
-    } else if (speed < 1.0) {
+    } else {
 
-      if (airborne > 0) {
-        airborne -= 2;
-        /* after 30 calls (~30 sec if consecutive)
-           with speed < 1 knot consider it a landing */
-        // if alternating between >1kt and <1kt the -=2 will win over the ++
-      } else /* not airborne */ {
-        /* if had some speed and then stopped - reset to -4 again */
-        airborne = -4;
-        initial_latitude = 0;
-      }
-
-    } else if (airborne <= 0) {    /* not airborne but moving with speed > 1 knot */
-
-        float speed_thresh = 20.0;                /* 20 knots for most aircraft */
-        float dist_thresh  = 0.0018f;             /* about 200 meters */
-        float alt_thresh   = 120.0f;
+        /* Speed bracket: must be sustained within range, not a GPS spike.
+           Speeds above speed_high are ignored (neither increment nor decrement). */
+        float speed_low, speed_high;
         if (settings->acft_type == AIRCRAFT_TYPE_PARAGLIDER
          || settings->acft_type == AIRCRAFT_TYPE_HANGGLIDER
          || settings->acft_type == AIRCRAFT_TYPE_BALLOON) {
-            speed_thresh = 15.0;                  /* 15 knots (~28 km/h) */
-            dist_thresh  = 0.0005f;               /* about 100 meters */
-            alt_thresh   = 1.0f;                 /* 30 meters altitude change */
+            speed_low  = 5.0;   /* ~9 km/h — above walking pace */
+            speed_high = 30.0;  /* ~56 km/h — below implausible GPS spike */
+        } else {
+            speed_low  = 20.0;  /* ~37 km/h */
+            speed_high = 200.0;
         }
 
-        if ( speed > speed_thresh
-          || fabs(ThisAircraft.latitude - initial_latitude) > dist_thresh
-          || fabs(ThisAircraft.longitude - initial_longitude) > dist_thresh * 1.5f
-          || fabs(ThisAircraft.altitude - initial_altitude) > alt_thresh) {
-            /* movement larger than typical GNSS noise */
-            uint32_t interval = ThisAircraft.gnsstime_ms - ThisAircraft.prevtime_ms;
-            if (fabs(ThisAircraft.altitude - ThisAircraft.prevaltitude) > 0.020 * (float)interval
-             || fabs(ThisAircraft.course - ThisAircraft.prevcourse) > 0.050 * (float)interval
-             || speed > 4.0 * prevspeed || prevspeed > 4.0 * speed) {
-               /* supposed initial movement is too jerky - wait for smoother changes */
-            } else {
-                ++airborne;
-                /* require additional movements to call it airborne */
-                initial_latitude  = ThisAircraft.latitude;
-                initial_longitude = ThisAircraft.longitude;
-                initial_altitude  = ThisAircraft.altitude;
-            }
-            prevspeed = speed;
-            if (airborne > 0)    /* consistently good indications */
-                 airborne = 60;  /* now really airborne */
+        if (speed > speed_low && speed <= speed_high) {
+            ++airborne;
+            if (airborne > 15)   /* 15+ consecutive samples in bracket → airborne */
+                airborne = 60;
+        } else if (speed <= speed_low) {
+            --airborne;
+            if (airborne < -4)
+                airborne = -4;
         }
-
-    } else if (airborne < 60) {    /* airborne and moving with speed > 1 knot */
-
-        ++airborne;  // so multiple momentary hovers will not accumulate to a "landing"
+        /* speed > speed_high: GPS spike — ignore */
 
     }
 
@@ -620,12 +582,12 @@ void this_airborne(bool validfix)
     } else if (ThisAircraft.airborne==1 && airborne<=0) {
       airborne_changed = true;
       // AirborneTime = 0;
-      if (settings->auto_sos && !fanet_distress) {
-        fanet_landed = 1;  // SOS countdown active
+      if (settings->auto_sos == 2 && !fanet_distress) {
+        fanet_landed = 1;  // SOS countdown active (AUTO mode only)
         sos_countdown_start_ms = millis();
         Serial.println(F("Auto-SOS countdown started (3min)"));
       } else {
-        fanet_landed = 2;  // landed OK (no auto-sos)
+        fanet_landed = 2;  // landed OK (MANUAL or OFF: no auto countdown)
       }
     }
 
