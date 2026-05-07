@@ -2598,6 +2598,12 @@ void NMEA_Process_SRF_SKV_Sentences()
           Serial.println(F("PSRFC Shutdown..."));
           shutdown(SOFTRF_SHUTDOWN_NMEA);
 
+#if defined(ARDUINO_ARCH_NRF52)
+      } else if (strncmp(C_Version.value(), "DFU", 3) == 0) {      // $PSRFC,DFU*3E
+          Serial.println(F("PSRFC Enter DFU..."));
+          enterUf2Dfu(); // opens USB mass storage drive; use enterOTADfu() for BLE DFU
+#endif /* ARDUINO_ARCH_NRF52 */
+
 #if defined(USE_OLED)
       } else if (strncmp(C_Version.value(), "PAG", 3) == 0) {      // $PSRFC,PAG*2E
           Serial.println(F("PSRFC Page Switch"));

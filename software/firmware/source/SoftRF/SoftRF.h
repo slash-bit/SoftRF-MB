@@ -373,7 +373,7 @@ static inline uint32_t DevID_Mapper(uint32_t id)
 {
   // switched to restricting device ID to a 16-bit range
   // to avoid overlapping with any of FLARM ranges
-  return (0x800000 | (id & 0x0000FFFF));
+  return (0x880000 | (id & 0x0000FFFF));
 }
 
 extern container_t ThisAircraft;

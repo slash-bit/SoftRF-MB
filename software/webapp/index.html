@@ -1110,6 +1110,9 @@ body {
       <div class="status-actions mt-8">
         <button class="btn-action" onclick="App.commands.refreshSettings()">Reload Settings</button>
       </div>
+      <div class="status-actions mt-8" id="dfuRow" style="display:none">
+        <button class="btn-action" onclick="App.commands.updateFirmware()">Update Firmware</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1571,6 +1574,7 @@ App.transport = {
     App.ui.setConnState('connected');
     App.ui.hideLoading();
     App.toast('Connected to ' + name + ' (' + type.toUpperCase() + ')', 'success');
+    document.getElementById('dfuRow').style.display = (type === 'ble') ? '' : 'none';
     setTimeout(() => App.commands.refreshSettings(), 500);
   },
 
@@ -1579,6 +1583,7 @@ App.transport = {
     App.state.connected = false;
     App.ui.setConnState('disconnected');
     App.toast('Device disconnected', 'info');
+    document.getElementById('dfuRow').style.display = 'none';
   }
 };
 
@@ -1615,7 +1620,8 @@ App.ble = {
         filters: [
           { services: [this.NUS_SERVICE] },
           { services: [this.HM10_SERVICE] }
-        ]
+        ],
+        optionalServices: []
       });
 
       this.device.addEventListener('gattserverdisconnected', () => this._onDisconnect());
@@ -2301,6 +2307,30 @@ App.commands = {
         App.toast('Shutdown command sent', 'info');
       }}
     ]);
+  },
+
+  updateFirmware() {
+    App.modal.show('Update Firmware via BLE DFU',
+      'This will restart the device into DFU bootloader mode.\n\nAfter the device disconnects, use nRF Toolbox (iOS/Android) or nRF Connect app to upload the firmware .zip package.\n\nPrepare the .zip first using adafruit-nrfutil:\n  adafruit-nrfutil dfu genpkg --dev-type 0x0052 --application firmware.hex firmware_dfu.zip',
+      [
+        { text: 'Cancel', cls: 'btn-ghost', action: () => App.modal.hide() },
+        { text: 'Enter DFU Mode', cls: 'btn-primary', action: async () => {
+          App.modal.hide();
+          await App.commands._triggerDfu();
+        }}
+      ]
+    );
+  },
+
+  async _triggerDfu() {
+    try {
+      App.ui.showLoading('Entering DFU mode...', 'Device will disconnect and restart into bootloader');
+      await App.transport.sendNmea('PSRFC,DFU');
+      App.toast('DFU mode triggered — device will disconnect', 'success');
+    } catch (err) {
+      App.ui.hideLoading();
+      App.toast('DFU trigger failed: ' + err.message, 'error');
+    }
   }
 };
 

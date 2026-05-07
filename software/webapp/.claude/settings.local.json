@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find \"c:\\\\Users\\\\v-b2\\\\Documents\\\\PlatformIO\\\\Projects\\\\SoftRF\\\\SoftRF-Moshe\\\\SoftRF\\\\software\\\\firmware\\\\source\\\\SoftRF\\\\src\" -type f -name \"*command*\" -o -name \"*PSRFC*\" -o -name \"*parser*\")",
+      "Read(//c/Users/v-b2/Documents/PlatformIO/Projects/SoftRF/SoftRF-Moshe/SoftRF/software/firmware/source/SoftRF/src/**)",
+      "Bash(find \"c:\\\\Users\\\\v-b2\\\\Documents\\\\PlatformIO\\\\Projects\\\\SoftRF\\\\SoftRF-Moshe\\\\SoftRF\\\\software\\\\firmware\\\\source\\\\SoftRF\\\\src\" -type d)"
+    ]
+  }
+}

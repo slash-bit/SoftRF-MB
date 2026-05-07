@@ -1148,7 +1148,6 @@ static void nRF52_fini(int reason)
     SoC->Buzzer_tone(840, v); delay(200); SoC->Buzzer_tone(0, v); delay(50);
     SoC->Buzzer_tone(640, v); delay(400); SoC->Buzzer_tone(0, v);
   }
-s
   if (nRF52_has_spiflash) {
     usb_msc.setUnitReady(false);
 //  usb_msc.end(); /* N/A */
