@@ -2621,6 +2621,13 @@ void NMEA_Process_SRF_SKV_Sentences()
           OLED_msg("ALARM", " DEMO");
 #endif
 
+      } else if (strncmp(C_Version.value(), "BCL", 3) == 0) {      // $PSRFC,BCL — battery calibration start
+          Serial.println(F("PSRFC Battery Cal start"));
+#if defined(FILESYS)
+          BatVCal_reset();
+#endif
+          nmea_cfg_restart(false);
+
       } else if (strncmp(C_Version.value(), "TX0", 3) == 0) {      // $PSRFC,TX0*44
           Serial.println(F("PSRFC TX Off"));
           settings->txpower = RF_TX_POWER_OFF;
@@ -2792,7 +2799,7 @@ void NMEA_Process_SRF_SKV_Sentences()
          if (format_setting(i, true) == false)
                continue;
          nmea_cfg_reply(false);  // do not add blank lines between the settings
-         yield();
+         delay(5);
       }
 
     } else if (isdecdigit(&version0)) {

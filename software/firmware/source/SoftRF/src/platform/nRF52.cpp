@@ -2115,19 +2115,23 @@ static float nRF52_Battery_param(uint8_t param)
     break;
 
   case BATTERY_PARAM_CHARGE:
-    // assume a LiPo battery, for which full=4.2, threshold=3.5 and cutoff=3.2
+  {
+    /* Calibrated LiPo discharge curve — T1000E 600mAh, derived 2026-05-13 */
+    static const float bat_lut_v[]   = { 3.300f, 3.680f, 3.730f, 3.754f, 3.770f, 3.780f, 3.858f, 3.914f, 3.984f, 4.070f, 4.170f };
+    static const float bat_lut_pct[] = { 0.0f, 10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 70.0f, 80.0f, 90.0f, 100.0f };
+    #define BAT_LUT_SIZE 11
     voltage = Battery_voltage();
-    if (voltage < BATTERY_CUTOFF_LIPO)
-      return 0;
-    if (voltage > BATTERY_FULL_LIPO)
-      return 100.0;
-    if (voltage < BATTERY_THRESHOLD_LIPO) {
-      return ((voltage - BATTERY_CUTOFF_LIPO)
-          * (10.0 / (BATTERY_THRESHOLD_LIPO - BATTERY_CUTOFF_LIPO)));   // 0 to 10% over 0.3V
+    if (voltage <= bat_lut_v[0])              return 0;
+    if (voltage >= bat_lut_v[BAT_LUT_SIZE-1]) return 100.0;
+    for (int i = 0; i < BAT_LUT_SIZE - 1; i++) {
+      if (voltage <= bat_lut_v[i+1]) {
+        float t = (voltage - bat_lut_v[i]) / (bat_lut_v[i+1] - bat_lut_v[i]);
+        return bat_lut_pct[i] + t * (bat_lut_pct[i+1] - bat_lut_pct[i]);
+      }
     }
-    return (10.0 + (voltage - BATTERY_THRESHOLD_LIPO)
-                 * (90.0 / (BATTERY_FULL_LIPO - BATTERY_THRESHOLD_LIPO)));   // 10 to 100% over 0.7V
+    return 100.0;
     break;
+  }
 
   case BATTERY_PARAM_VOLTAGE:
   default:

@@ -119,6 +119,10 @@ void Battery_loop()
     Battery_voltage_cache = voltage;
     Battery_TimeMarker = millis();
   }
+
+#if defined(FILESYS)
+  BatVCal_loop();
+#endif
 }
 
 /* ---- Battery log ---- */
@@ -126,20 +130,56 @@ void Battery_loop()
 #define BATTERYLOG_FILE    "/batterylog.txt"
 #define BATTERYLOG_MAXLINES 20
 
+/* ---- Battery voltage calibration log (one-off discharge curve) ---- */
+#define BATVCAL_FILE       "/batvcal.txt"
+#define BATVCAL_INTERVAL   (15UL * 60UL * 1000UL)  /* 15 minutes in ms */
+
+static unsigned long BatVCal_TimeMarker = 0;
+
+void BatVCal_loop()
+{
+    if (!FS_is_mounted) return;
+    if (GNSSTimeMarker == 0) return;           /* need valid GPS time */
+    if (millis() - BatVCal_TimeMarker < BATVCAL_INTERVAL) return;
+    BatVCal_TimeMarker = millis();
+
+    char line[56];
+    snprintf(line, sizeof(line), "%04d-%02d-%02d %02d:%02d:%02d,%d,%.2f\r\n",
+        gnss.date.year(), gnss.date.month(), gnss.date.day(),
+        gnss.time.hour(), gnss.time.minute(), gnss.time.second(),
+        (int)Battery_charge(), Battery_voltage());
+
+    File f = FILESYS.open(BATVCAL_FILE, (O_WRITE | O_CREAT | O_APPEND));
+    if (f) {
+        f.write((const uint8_t *)line, strlen(line));
+        f.close();
+        Serial.print(F("BatVCal: "));
+        Serial.print(line);
+    }
+}
+
+void BatVCal_reset()
+{
+    if (!FS_is_mounted) return;
+    FILESYS.remove(BATVCAL_FILE);
+    BatVCal_TimeMarker = 0;
+    Serial.println(F("BatVCal: log cleared"));
+}
+
 static bool BatteryLog_PowerOn_done = false;
 
 void BatteryLog_write(uint8_t on_off)
 {
     if (!FS_is_mounted) return;
 
-    char line[48];
-    snprintf(line, sizeof(line), "%04d-%02d-%02d %02d:%02d:%02d,%d,%d\r\n",
+    char line[56];
+    snprintf(line, sizeof(line), "%04d-%02d-%02d %02d:%02d:%02d,%d,%.2f,%d\r\n",
         gnss.date.year(), gnss.date.month(), gnss.date.day(),
         gnss.time.hour(), gnss.time.minute(), gnss.time.second(),
-        (int)Battery_charge(), on_off);
+        (int)Battery_charge(), Battery_voltage(), on_off);
 
     /* --- read existing lines --- */
-    char lines[BATTERYLOG_MAXLINES][48];
+    char lines[BATTERYLOG_MAXLINES][56];
     int count = 0;
     if (FILESYS.exists(BATTERYLOG_FILE)) {
         File f = FILESYS.open(BATTERYLOG_FILE, FILE_READ);
@@ -147,7 +187,7 @@ void BatteryLog_write(uint8_t on_off)
             while (count < BATTERYLOG_MAXLINES && f.available()) {
                 int len = 0;
                 char c;
-                while (f.available() && len < 47) {
+                while (f.available() && len < 55) {
                     c = f.read();
                     if (c == '\n') break;
                     if (c != '\r')

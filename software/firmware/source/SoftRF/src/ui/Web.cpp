@@ -382,6 +382,19 @@ void settingsdownload()
     }
 }
 
+void batvcaldownload()
+{
+    if (! SPIFFS.exists("/batvcal.txt")) {
+        server.send(404, textplain, "Battery calibration file does not exist");
+        return;
+    }
+    File file = SPIFFS.open("/batvcal.txt", FILE_READ);
+    if (file) {
+        serve_file(file, "batvcal.txt");
+        file.close();
+    }
+}
+
 void settingsupload()
 {
     anyUpload(false);   // into SPIFFS
@@ -2379,6 +2392,12 @@ void Web_setup()
   server.on ( "/settingsdownload", settingsdownload );
   server.on ( "/settingsbackup",   settingsbackup );
   server.on ( "/settingsswap",     settingsswap );
+
+  server.on ( "/batvcal", batvcaldownload );
+  server.on ( "/clrbatvcal", []() {
+    BatVCal_reset();
+    server.send(200, textplain, "Battery calibration data cleared");
+  } );
 
   server.on ( "/alarmlog", alarmlogfile );
   server.on ( "/clralrmlog", confdelalarmlog );

@@ -76,4 +76,7 @@ void    BatteryLog_write(uint8_t on_off);
 void    BatteryLog_PowerOn(void);
 void    BatteryLog_PowerOff(void);
 
+void    BatVCal_loop(void);
+void    BatVCal_reset(void);
+
 #endif /* BATTERYHELPER_H */

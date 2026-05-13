@@ -193,7 +193,7 @@ static void init_stgdesc()
   stgdesc[STG_D1090]      = { "d1090",      (char*)&settings->d1090,      STG_UINT1,   V_T };
   stgdesc[STG_RELAY]      = { "relay",      (char*)&settings->relay,      STG_UINT1,   V_ALL };
   stgdesc[STG_EXPIRE]     = { "expire",     (char*)&settings->expire,     STG_INT1,    V_ALL };
-  stgdesc[STG_PFLAA_CS]   = { "pflaa_cs",   (char*)&settings->pflaa_cs,   STG_UINT1,   V_T };
+  stgdesc[STG_PFLAA_CS]   = { "pflaa_cs",   (char*)&settings->pflaa_cs,   STG_UINT1,   V_ALL };
   stgdesc[STG_STEALTH]    = { "stealth",    (char*)&settings->stealth,    STG_UINT1,   V_ALL };
   stgdesc[STG_NO_TRACK]   = { "no_track",   (char*)&settings->no_track,   STG_UINT1,   V_ALL };
   stgdesc[STG_POWER_SAVE] = { "power_save", (char*)&settings->power_save, STG_UINT1,   V_ALL };
