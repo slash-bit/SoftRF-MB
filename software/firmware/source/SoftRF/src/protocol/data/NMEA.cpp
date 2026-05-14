@@ -65,6 +65,7 @@ uint32_t next_SD_sync = 0;
 #endif
 
 uint8_t NMEA_Source = DEST_NONE;   // identifies which port a sentence came from
+bool settings_dump_active = false; // suppresses BLE NMEA output during settings dump
 
 char NMEABuffer[NMEA_BUFFER_SIZE]; //buffer for NMEA data
 char GPGGA_Copy[NMEA_BUFFER_SIZE];   //store last $GGA sentence
@@ -747,10 +748,14 @@ void NMEA_Outs(uint16_t nmeatype, const char *buf, unsigned int size, bool nl)
       default:
         return;  // no output
     }
-    if (out1)
-        NMEA_Out(settings->nmea_out,  buf, size, nl);
-    if (out2)
-        NMEA_Out(settings->nmea_out2, buf, size, nl);
+    if (out1) {
+        if (!(settings_dump_active && settings->nmea_out  == DEST_BLUETOOTH))
+            NMEA_Out(settings->nmea_out,  buf, size, nl);
+    }
+    if (out2) {
+        if (!(settings_dump_active && settings->nmea_out2 == DEST_BLUETOOTH))
+            NMEA_Out(settings->nmea_out2, buf, size, nl);
+    }
 
 #if defined(ESP32)   // only on SD card
     if ((out1 || out2) && NMEALogOpen) {
@@ -2792,6 +2797,9 @@ void NMEA_Process_SRF_SKV_Sentences()
 
     if (version0 == '?' || label0 == '?') {   // treat $PSRFS,0,?*xx same as $PSRFS,?*xx
       // reply with settings visible on this board, in settings-file format
+      // Suppress BLE GPS/traffic NMEA during the dump so sentences don't
+      // interleave with settings lines in the BLE TX FIFO.
+      settings_dump_active = true;
       uint8_t board_bit = board_visibility_bit();
       for (int i=STG_MODE; i<STG_END; i++) {
          if (!(stgdesc[i].visible & board_bit))
@@ -2799,8 +2807,15 @@ void NMEA_Process_SRF_SKV_Sentences()
          if (format_setting(i, true) == false)
                continue;
          nmea_cfg_reply(false);  // do not add blank lines between the settings
-         delay(5);
+#if defined(ARDUINO_ARCH_NRF52)
+         // Flush the NUS TX buffer after each line so low-MTU peers (20-byte
+         // ATT MTU on some Android devices) don't lose notifications due to
+         // queue overflow when the entire dump is written in a tight loop.
+         BT_NUS_flush();
+         yield();
+#endif
       }
+      settings_dump_active = false;
 
     } else if (isdecdigit(&version0)) {
 

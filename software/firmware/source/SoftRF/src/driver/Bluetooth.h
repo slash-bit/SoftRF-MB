@@ -202,6 +202,7 @@ typedef struct {
 #define isTimeToSensBox() (millis() - BLE_SensBox_TimeMarker > 500) /* 2 Hz */
 
 extern IODev_ops_t nRF52_Bluetooth_ops;
+extern void BT_NUS_flush();
 
 #endif /* ESP32 or ARDUINO_ARCH_NRF52 */
 

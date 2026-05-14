@@ -1695,4 +1695,14 @@ IODev_ops_t nRF52_Bluetooth_ops = {
   nRF52_Bluetooth_write
 };
 
+// Flush the NUS TX buffer — call after each settings line during dump to prevent
+// queue overflow on low-MTU peers (e.g. 20-byte MTU on Android tablets).
+void BT_NUS_flush()
+{
+#if !defined(EXCLUDE_NUS)
+  if (Bluefruit.connected() && bleuart_NUS.notifyEnabled())
+    bleuart_NUS.flushTXD();
+#endif
+}
+
 #endif /* ESP32 or ARDUINO_ARCH_NRF52 */
