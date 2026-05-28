@@ -408,7 +408,7 @@ typedef struct Settings {
     int8_t   expire;
     bool     pflaa_cs;
     bool     logalarms;
-    uint8_t  auto_sos;      /* 0=off, 1=manual(button), 2=auto(60s after landing) */
+    uint8_t  fanet_sos;     /* 0=off, 1=manual(button), 2=auto(60s after landing) */
     uint32_t debug_flags;   /* each bit activates output of some debug info */
 
 //#if defined(ESP32)
@@ -576,11 +576,10 @@ extern uint32_t baudrates[];
 extern bool do_alarm_demo;
 extern bool test_mode;
 extern bool landed_out_mode;
-extern uint8_t fanet_distress;
+extern uint8_t  fanet_sos_state;    /* fanet_sos_state_e: AIRBORNE/COUNTDOWN/LANDED_OK/DISTRESS */
 extern uint32_t fanet_sos_last_ms;
 extern uint8_t  fanet_sos_count;
-extern uint8_t  fanet_landed;
-extern uint8_t  fanet_ground_type;  /* ground type set by #FNG command (0x0-0xF), 0xFF=not set */
+extern uint8_t  fanet_ground_type;  /* FANET ground type from #FNG (0x0-0xF), 0xFF=not set */
 extern uint32_t sos_countdown_start_ms;
 extern int8_t geoid_from_setting;
 

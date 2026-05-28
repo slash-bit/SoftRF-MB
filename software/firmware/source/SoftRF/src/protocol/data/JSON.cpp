@@ -1076,25 +1076,12 @@ void parseJSettings(JsonObject root)
     settings->logalarms = (!strcmp(s,"YES") || !strcmp(s,"1"));
   }
 
-  key = "auto_sos";
-  if (root.containsKey(key)) {
-    const char *s = root[key].as<const char*>();
-    /* 0=OFF, 1=MANUAL, 2=AUTO; legacy YES→2(auto), NO→1(manual) */
-    if      (!strcmp(s,"OFF") || !strcmp(s,"0"))
-      settings->auto_sos = 0;
-    else if (!strcmp(s,"MANUAL") || !strcmp(s,"NO") || !strcmp(s,"1"))
-      settings->auto_sos = 1;
-    else if (!strcmp(s,"AUTO") || !strcmp(s,"YES") || !strcmp(s,"2"))
-      settings->auto_sos = 2;
-  }
-
-  /* "fanet_sos" is an alias for "auto_sos" in JSON */
   key = "fanet_sos";
   if (root.containsKey(key)) {
     const char *s = root[key].as<const char*>();
-    if      (!strcmp(s,"OFF") || !strcmp(s,"0"))     settings->auto_sos = 0;
-    else if (!strcmp(s,"MANUAL") || !strcmp(s,"1"))  settings->auto_sos = 1;
-    else if (!strcmp(s,"AUTO") || !strcmp(s,"2"))    settings->auto_sos = 2;
+    if      (!strcmp(s,"OFF") || !strcmp(s,"0"))     settings->fanet_sos = 0;
+    else if (!strcmp(s,"MANUAL") || !strcmp(s,"1"))  settings->fanet_sos = 1;
+    else if (!strcmp(s,"AUTO") || !strcmp(s,"2"))    settings->fanet_sos = 2;
   }
 
   key = "logflight";
@@ -1161,7 +1148,7 @@ void parseJSettings(JsonObject root)
   static const char * const handled[] = {
     "protocol", "altprotocol", "band", "acft_type", "id_method",
     "aircraft_id", "ignore_id", "alarm", "txpower", "tx_power",
-    "volume", "alarmlog", "auto_sos", "fanet_sos", "logflight",
+    "volume", "alarmlog", "fanet_sos", "logflight",
     "loginterval", "igc_pilot", "igc_type", "igc_reg", "fanet_name",
     "debug_flags", "flr_adsl", "aircraft_type",
     NULL
@@ -1276,8 +1263,8 @@ bool writeJSettings(JsonObject obj)
 
   obj["alarmlog"] = settings->logalarms ? "YES" : "NO";
   obj["fanet_sos"] =
-    (settings->auto_sos == 0) ? "OFF"    :
-    (settings->auto_sos == 1) ? "MANUAL" : "AUTO";
+    (settings->fanet_sos == 0) ? "OFF"    :
+    (settings->fanet_sos == 1) ? "MANUAL" : "AUTO";
 
   obj["logflight"] =
     (settings->logflight == FLIGHT_LOG_NONE)     ? "OFF"      :

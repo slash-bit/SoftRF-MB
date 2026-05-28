@@ -27,6 +27,7 @@
 #include "Bluetooth.h"
 #include "../TrafficHelper.h"
 #include "../protocol/radio/Legacy.h"
+#include "../protocol/radio/FANET.h"
 #include "../protocol/data/NMEA.h"
 #include "../protocol/data/GDL90.h"
 #include "../protocol/data/D1090.h"
@@ -55,10 +56,8 @@ bool do_alarm_demo = false;        // activated by middle button on T-Beam
 bool landed_out_mode = false;      // activated by button in status web page
 
 bool test_mode = false;            // activated by double-clicking middle button on T-Beam
-uint8_t fanet_distress = 0;        // toggled by double-click on T1000E: 0=normal, 1=distress
-                                    // - or via web interface, or via $PSRFT
-uint8_t  fanet_landed = 0;         // 0=startup/airborne, 1=SOS countdown, 2=landed OK
-uint8_t  fanet_ground_type = 0xFF; // ground type from #FNG command, 0xFF=not set (use default)
+uint8_t  fanet_sos_state = FANET_SOS_AIRBORNE; // runtime SOS state (fanet_sos_state_e)
+uint8_t  fanet_ground_type = 0xFF;             // ground type from #FNG command, 0xFF=not set
 uint32_t sos_countdown_start_ms = 0;
 // Upon receiving a $PSRFT NMEA command,
 // first the variable test_mode is toggled, then
@@ -200,7 +199,7 @@ static void init_stgdesc()
   stgdesc[STG_POWER_EXT]  = { "power_ext",  (char*)&settings->power_ext,  STG_UINT1,   V_T };
   stgdesc[STG_RFC]        = { "rfc",        (char*)&settings->freq_corr,  STG_HIDDEN,  V_ALL };
   stgdesc[STG_ALARMLOG]   = { "alarmlog",   (char*)&settings->logalarms,  STG_UINT1,   V_CBT };
-  stgdesc[STG_AUTO_SOS]   = { "auto_sos",   (char*)&settings->auto_sos,   STG_UINT1,   0 };
+  stgdesc[STG_AUTO_SOS]   = { "fanet_sos",  (char*)&settings->fanet_sos,  STG_UINT1,   0 };
   stgdesc[STG_LOG_NMEA]   = { "log_nmea",   (char*)&settings->log_nmea,   esp_only(STG_UINT1), V_T };
   stgdesc[STG_GNSS_PINS]  = { "gnss_pins",  (char*)&settings->gnss_pins,  esp_only(STG_UINT1), V_T };
   stgdesc[STG_PPSWIRE]    = { "ppswire",    (char*)&settings->ppswire,    esp_only(STG_UINT1), V_T };
@@ -225,7 +224,7 @@ static void init_stgdesc()
   stgdesc[STG_EPD_AGHOST] = { "antighost",  (char*)&settings->antighost,  epd_only(STG_UINT1), V_B };
   stgdesc[STG_EPD_TEAM]   = { "team",       (char*)&settings->team,       epd_only(STG_HEX6),  V_B };
   stgdesc[STG_FANET_NAME] = { "fanet_name",  settings->fanet_name,        sizeof(settings->fanet_name), V_ALL };
-  stgdesc[STG_FANET_SOS]  = { "fanet_sos",  (char*)&settings->auto_sos,   STG_UINT1,   V_C };
+  stgdesc[STG_FANET_SOS]  = { "fanet_sos",  (char*)&settings->fanet_sos,  STG_UINT1,   V_C };
   stgdesc[STG_DEBUG_FLAGS]= { "debug_flags",(char*)&settings->debug_flags,STG_HEX6,    V_ALL };
 
   // ensure no null labels in the array
@@ -920,7 +919,7 @@ void Settings_defaults(bool keepsome)
 #endif
 
     settings->logalarms  = false;
-    settings->auto_sos   = 0;
+    settings->fanet_sos  = 0;
     settings->log_nmea   = false;
   }
   // otherwise keep those settings from the previous version

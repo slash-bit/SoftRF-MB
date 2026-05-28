@@ -115,7 +115,7 @@ typedef struct {
  * No signature,
  * Broadcast
  */
-enum
+enum fanet_ground_type_e
 {
 	FANET_GROUND_TYPE_OTHER,
 	FANET_GROUND_TYPE_WALKING,
@@ -123,11 +123,23 @@ enum
 	FANET_GROUND_TYPE_BIKE,
 	FANET_GROUND_TYPE_BOOT,
 	FANET_GROUND_TYPE_NEED_RIDE = 8,
-	FANET_GROUND_TYPE_LANDED_OK,
+	FANET_GROUND_TYPE_LANDED_OK,       /* 9 */
 	FANET_GROUND_TYPE_NEED_TECH = 12,
-	FANET_GROUND_TYPE_NEED_MED,
-	FANET_GROUND_TYPE_DISTRESS,
-	FANET_GROUND_TYPE_AUTO_DIST
+	FANET_GROUND_TYPE_NEED_MED,        /* 13 */
+	FANET_GROUND_TYPE_DISTRESS,        /* 14 */
+	FANET_GROUND_TYPE_AUTO_DIST        /* 15 */
+};
+
+/* Runtime SOS state machine (not persisted).
+ * settings->fanet_sos controls the mode (off/manual/auto);
+ * fanet_sos_state tracks the current dynamic state.
+ */
+enum fanet_sos_state_e
+{
+	FANET_SOS_AIRBORNE   = 0, /* normal airborne — send Type 1 */
+	FANET_SOS_COUNTDOWN  = 1, /* auto-SOS countdown — still Type 1, waiting to confirm */
+	FANET_SOS_LANDED_OK  = 2, /* landed OK — Type 7, ground_type=LANDED_OK */
+	FANET_SOS_DISTRESS   = 3, /* distress active — Type 7, ground_type=DISTRESS + SOS msgs */
 };
 
 /* Type 7 body is 7 bytes: 3 lat + 3 lon + 1 status byte.

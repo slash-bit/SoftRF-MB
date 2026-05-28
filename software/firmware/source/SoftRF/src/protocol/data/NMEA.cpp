@@ -899,21 +899,19 @@ static void FN_process_FNG(const char *args)
     Serial.println("'");
     if (sscanf(args, "%1X", &gtype) == 1 && gtype <= 0xF) {
         fanet_ground_type = (uint8_t)gtype;
-        fanet_landed = 2;  /* confirmed landed (ground tracking mode) */
+        fanet_sos_state = FANET_SOS_LANDED_OK;  /* confirmed landed (ground tracking mode) */
 
         /* Distress ground types trigger SOS message transmission */
         if (gtype >= FANET_GROUND_TYPE_NEED_MED) {  /* 13, 14, 15 */
-            fanet_distress = 1;
+            fanet_sos_state = FANET_SOS_DISTRESS;
             fanet_sos_last_ms = 0;   /* send SOS immediately */
             fanet_sos_count = 0;
-        } else {
-            fanet_distress = 0;
         }
 
         NMEA_Out(DEST_BLUETOOTH, "#FNR OK\n", 8, false);
         Serial.print("FNG: ground type=0x");
         Serial.print(gtype, HEX);
-        Serial.print(fanet_distress ? " (distress)" : "");
+        Serial.print((fanet_sos_state == FANET_SOS_DISTRESS) ? " (distress)" : "");
         Serial.println();
 
     } else {
@@ -1265,7 +1263,7 @@ static bool SYC_process_command(char *buf, int len)
             fnf_airmode = (mode == 1) ? 1 : 0;
             if (fnf_airmode) {
                 ThisAircraft.airborne = 1;
-                fanet_landed = 0;
+                fanet_sos_state = FANET_SOS_AIRBORNE;
             }
             Serial.printf("FNF airmode set: %u\n", fnf_airmode);
         }
@@ -2640,6 +2638,23 @@ void NMEA_Process_SRF_SKV_Sentences()
       } else if (strncmp(C_Version.value(), "TX1", 3) == 0) {      // $PSRFC,TX1*45
           Serial.println(F("PSRFC TX On"));
           settings->txpower = RF_TX_POWER_FULL;
+
+      } else if (strncmp(C_Version.value(), "GT", 2) == 0 && C_Version.value()[2] != '\0') {
+          /* $PSRFC,GT<X> — set FANET ground type, X is a single hex digit (0-F).
+           * Encodes type in the 3-char command token to avoid needing a second field.
+           * e.g. $PSRFC,GT9 = Landed OK, $PSRFC,GTE = Distress (0xE=14) */
+          unsigned int gtype = 0;
+          if (sscanf(C_Version.value() + 2, "%1X", &gtype) == 1 && gtype <= 0xF) {
+              fanet_ground_type = (uint8_t)gtype;
+              fanet_sos_state = FANET_SOS_LANDED_OK;
+              if (gtype >= FANET_GROUND_TYPE_NEED_MED) {  /* 13, 14, 15 */
+                  fanet_sos_state = FANET_SOS_DISTRESS;
+                  fanet_sos_last_ms = 0;
+                  fanet_sos_count = 0;
+              }
+              Serial.print(F("PSRFC GT: ground type=0x"));
+              Serial.println(gtype, HEX);
+          }
 
       } else if (strncmp(C_Version.value(), "?", 1) == 0) {        // $PSRFC,?*47
 

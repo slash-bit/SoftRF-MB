@@ -1695,12 +1695,17 @@ IODev_ops_t nRF52_Bluetooth_ops = {
   nRF52_Bluetooth_write
 };
 
-// Flush the NUS TX buffer — call after each settings line during dump to prevent
+// Flush the BLE UART TX buffer after each settings line during dump to prevent
 // queue overflow on low-MTU peers (e.g. 20-byte MTU on Android tablets).
+// bleuart_NUS uses bufferTXD(true) so writes accumulate until flushTXD() is called.
+// bleuart_HM10 does not buffer, but flush is harmless and covers both profiles.
 void BT_NUS_flush()
 {
+  if (!Bluefruit.connected()) return;
+  if (bleuart_HM10.notifyEnabled())
+    bleuart_HM10.flushTXD();
 #if !defined(EXCLUDE_NUS)
-  if (Bluefruit.connected() && bleuart_NUS.notifyEnabled())
+  else if (bleuart_NUS.notifyEnabled())
     bleuart_NUS.flushTXD();
 #endif
 }

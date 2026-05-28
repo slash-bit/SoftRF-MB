@@ -26,6 +26,7 @@
 #include "driver/RF.h"
 #include "driver/Filesys.h"
 #include "protocol/radio/Legacy.h"
+#include "protocol/radio/FANET.h"
 #include "protocol/data/NMEA.h"
 #include "protocol/data/IGC.h"
 #include "protocol/data/GNS5892.h"
@@ -574,7 +575,7 @@ void this_airborne(bool validfix)
     bool airborne_changed = false;
     if (ThisAircraft.airborne==0 && airborne>0) {
       airborne_changed = true;
-      fanet_landed = 0;   // back to airborne
+      fanet_sos_state = FANET_SOS_AIRBORNE;
       // AirborneTime = RF_time;
 //#if defined(ESP32)
       startlogs();      // restart alarm log (and flight log) on first takeoff after boot
@@ -582,12 +583,12 @@ void this_airborne(bool validfix)
     } else if (ThisAircraft.airborne==1 && airborne<=0) {
       airborne_changed = true;
       // AirborneTime = 0;
-      if (settings->auto_sos == 2 && !fanet_distress) {
-        fanet_landed = 1;  // SOS countdown active (AUTO mode only)
+      if (settings->fanet_sos == 2 && fanet_sos_state != FANET_SOS_DISTRESS) {
+        fanet_sos_state = FANET_SOS_COUNTDOWN;
         sos_countdown_start_ms = millis();
         Serial.println(F("Auto-SOS countdown started (3min)"));
       } else {
-        fanet_landed = 2;  // landed OK (MANUAL or OFF: no auto countdown)
+        fanet_sos_state = FANET_SOS_LANDED_OK;
       }
     }
 

@@ -26,6 +26,7 @@
 #include "Settings.h"
 #include "Buzzer.h"
 #include "RF.h"
+#include "../protocol/radio/FANET.h"
 #include "../TrafficHelper.h"
 
 static uint32_t prev_tx_packets_counter = 0;
@@ -228,14 +229,13 @@ void LED_loop() {
     unsigned long now_ms = millis();
     int green_led = SOC_GPIO_LED_T1000_GREEN;
 
-    if (fanet_landed == 1) {
+    if (fanet_sos_state == FANET_SOS_COUNTDOWN) {
       /* AUTO-SOS COUNTDOWN: accelerating red blink + beeps */
       #define SOS_COUNTDOWN_MS  180000UL  /* 3 minutes */
       uint32_t elapsed = now_ms - sos_countdown_start_ms;
       if (elapsed >= SOS_COUNTDOWN_MS) {
         /* Countdown expired — activate distress */
-        fanet_landed = 2;
-        fanet_distress = 1;
+        fanet_sos_state = FANET_SOS_DISTRESS;
         fanet_sos_last_ms = 0;
         fanet_sos_count = 0;
         if (settings->rf_protocol != RF_PROTOCOL_FANET)
@@ -260,7 +260,7 @@ void LED_loop() {
           SoC->Buzzer_tone(0, BUZZER_VOLUME_FULL);
         }
       }
-    } else if (fanet_distress) {
+    } else if (fanet_sos_state == FANET_SOS_DISTRESS) {
       /* DISTRESS: alternate red(500ms) / green(500ms) */
       if (now_ms - t1000e_led_marker > 500) {
         t1000e_led_phase = !t1000e_led_phase;

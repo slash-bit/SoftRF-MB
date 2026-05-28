@@ -45,6 +45,7 @@
 #include "../driver/Battery.h"
 #include "../driver/Buzzer.h"
 #include "../protocol/data/NMEA.h"
+#include "../protocol/radio/FANET.h"
 #include "../protocol/data/GDL90.h"
 #include "../protocol/data/D1090.h"
 #include "../protocol/data/IGC.h"
@@ -2311,15 +2312,15 @@ void handleEvent(AceButton* button, uint8_t eventType,
           fanet_ground_type = 0xFF;
 
           /* If SOS countdown is active, cancel it and confirm Landed OK */
-          if (fanet_landed == 1) {
-            fanet_landed = 2;
+          if (fanet_sos_state == FANET_SOS_COUNTDOWN) {
+            fanet_sos_state = FANET_SOS_LANDED_OK;
             Serial.println(F("Auto-SOS cancelled - Landed OK"));
-          } else if (settings->auto_sos == 0) {
+          } else if (settings->fanet_sos == 0) {
             /* fanet_sos=OFF: double-click does nothing for distress */
           } else {
             /* MANUAL or AUTO: double-click immediately toggles distress */
-            fanet_distress = !fanet_distress;
-            if (fanet_distress) {
+            if (fanet_sos_state != FANET_SOS_DISTRESS) {
+              fanet_sos_state = FANET_SOS_DISTRESS;
               fanet_sos_last_ms = 0;  /* send SOS message immediately */
               fanet_sos_count = 0;
               /* If not already running FANET, switch to it */
@@ -2333,6 +2334,7 @@ void handleEvent(AceButton* button, uint8_t eventType,
                 Serial.println(F("FANET SOS+DISTRESS mode ON"));
               }
             } else {
+              fanet_sos_state = FANET_SOS_LANDED_OK;
               /* Restore original protocol if we switched */
               if (saved_rf_protocol != RF_PROTOCOL_NONE) {
                 RF_protocol_switch(saved_rf_protocol, saved_altprotocol);

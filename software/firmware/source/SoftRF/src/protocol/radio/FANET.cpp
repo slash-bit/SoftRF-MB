@@ -31,6 +31,7 @@
 
 #include "../../../SoftRF.h"
 #include "../../driver/RF.h"
+#include "FANET.h"
 #include "../../driver/Settings.h"
 #include "../../protocol/data/NMEA.h"
 #include "../../driver/Bluetooth.h"
@@ -473,7 +474,7 @@ static size_t fanet_type7_encode(void *fanet_pkt, container_t *this_aircraft) {
   if (fanet_ground_type != 0xFF)
     gtype = fanet_ground_type;           /* set by #FNG command from XCGuide */
   else
-    gtype = fanet_distress ? FANET_GROUND_TYPE_DISTRESS : FANET_GROUND_TYPE_LANDED_OK;
+    gtype = (fanet_sos_state == FANET_SOS_DISTRESS) ? FANET_GROUND_TYPE_DISTRESS : FANET_GROUND_TYPE_LANDED_OK;
   buf[FANET_HEADER_SIZE + 6] = (gtype << 4) | online;
 
   return FANET_HEADER_SIZE + FANET_GROUND_BODY_SIZE;
@@ -578,8 +579,8 @@ size_t fanet_encode(void *fanet_pkt, container_t *this_aircraft) {
     if (s > 0) return s;
   }
 
-  /* Distress mode (double-click): alternate SOS message and DISTRESS tracking */
-  if (fanet_distress) {
+  /* Distress mode: alternate SOS message and DISTRESS tracking */
+  if (fanet_sos_state == FANET_SOS_DISTRESS) {
     if (fanet_sos_count < FANET_SOS_MAX_COUNT &&
         (fanet_sos_last_ms == 0 ||
          (now - fanet_sos_last_ms) >= FANET_SOS_INTERVAL_MS)) {
@@ -595,9 +596,9 @@ size_t fanet_encode(void *fanet_pkt, container_t *this_aircraft) {
 
   /* If not airborne: only send Ground Tracking if confirmed landed */
   if (!this_aircraft->airborne) {
-    if (fanet_landed == 2)        // confirmed landed (button pressed or auto_sos off)
+    if (fanet_sos_state == FANET_SOS_LANDED_OK)
       return fanet_type7_encode(fanet_pkt, this_aircraft);
-    // fanet_landed==0 (startup, never flown) or ==1 (SOS countdown) → Type 1
+    /* AIRBORNE or COUNTDOWN state → Type 1 */
     return fanet_type1_encode(fanet_pkt, this_aircraft);
   }
 
