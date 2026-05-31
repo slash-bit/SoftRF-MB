@@ -703,6 +703,9 @@ if (NMEA_Source != DEST_NONE) {     // only external sources
         SoC->Bluetooth_ops->write((const byte *) buf, size);
         if (nl)
           SoC->Bluetooth_ops->write((const byte *) "\r\n", 2);
+#if defined(ARDUINO_ARCH_NRF52)
+        BT_NUS_flush();
+#endif
       }
     }
     break;
@@ -2639,6 +2642,24 @@ void NMEA_Process_SRF_SKV_Sentences()
       } else if (strncmp(C_Version.value(), "TX1", 3) == 0) {      // $PSRFC,TX1*45
           Serial.println(F("PSRFC TX On"));
           settings->txpower = RF_TX_POWER_FULL;
+
+      } else if (strncmp(C_Version.value(), "LST", 3) == 0) {      // $PSRFC,LST — compact settings dump (no comments)
+          /* Dump all visible settings without inline comments.
+           * Each line is "label,value\r\n" — fits in a 20-byte BLE MTU packet. */
+          settings_dump_active = true;
+          uint8_t board_bit = board_visibility_bit();
+          for (int i = STG_MODE; i < STG_END; i++) {
+              if (!(stgdesc[i].visible & board_bit))
+                  continue;
+              if (format_setting(i, false) == false)
+                  continue;
+              nmea_cfg_reply(false);
+#if defined(ARDUINO_ARCH_NRF52)
+              BT_NUS_flush();
+              yield();
+#endif
+          }
+          settings_dump_active = false;
 
       } else if (strncmp(C_Version.value(), "GT", 2) == 0 && C_Version.value()[2] != '\0') {
           /* $PSRFC,GT<X> — set FANET ground type, X is a single hex digit (0-F).
