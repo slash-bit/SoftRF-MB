@@ -261,6 +261,21 @@ bool fanet_decode(void *fanet_pkt, container_t *this_aircraft, ufo_t *fop) {
   int speed_int, climb_int, offset_int;
   bool rval = false;
 
+  /* Extended header: check unicast destination address.
+   * Byte 4 bit 5 (Cast) = 1 means unicast; bytes 5-7 carry destination address.
+   * Spec: byte5=dest_manufacturer, bytes 6-7=dest_unique_id (little-endian).
+   * Drop the packet if it is not addressed to us. */
+  if (pkt->ext_header) {
+    const uint8_t *raw = (const uint8_t *) fanet_pkt;
+    uint8_t ext_flags = raw[4];
+    bool is_unicast = (ext_flags >> 5) & 0x01;
+    if (is_unicast) {
+      uint32_t dest = ((uint32_t)raw[5] << 16) | ((uint32_t)raw[7] << 8) | raw[6];
+      if (dest != this_aircraft->addr)
+        return false;
+    }
+  }
+
   if (pkt->ext_header == 0 && pkt->type == 1 ) {  /* Tracking  */
 
     fop->addr     = (pkt->vendor << 16) | pkt->address;
@@ -357,8 +372,10 @@ bool fanet_decode(void *fanet_pkt, container_t *this_aircraft, ufo_t *fop) {
     uint8_t *body = ((uint8_t *) fanet_pkt) + FANET_HEADER_SIZE;
     size_t body_len = (RF_last_rx_len > FANET_HEADER_SIZE) ?
                        RF_last_rx_len - FANET_HEADER_SIZE : 0;
-    if (body_len > 0 && body_len < 40) {
-      char name[40];
+    if (body_len > 0) {
+      if (body_len > FANET_NAME_MAX_LEN - 1)
+        body_len = FANET_NAME_MAX_LEN - 1;
+      char name[FANET_NAME_MAX_LEN];
       memcpy(name, body, body_len);
       name[body_len] = '\0';
       fanet_name_store(addr, name);

@@ -899,7 +899,8 @@ static void FN_process_FNG(const char *args)
     Serial.println("'");
     if (sscanf(args, "%1X", &gtype) == 1 && gtype <= 0xF) {
         fanet_ground_type = (uint8_t)gtype;
-        fanet_sos_state = FANET_SOS_LANDED_OK;  /* confirmed landed (ground tracking mode) */
+        ThisAircraft.airborne = 0;  /* explicit ground command — force ground mode */
+        fanet_sos_state = FANET_SOS_LANDED_OK;
 
         /* Distress ground types trigger SOS message transmission */
         if (gtype >= FANET_GROUND_TYPE_NEED_MED) {  /* 13, 14, 15 */
@@ -2646,6 +2647,7 @@ void NMEA_Process_SRF_SKV_Sentences()
           unsigned int gtype = 0;
           if (sscanf(C_Version.value() + 2, "%1X", &gtype) == 1 && gtype <= 0xF) {
               fanet_ground_type = (uint8_t)gtype;
+              ThisAircraft.airborne = 0;  /* explicit ground command — force ground mode */
               fanet_sos_state = FANET_SOS_LANDED_OK;
               if (gtype >= FANET_GROUND_TYPE_NEED_MED) {  /* 13, 14, 15 */
                   fanet_sos_state = FANET_SOS_DISTRESS;

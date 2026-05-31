@@ -443,7 +443,7 @@ typedef struct Settings {
     char     igc_type[20];
     char     igc_reg[12];
     char     igc_cs[8];
-    char     fanet_name[20];
+    char     fanet_name[33];  /* 32 chars + null, matching FANET protocol max */
 
     /* encryption key provided by contest organizers */
     uint32_t igc_key[4];
