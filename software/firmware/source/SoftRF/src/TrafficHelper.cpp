@@ -1503,16 +1503,6 @@ void AddTraffic(ufo_t *fop, const char *callsign)
             // else fall through
         }
 
-        /* ignore "new" positions that are exactly the same as before */
-        if (fop->altitude == cip->altitude &&
-            fop->latitude == cip->latitude &&
-            fop->longitude == cip->longitude) {
-                cip->last_crc  = fop->last_crc;      // so 2nd time slot packet will be ignored
-                cip->timestamp = fop->timestamp;     // so it won't expire
-                if (do_relay)  air_relay(cip);
-                return;
-        }
-
         /* overwrite old entry, but preserve fields that store history */
 
         if ((fop->gnsstime_ms - cip->gnsstime_ms > 1200)
