@@ -380,6 +380,9 @@ body {
   transition: width 0.5s ease, background 0.5s ease;
 }
 
+.batcal-instr { font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; margin-top: 10px; }
+.batcal-instr b { color: var(--text); }
+
 .status-placeholder {
   text-align: center;
   padding: 40px 16px;
@@ -448,6 +451,21 @@ body {
 .setting-row.modified {
   border-color: var(--warning);
   background: var(--warning-bg);
+}
+.setting-row.missing {
+  border-color: var(--danger);
+  background: var(--danger-bg);
+  opacity: 0.75;
+}
+.setting-row.garbled {
+  border-color: var(--danger);
+  background: var(--danger-bg);
+}
+.setting-row.garbled .setting-label::after {
+  content: ' ⚠ corrupt — reload';
+  color: var(--danger);
+  font-size: 0.75em;
+  font-weight: 600;
 }
 
 .setting-info {
@@ -531,29 +549,59 @@ body {
   position: absolute;
   inset: 0;
   background: #e9e9ea;
-  border: 1px solid #d5d5d5;
+  border: 2px solid #888;
   border-radius: 16px;
   cursor: pointer;
   transition: background 0.25s ease, border-color 0.25s ease;
 }
 .toggle-slider::before {
-  content: '';
+  content: 'OFF';
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: 700;
+  color: #555;
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 27px;
-  height: 27px;
+  width: 23px;
+  height: 23px;
   background: #ffffff;
+  border: 1px solid #aaa;
   border-radius: 50%;
   transition: transform 0.25s ease;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.25), 0 0 1px rgba(0,0,0,0.1);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
 }
 .toggle input:checked + .toggle-slider {
   background: #34c759;
-  border-color: #34c759;
+  border-color: #1a7a32;
 }
 .toggle input:checked + .toggle-slider::before {
+  content: 'ON';
+  color: #1a7a32;
+  border-color: #1a7a32;
   transform: translateX(20px);
+}
+@media (forced-colors: active), (prefers-contrast: more) {
+  .toggle-slider {
+    background: ButtonFace;
+    border: 2px solid ButtonText;
+  }
+  .toggle-slider::before {
+    background: ButtonText;
+    color: ButtonFace;
+    border-color: ButtonText;
+  }
+  .toggle input:checked + .toggle-slider {
+    background: Highlight;
+    border-color: ButtonText;
+  }
+  .toggle input:checked + .toggle-slider::before {
+    background: HighlightText;
+    color: Highlight;
+    border-color: ButtonText;
+  }
 }
 
 /* Text input for strings */
@@ -1111,6 +1159,22 @@ body {
         <button class="btn-action" onclick="App.commands.refreshSettings()">Reload Settings</button>
       </div>
     </div>
+    <div class="status-card">
+      <div class="status-card-title">Battery Calibration</div>
+      <div class="status-row">
+        <span class="status-label">Cal data</span>
+        <span class="status-value" id="batcal-status">--</span>
+      </div>
+      <div class="status-actions mt-8">
+        <a class="btn-action" id="batcal-graph-btn" href="./batvcal.html" style="display:none;text-decoration:none">View Curve</a>
+        <button class="btn-action" onclick="App.batcal.startCal()">Start Calibration</button>
+      </div>
+      <div class="batcal-instr" style="margin-top:8px">
+        <b>How to calibrate:</b> Charge to 100%, then tap <i>Start Calibration</i>.
+        Device reboots and logs voltage every 15 min until battery is drained.
+        On next boot connect here to view the discharge curve.
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1184,6 +1248,7 @@ const App = {
     values: {},       // key -> value (from device)
     formValues: {},   // key -> current form value
     dirty: new Set(),
+    garbled: new Set(),
     settingsLoaded: false,
     heartbeatTime: null,
     debugVisible: false,
@@ -1367,8 +1432,8 @@ const SETTINGS_META = [
     desc:'Relay received traffic' },
   { key:'expire', label:'Traffic Expiry', tab:'advanced', group:'Protocols',
     type:'number', min:1, max:30, desc:'Traffic expiration time (seconds)' },
-  { key:'pflaa_cs', label:'ADSB Callsign in PFLAA', tab:'advanced', group:'Protocols',
-    type:'toggle', desc:'Include ADSB callsign in PFLAA sentences' },
+  { key:'pflaa_cs', label:'Callsign in PFLAA', tab:'advanced', group:'Protocols',
+    type:'toggle', desc:'Include callsign in PFLAA sentences' },
   { key:'gn_to_gp', label:'GN to GP', tab:'advanced', group:'Protocols',
     type:'toggle', desc:'Convert GNGGA to GPGGA' },
 
@@ -1421,8 +1486,36 @@ App.nmea = {
     this.buffer = lines.pop() || '';
     for (const raw of lines) {
       const line = raw.replace(/\r$/, '').trim();
-      if (line) this.processLine(line);
+      if (!line) continue;
+      // If a BLE MTU boundary fell between two settings lines, the firmware
+      // may have sent them without a newline separator. Re-split on any point
+      // where a known setting label starts mid-line (e.g. "alarm,3tx_power,2").
+      const sublines = App.nmea._splitConcatenatedSettings(line);
+      for (const sl of sublines) this.processLine(sl);
     }
+  },
+
+  // Split a line that may contain multiple concatenated settings lines.
+  // Matches any known label key preceded by a non-newline character.
+  _splitConcatenatedSettings(line) {
+    if (!App.nmea._settingsRe) {
+      const keys = Object.keys(SETTINGS_MAP).sort((a, b) => b.length - a.length);
+      // Match a known key preceded by a non-identifier char (digit/punctuation — not a letter
+      // or underscore, which would mean we're matching a suffix of a longer key name)
+      App.nmea._settingsRe = new RegExp('(?<=[^a-zA-Z_])(' + keys.join('|') + ')(?=,)', 'g');
+    }
+    const parts = line.split(App.nmea._settingsRe).filter((_, i) => i % 2 === 0);
+    if (parts.length <= 1) return [line];
+    // Reattach the captured key to the part after it
+    const result = [];
+    const m = [...line.matchAll(App.nmea._settingsRe)];
+    let pos = 0;
+    for (const match of m) {
+      result.push(line.slice(pos, match.index));
+      pos = match.index;
+    }
+    result.push(line.slice(pos));
+    return result.filter(s => s.trim());
   },
 
   validateChecksum(sentence) {
@@ -1440,6 +1533,12 @@ App.nmea = {
     // Discard garbage before $ if present
     const dollarIdx = line.indexOf('$');
     if (dollarIdx > 0) line = line.substring(dollarIdx);
+
+    // If no $ at all, check if a known NMEA type appears mid-line (BLE ate the $)
+    if (!line.startsWith('$')) {
+      const m = line.match(/(PSRFH|PSRFS|PFLAA|PFLAU|FNNGB|[A-Z]{2}GGA|[A-Z]{2}RMC),/);
+      if (m) line = '$' + line.substring(m.index);
+    }
 
     App.debug('< ' + line);
 
@@ -1503,24 +1602,41 @@ App.nmea = {
     }
 
     // Settings dump line (label,value # comment)
-    if (line.includes(',') && !line.startsWith('#')) {
-      const commentIdx = line.indexOf('#');
-      const data = commentIdx >= 0 ? line.substring(0, commentIdx) : line;
+    // Strip a leading '#' that can arrive as a BLE packet-boundary artifact
+    const settingsLine = line.startsWith('#') ? line.slice(1) : line;
+    if (settingsLine.includes(',')) {
+      const commentIdx = settingsLine.indexOf('#');
+      const data = commentIdx >= 0 ? settingsLine.substring(0, commentIdx) : settingsLine;
       const commaIdx = data.indexOf(',');
       if (commaIdx > 0) {
         const label = data.substring(0, commaIdx).trim();
-        const value = data.substring(commaIdx + 1).trim();
+        // Value ends at the first whitespace (guards against missing '#' before comment)
+        const rawVal = data.substring(commaIdx + 1).trim();
+        const value = rawVal.split(/\s/)[0];
         if (label === 'SoftRF') {
           // Version line — start of settings dump
           App.state._settingsCount = 0;
           return;
         }
+        // Skip malformed lines: empty value or label containing spaces
+        // (can happen when BLE chunks arrive without newline between settings)
+        if (value === '' || label.includes(' ')) return;
         if (SETTINGS_MAP[label]) {
           App.state.values[label] = value;
           App.state._settingsCount = (App.state._settingsCount || 0) + 1;
           App.ui.updateControl(label, value);
+        } else if (!App.state.settingsLoaded) {
+          // Unknown label during settings dump — likely a BLE-corrupted prefix.
+          // Try to identify the intended setting by suffix match (e.g. "gn_gp" → "gn_to_gp").
+          const candidate = Object.keys(SETTINGS_MAP).find(k => k.endsWith(label) || k.endsWith('_' + label));
+          if (candidate) App.state.garbled.add(candidate);
         }
-        // Reset idle timer
+        // debug_flags is always the last setting — use it as terminator
+        if (label === 'debug_flags') {
+          App.settings._onSettingsComplete();
+          return;
+        }
+        // Reset idle timer (fallback if debug_flags never arrives)
         App.settings._resetIdleTimer();
       }
     }
@@ -1571,6 +1687,7 @@ App.transport = {
     App.ui.setConnState('connected');
     App.ui.hideLoading();
     App.toast('Connected to ' + name + ' (' + type.toUpperCase() + ')', 'success');
+    // Small delay for GATT to stabilise before sending first command
     setTimeout(() => App.commands.refreshSettings(), 500);
   },
 
@@ -1818,6 +1935,95 @@ App.serial = {
 };
 
 /* ═══════════════════════════════════════════════════════════════
+   Battery Calibration Module
+   ═══════════════════════════════════════════════════════════════ */
+App.batcal = {
+  _rows: null,   // parsed CSV rows [{t, pct, v}] or null
+
+  // Calibrated LUT matching firmware nRF52.cpp — updated 2026-05-13
+  voltToPct(v) {
+    const lv = [3.300, 3.680, 3.730, 3.754, 3.770, 3.780, 3.858, 3.914, 3.984, 4.070, 4.170];
+    const lp = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+    if (v <= lv[0]) return 0;
+    if (v >= lv[lv.length-1]) return 100;
+    for (let i = 0; i < lv.length - 1; i++) {
+      if (v <= lv[i+1]) {
+        const t = (v - lv[i]) / (lv[i+1] - lv[i]);
+        return Math.round(lp[i] + t * (lp[i+1] - lp[i]));
+      }
+    }
+    return 100;
+  },
+
+  async init() {
+    try {
+      const r = await fetch('/batvcal.txt', { cache: 'no-store' });
+      if (!r.ok) { this._setStatus('No data'); return; }
+      const text = await r.text();
+      const rows = [];
+      for (const line of text.split('\n')) {
+        const p = line.trim().split(',');
+        if (p.length < 3) continue;
+        const t = p[0];
+        const pct = parseInt(p[1]);
+        const v = parseFloat(p[2]);
+        if (!isNaN(pct) && !isNaN(v)) rows.push({ t, pct, v });
+      }
+      if (rows.length === 0) { this._setStatus('No data'); return; }
+      this._rows = rows;
+      this._setStatus(rows.length + ' samples');
+      document.getElementById('batcal-graph-btn').style.display = '';
+    } catch(e) {
+      this._setStatus('No data');
+    }
+  },
+
+  _setStatus(s) {
+    const el = document.getElementById('batcal-status');
+    if (el) el.textContent = s;
+  },
+
+  startCal() {
+    // Require battery ≥ 95% before starting
+    const volEl = document.getElementById('st-voltage');
+    const volText = volEl ? volEl.textContent : '';
+    const pctMatch = volText.match(/\((\d+)%\)/);
+    const curPct = pctMatch ? parseInt(pctMatch[1]) : null;
+    if (curPct !== null && curPct < 95) {
+      App.modal.show('Battery Not Full',
+        `Battery is at ${curPct}%. Please charge to at least 95% before starting calibration.`,
+        [{ text: 'OK', cls: 'btn-primary', action: () => App.modal.hide() }]);
+      return;
+    }
+    App.modal.show('Start Battery Calibration',
+      'This will clear any existing calibration data, reboot the device, and record voltage every 15 minutes until the battery is drained.\n\nMake sure the battery is fully charged (≥95%) and the device has a GPS fix.',
+      [
+        { text: 'Cancel', cls: 'btn-ghost', action: () => App.modal.hide() },
+        { text: 'Start', cls: 'btn-primary', action: async () => {
+          App.modal.hide();
+          await App.transport.sendNmea('PSRFC,BCL');
+          App.ui.showLoading('Starting calibration...', 'Device will reboot and record discharge curve');
+          setTimeout(() => App.ui.hideLoading(), 6000);
+        }}
+      ]);
+  },
+
+  async clearData() {
+    App.modal.show('Clear Calibration Data', 'Delete the calibration log on the device?', [
+      { text: 'Cancel', cls: 'btn-ghost', action: () => App.modal.hide() },
+      { text: 'Clear', cls: 'btn-primary', action: async () => {
+        App.modal.hide();
+        await fetch('/clrbatvcal');
+        this._rows = null;
+        this._setStatus('No data');
+        document.getElementById('batcal-graph-btn').style.display = 'none';
+        App.toast('Calibration data cleared', 'info');
+      }}
+    ]);
+  }
+};
+
+/* ═══════════════════════════════════════════════════════════════
    Heartbeat Module
    ═══════════════════════════════════════════════════════════════ */
 App.heartbeat = {
@@ -1836,7 +2042,7 @@ App.heartbeat = {
     const rssi = fields.length > 10 ? fields[10] : '--';
 
     const volts = (voltage / 100).toFixed(2);
-    const pct = Math.max(0, Math.min(100, Math.round((voltage - 330) / (420 - 330) * 100)));
+    const pct = App.batcal.voltToPct(voltage / 100);
     const uptimeSec = Math.floor(millis / 1000);
     const h = Math.floor(uptimeSec / 3600);
     const m = Math.floor((uptimeSec % 3600) / 60);
@@ -2275,7 +2481,22 @@ App.gps = {
 App.commands = {
   async refreshSettings() {
     if (!App.state.connected) return;
+
+    // Clear all stale state so reconnect after reboot starts clean
+    App.state.values = {};
+    App.state.formValues = {};
+    App.state.dirty.clear();
+    App.state.garbled.clear();
     App.state.settingsLoaded = false;
+
+    // Clear all row styles and visibility left over from previous session
+    SETTINGS_META.forEach(s => {
+      const row = document.getElementById('row-' + s.key);
+      if (row) { row.classList.remove('modified', 'missing', 'garbled'); row.style.display = ''; }
+    });
+    document.querySelectorAll('.settings-group').forEach(g => g.style.display = '');
+    App.ui.updateSaveBar();
+
     App.ui.showLoading('Reading settings...', 'This may take a few seconds');
     await App.transport.sendNmea('PSRFS,?');
   },
@@ -2312,20 +2533,55 @@ App.settings = {
 
   _resetIdleTimer() {
     clearTimeout(this._idleTimer);
-    this._idleTimer = setTimeout(() => this._onSettingsComplete(), 1000);
+    // Generous fallback — only fires if debug_flags never arrives (truncated dump)
+    this._idleTimer = setTimeout(() => this._onSettingsComplete(), 8000);
   },
 
   _onSettingsComplete() {
     if (App.state.settingsLoaded) return;
+    clearTimeout(this._idleTimer);
     App.state.settingsLoaded = true;
-    // Sync form values with device values
+
+    // Sync form values — preserve any user edits already made
     App.state.formValues = { ...App.state.values };
     App.state.dirty.clear();
     App.ui.updateSaveBar();
     App.ui.hideLoading();
 
-    const count = Object.keys(App.state.values).length;
-    App.toast(count + ' settings loaded', 'success');
+    // Hide settings not sent by this device; show ones that were received
+    let missing = 0, garbled = 0;
+    SETTINGS_META.forEach(s => {
+      if (s.type === 'button') return;
+      const row = document.getElementById('row-' + s.key);
+      if (!row) return;
+      if (s.key in App.state.values) {
+        row.style.display = '';
+        row.classList.remove('missing', 'garbled');
+      } else if (App.state.garbled.has(s.key)) {
+        row.style.display = '';
+        row.classList.remove('missing');
+        row.classList.add('garbled');
+        garbled++;
+      } else {
+        row.style.display = 'none';
+        row.classList.remove('garbled');
+        row.classList.add('missing');
+        missing++;
+      }
+    });
+
+    // Hide group headers whose every setting row is hidden
+    document.querySelectorAll('.settings-group').forEach(group => {
+      const rows = group.querySelectorAll('.setting-row');
+      const allHidden = rows.length > 0 && [...rows].every(r => r.style.display === 'none');
+      group.style.display = allHidden ? 'none' : '';
+    });
+
+    const parts = [];
+    parts.push(`${received} settings loaded`);
+    if (garbled > 0) parts.push(`${garbled} corrupted — reload to retry`);
+    if (missing > 0) parts.push(`${missing} not supported on this device`);
+    App.toast(parts.join(', '), garbled > 0 ? 'warn' : 'success');
   },
 
   onChange(key, value) {
@@ -2627,14 +2883,14 @@ App.ui = {
     if (meta.type === 'toggle') {
       el.checked = (value === '1' || value === '01');
     } else if (meta.type === 'hex6') {
-      el.value = (value || '000000').toUpperCase();
+      el.value = (value || '').toUpperCase().padStart(6, '0');
     } else if (meta.type === 'hex2') {
-      el.value = (value || '00').toUpperCase();
+      el.value = (value || '').toUpperCase().padStart(2, '0');
     } else {
       el.value = value || '';
     }
-    // Also update formValues
-    App.state.formValues[key] = value;
+    // Store the displayed (normalised) value in formValues
+    App.state.formValues[key] = el.value;
   },
 
   updateSettingRowStyle(key) {
@@ -2735,6 +2991,7 @@ App.debug = function(msg) {
    ═══════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
   App.ui.init();
+  App.batcal.init();
 
   // Hide connect buttons for unsupported APIs
   if (!navigator.bluetooth) {

@@ -2,42 +2,52 @@
   "name": "SoftRF Settings",
   "short_name": "SoftRF",
   "description": "SoftRF Device Settings with BLE Control - Works Offline",
-  "start_url": "./index.html",
-  "scope": "./",
+  "start_url": "/mysoftrf/index.html",
+  "scope": "/mysoftrf/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "theme_color": "#1a1a2e",
-  "background_color": "#f0f2f5",
+  "background_color": "#0f0f1a",
   "prefer_related_applications": false,
+  "id": "/mysoftrf/index.html",
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%234361ee' width='192' height='192'/><text x='50%' y='50%' font-size='120' font-weight='bold' fill='white' text-anchor='middle' dominant-baseline='central'>SR</text></svg>",
+      "src": "icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect fill='%234361ee' width='512' height='512'/><text x='50%' y='50%' font-size='320' font-weight='bold' fill='white' text-anchor='middle' dominant-baseline='central'>SR</text></svg>",
+      "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "screenshots": [
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 540 720'><rect fill='%230f0f1a' width='540' height='720'/><text x='270' y='360' font-size='72' font-weight='bold' fill='%234361ee' text-anchor='middle' dominant-baseline='central'>SoftRF</text></svg>",
+      "src": "screenshot-narrow.png",
       "sizes": "540x720",
-      "type": "image/svg+xml",
-      "form_factor": "narrow"
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "SoftRF Configurator on mobile"
+    },
+    {
+      "src": "screenshot-wide.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "SoftRF Configurator on desktop"
     }
   ],
-  "categories": ["productivity", "utilities"],
-  "screenshots_wide": [
-    {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1280 720'><rect fill='%230f0f1a' width='1280' height='720'/><text x='640' y='360' font-size='72' font-weight='bold' fill='%234361ee' text-anchor='middle' dominant-baseline='central'>SoftRF Settings</text></svg>",
-      "sizes": "1280x720",
-      "type": "image/svg+xml",
-      "form_factor": "wide"
-    }
-  ]
+  "categories": ["productivity", "utilities"]
 }

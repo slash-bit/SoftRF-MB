@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SoftRF BLE Diagnostics</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: monospace; background: #1a1a2e; color: #e5e7eb; padding: 12px; font-size: 13px; }
+
+h1 { font-size: 16px; font-weight: bold; color: #818cf8; margin-bottom: 12px; }
+
+.toolbar {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; align-items: center;
+}
+button {
+  padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer;
+  font-size: 13px; font-family: monospace; font-weight: bold;
+}
+#btnConnect  { background: #4361ee; color: #fff; }
+#btnConnect:disabled { background: #555; cursor: default; }
+#btnCapture  { background: #10b981; color: #fff; }
+#btnCapture:disabled { background: #555; cursor: default; }
+#btnClear    { background: #374151; color: #e5e7eb; }
+#btnCopy     { background: #374151; color: #e5e7eb; }
+#btnDownload { background: #374151; color: #e5e7eb; }
+
+.status-bar {
+  font-size: 12px; color: #9ca3af; padding: 4px 0; margin-bottom: 8px;
+}
+.status-bar span { color: #34d399; }
+#statusConn { font-weight: bold; }
+
+.legend {
+  display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px;
+  font-size: 11px; color: #9ca3af;
+}
+.legend-item { display: flex; align-items: center; gap: 4px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+/* log output area */
+#log {
+  background: #0f0f1a;
+  border: 1px solid #2d2d4a;
+  border-radius: 8px;
+  padding: 10px;
+  height: calc(100vh - 220px);
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.5;
+}
+
+/* line colour classes */
+.pkt   { color: #6b7280; }       /* raw BLE packet boundary marker */
+.raw   { color: #9ca3af; }       /* raw bytes (hex dump) */
+.nmea  { color: #60a5fa; }       /* NMEA sentence ($...) */
+.sett  { color: #34d399; }       /* settings dump line (label,value) */
+.trig  { color: #fbbf24; }       /* trigger / sent command */
+.end   { color: #a78bfa; font-weight: bold; } /* debug_flags — end of dump */
+.err   { color: #f87171; }       /* corrupt / unexpected */
+.info  { color: #9ca3af; font-style: italic; }
+</style>
+</head>
+<body>
+
+<h1>SoftRF BLE Raw Stream Diagnostics</h1>
+
+<div class="toolbar">
+  <button id="btnConnect">Connect BLE</button>
+  <button id="btnCapture" disabled>Capture Settings Dump</button>
+  <button id="btnClear">Clear Log</button>
+  <button id="btnCopy">Copy Log</button>
+  <button id="btnDownload">Download Log</button>
+</div>
+
+<div class="status-bar">
+  Status: <span id="statusConn">Disconnected</span>
+  &nbsp;|&nbsp; MTU: <span id="statusMtu">—</span>
+  &nbsp;|&nbsp; Packets: <span id="statusPkts">0</span>
+  &nbsp;|&nbsp; Captures: <span id="statusCaps">0</span>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><span class="legend-dot" style="background:#fbbf24"></span> Sent command</div>
+  <div class="legend-item"><span class="legend-dot" style="background:#6b7280"></span> BLE packet boundary</div>
+  <div class="legend-item"><span class="legend-dot" style="background:#34d399"></span> Settings line</div>
+  <div class="legend-item"><span class="legend-dot" style="background:#60a5fa"></span> NMEA sentence</div>
+  <div class="legend-item"><span class="legend-dot" style="background:#a78bfa"></span> End of dump (debug_flags)</div>
+  <div class="legend-item"><span class="legend-dot" style="background:#f87171"></span> Corrupt / unexpected</div>
+</div>
+
+<div id="log"></div>
+
+<script>
+const NUS_SERVICE = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+const NUS_RX     = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+const NUS_TX     = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+const HM10_SVC   = '0000ffe0-0000-1000-8000-00805f9b34fb';
+const HM10_CHAR  = '0000ffe1-0000-1000-8000-00805f9b34fb';
+
+let device = null, writeChar = null;
+let pktCount = 0, capCount = 0;
+let maxNotify = 0;
+
+// Compute NMEA checksum (XOR of chars between $ and *)
+function nmeaChecksum(body) {
+  let cs = 0;
+  for (let i = 0; i < body.length; i++) cs ^= body.charCodeAt(i);
+  return cs.toString(16).toUpperCase().padStart(2, '0');
+}
+
+// Build a complete $sentence*CS\r\n string
+function nmeaBuild(body) {
+  return '$' + body + '*' + nmeaChecksum(body) + '\r\n';
+}
+
+// Known settings labels — first word of a dump line
+// Just check that label contains only lowercase letters, digits, underscore
+// and value has no newline. This identifies settings lines without a hard-coded list.
+function looksLikeSetting(line) {
+  const c = line.indexOf(',');
+  if (c < 1) return false;
+  const label = line.substring(0, c);
+  return /^[a-z][a-z0-9_]*$/.test(label);
+}
+
+// Capture state machine
+const S = { IDLE: 0, WAITING: 1, CAPTURING: 2 };
+let captureState = S.IDLE;
+let captureLines = [];  // accumulated lines for current capture
+let lineBuffer = '';    // incomplete line accumulator
+
+const log = document.getElementById('log');
+const statusConn = document.getElementById('statusConn');
+const statusMtu  = document.getElementById('statusMtu');
+const statusPkts = document.getElementById('statusPkts');
+const statusCaps = document.getElementById('statusCaps');
+
+function emit(cls, text) {
+  const span = document.createElement('span');
+  span.className = cls;
+  span.textContent = text + '\n';
+  log.appendChild(span);
+  log.scrollTop = log.scrollHeight;
+}
+
+function emitInfo(text)  { emit('info', text); }
+function emitTrig(text)  { emit('trig', text); }
+function emitPkt(text)   { emit('pkt',  text); }
+function emitNmea(text)  { emit('nmea', text); }
+function emitSett(text)  { emit('sett', text); }
+function emitEnd(text)   { emit('end',  text); }
+function emitErr(text)   { emit('err',  text); }
+
+function hexDump(dataView) {
+  const bytes = new Uint8Array(dataView.buffer);
+  return Array.from(bytes).map(b => b.toString(16).padStart(2,'0')).join(' ');
+}
+
+// Extract just the value token from a settings line, stripping inline comment.
+// e.g. "protocol,7       # 7=Latest..." → "7"
+function settingValue(line) {
+  const commaIdx = line.indexOf(',');
+  const raw = line.substring(commaIdx + 1);
+  const hashIdx = raw.indexOf('#');
+  return (hashIdx >= 0 ? raw.substring(0, hashIdx) : raw).trim().split(/\s/)[0];
+}
+
+// Classify a complete line and append to capture log
+function classifyLine(line) {
+  if (captureState === S.IDLE) return;
+
+  if (captureState === S.WAITING) {
+    // NMEA sentences keep arriving while we wait — show them in blue
+    if (line.startsWith('$')) { emitNmea(line); return; }
+    // Orphaned NMEA tail or garbage before dump starts — show as dim info
+    if (!looksLikeSetting(line)) { emitInfo('[pre] ' + line); return; }
+    // First settings line — dump has started
+    captureState = S.CAPTURING;
+    captureLines = [];
+    emitInfo('── Capture #' + (capCount + 1) + ' started (pkt #' + pktCount + ') ──');
+    // fall through to classify this first line below
+  }
+
+  // CAPTURING
+  captureLines.push(line);
+
+  if (line.startsWith('$')) {
+    emitNmea(line);
+    return;
+  }
+
+  if (line.startsWith('debug_flags,')) {
+    emitEnd(line);
+    finishCapture();
+    return;
+  }
+
+  if (looksLikeSetting(line)) {
+    // Strip comment, then check whether the bare value contains a comma —
+    // that means a GPS fragment was concatenated onto this settings line.
+    const val = settingValue(line);
+    if (val.includes(',')) {
+      emitErr('[CORRUPT — GPS fragment in value] ' + line);
+    } else {
+      emitSett(line);
+    }
+    return;
+  }
+
+  // Orphaned comment text from a split line (e.g. "# 1=GL 2=TOWPL...")
+  if (line.startsWith('#') || line.match(/^[0-9]+=/) || line.match(/^\s*#/)) {
+    emitInfo('[comment fragment] ' + line);
+    return;
+  }
+
+  // Anything else: BLE split artifact (e.g. "volubaud_rate,0", "3=loginterval,4")
+  emitErr('[SPLIT ARTIFACT] ' + line);
+}
+
+function finishCapture() {
+  capCount++;
+  statusCaps.textContent = capCount;
+  captureState = S.IDLE;
+  document.getElementById('btnCapture').disabled = false;
+  emitInfo('── Capture #' + capCount + ' complete (' + captureLines.length + ' lines) ──');
+}
+
+// Called for every BLE notification
+function onData(event) {
+  const dv = event.target.value;
+  const len = dv.byteLength;
+  pktCount++;
+  statusPkts.textContent = pktCount;
+
+  if (len > maxNotify) {
+    maxNotify = len;
+    statusMtu.textContent = len + ' B/pkt (ATT MTU ≥ ' + (len + 3) + ')';
+    if (len <= 20) statusMtu.style.color = '#fbbf24';
+    else           statusMtu.style.color = '#34d399';
+  }
+
+  const hex  = hexDump(dv);
+  const text = new TextDecoder().decode(dv);
+
+  // Always show raw packet boundary with hex
+  emitPkt('[PKT #' + pktCount + ' len=' + len + '] ' + hex);
+
+  // Accumulate into line buffer, emit complete lines
+  if (captureState !== S.IDLE) {
+    lineBuffer += text;
+    const parts = lineBuffer.split('\n');
+    lineBuffer = parts.pop() || '';
+    for (const raw of parts) {
+      const line = raw.replace(/\r$/, '').trim();
+      if (line) classifyLine(line);
+    }
+  }
+}
+
+async function connect() {
+  if (!navigator.bluetooth) {
+    alert('Web Bluetooth not supported. Use Chrome or Edge on Android/desktop.');
+    return;
+  }
+  try {
+    document.getElementById('btnConnect').disabled = true;
+    statusConn.textContent = 'Scanning…';
+    statusConn.style.color = '#fbbf24';
+
+    device = await navigator.bluetooth.requestDevice({
+      filters: [{ services: [NUS_SERVICE] }, { services: [HM10_SVC] }],
+      optionalServices: []
+    });
+    device.addEventListener('gattserverdisconnected', onDisconnect);
+
+    const server = await device.gatt.connect();
+    emitInfo('GATT connected to ' + (device.name || 'unknown'));
+
+    let ok = false;
+    try {
+      const svc  = await server.getPrimaryService(NUS_SERVICE);
+      const tx   = await svc.getCharacteristic(NUS_TX);
+      writeChar  = await svc.getCharacteristic(NUS_RX);
+      await tx.startNotifications();
+      tx.addEventListener('characteristicvaluechanged', onData);
+      emitInfo('Profile: Nordic UART Service (NUS)');
+      ok = true;
+    } catch (e) { emitInfo('NUS not found: ' + e.message); }
+
+    if (!ok) {
+      try {
+        const svc  = await server.getPrimaryService(HM10_SVC);
+        const ch   = await svc.getCharacteristic(HM10_CHAR);
+        writeChar  = ch;
+        await ch.startNotifications();
+        ch.addEventListener('characteristicvaluechanged', onData);
+        emitInfo('Profile: HM-10');
+        ok = true;
+      } catch (e) { emitInfo('HM-10 not found: ' + e.message); }
+    }
+
+    if (!ok) {
+      device.gatt.disconnect();
+      throw new Error('No supported BLE UART profile found');
+    }
+
+    statusConn.textContent = 'Connected — ' + (device.name || 'SoftRF');
+    statusConn.style.color = '#34d399';
+    document.getElementById('btnCapture').disabled = false;
+    document.getElementById('btnConnect').textContent = 'Disconnect';
+    document.getElementById('btnConnect').disabled = false;
+    document.getElementById('btnConnect').onclick = disconnect;
+
+  } catch (err) {
+    statusConn.textContent = 'Disconnected';
+    statusConn.style.color = '#9ca3af';
+    document.getElementById('btnConnect').disabled = false;
+    if (err.name !== 'NotFoundError') emitErr('Connect failed: ' + err.message);
+  }
+}
+
+function disconnect() {
+  if (device && device.gatt.connected) device.gatt.disconnect();
+  onDisconnect();
+}
+
+function onDisconnect() {
+  device = null; writeChar = null;
+  captureState = S.IDLE;
+  lineBuffer = '';
+  statusConn.textContent = 'Disconnected';
+  statusConn.style.color = '#9ca3af';
+  document.getElementById('btnConnect').textContent = 'Connect BLE';
+  document.getElementById('btnConnect').disabled = false;
+  document.getElementById('btnConnect').onclick = connect;
+  document.getElementById('btnCapture').disabled = true;
+  emitInfo('Disconnected');
+}
+
+async function startCapture() {
+  if (!writeChar || captureState !== S.IDLE) return;
+  document.getElementById('btnCapture').disabled = true;
+  captureState = S.WAITING;
+  lineBuffer = '';
+
+  // Build $PSRFS,?*57\r\n — checksum is required, firmware ignores sentences without it
+  const cmd = nmeaBuild('PSRFS,?');
+  const data = new TextEncoder().encode(cmd);
+  emitTrig('>> ' + cmd.trim() + '  (requesting full settings dump)');
+
+  // Send in ≤20-byte chunks (conservative for 20-byte MTU devices)
+  const CHUNK = 20;
+  for (let i = 0; i < data.length; i += CHUNK) {
+    await writeChar.writeValueWithoutResponse(data.slice(i, Math.min(i + CHUNK, data.length)));
+  }
+
+  // Safety timeout — if debug_flags never arrives, end capture after 15 s
+  setTimeout(() => {
+    if (captureState === S.CAPTURING) {
+      emitErr('[TIMEOUT] debug_flags never arrived — capture aborted after 15 s');
+      finishCapture();
+    } else if (captureState === S.WAITING) {
+      emitErr('[TIMEOUT] No settings dump received — firmware may have ignored the command (checksum?)');
+      captureState = S.IDLE;
+      document.getElementById('btnCapture').disabled = false;
+    }
+  }, 15000);
+}
+
+function getLogText() {
+  return Array.from(log.children).map(s => s.textContent).join('');
+}
+
+document.getElementById('btnConnect').onclick  = connect;
+document.getElementById('btnCapture').onclick  = startCapture;
+document.getElementById('btnClear').onclick    = () => { log.innerHTML = ''; };
+document.getElementById('btnCopy').onclick     = () => navigator.clipboard.writeText(getLogText()).then(() => alert('Copied!'));
+document.getElementById('btnDownload').onclick = () => {
+  const ts   = new Date().toISOString().replace(/[:.]/g, '-');
+  const blob = new Blob([getLogText()], { type: 'text/plain' });
+  const a    = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(blob),
+    download: 'softrf_ble_diag_' + ts + '.txt'
+  });
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+
+emitInfo('SoftRF BLE Diagnostics ready. Click "Connect BLE" to start.');
+emitInfo('After connecting, click "Capture Settings Dump" to send $PSRFS,?*57 and log the full dump.');
+emitInfo('Each BLE packet is shown with its hex bytes, then colour-coded parsed lines below.');
+emitInfo('Green = settings line, Blue = NMEA, Purple = debug_flags end-of-dump, Red = corrupt/unexpected.');
+</script>
+</body>
+</html>

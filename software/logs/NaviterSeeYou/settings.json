@@ -1,0 +1,4296 @@
+{
+  "lastUpdated": {
+    "enabledDataLayerIds": "2026-04-05T11:08:57.314980Z",
+    "migratedDistanceCircles": "2025-07-31T13:44:42.897912Z",
+    "enabledAirspaceDisplayStyles": "2026-04-05T11:08:57.315087Z",
+    "migratedTempFlightRestriction": "2025-07-31T13:44:42.898653Z",
+    "visibleDataLayerIds": "2025-08-16T13:39:05.769315Z",
+    "migratedLiveWind": "2025-07-31T13:44:42.898736Z",
+    "offlineMapsOnDevice": "2025-07-31T14:36:40.452060Z",
+    "migratedOfflineMapsSelection": "2025-07-31T13:44:42.898789Z",
+    "lastLoginMethod": "2025-07-31T13:48:39.979908Z",
+    "user": "2026-04-05T11:11:53.570583Z",
+    "integrations": "2025-08-15T06:38:40.062077Z",
+    "syncMarkersByScope": "2026-05-15T06:25:47.074218Z",
+    "usernameCached": "2025-08-15T06:38:40.111171Z",
+    "askedForLoadingSettings": "2025-08-15T06:38:50.995504Z",
+    "airspaceTimeouts": "2025-08-15T06:38:51.007976Z",
+    "askedOgnTransmitPermission": "2025-07-31T13:48:52.544561Z",
+    "enabledCollections": "2025-08-16T13:38:19.369513Z",
+    "enabledCustomAirspaceFiles": "2025-08-15T06:38:51.008262Z",
+    "enabledMapIds": "2025-08-15T06:38:51.008352Z",
+    "lastUsedNavboxStyle": "2025-08-16T15:02:44.432622Z",
+    "lastUsedRectangleNavboxSizeLandscape": "2025-08-15T06:38:51.008503Z",
+    "lastUsedRectangleNavboxSizePortrait": "2025-08-16T15:02:33.280660Z",
+    "lastUsedStartTurnpoint": "2025-08-23T08:53:13.065101Z",
+    "lastUsedTaskType": "2025-08-17T09:06:59.397322Z",
+    "layout": "2026-05-15T06:24:36.936642Z",
+    "mapsConfiguration": "2025-08-15T06:38:51.008919Z",
+    "obstaclesTimeouts": "2025-08-15T06:38:51.008991Z",
+    "offlineMaps": "2025-08-15T06:38:51.009036Z",
+    "radarAliasConfig": "2025-08-15T06:38:51.009106Z",
+    "selectedAircraft": "2025-08-16T10:49:57.477270Z",
+    "selectedMapId": "2025-08-15T06:38:51.009169Z",
+    "selectedSport": "2025-08-15T06:38:51.009219Z",
+    "slowProcessingCounter": "2025-08-15T06:38:51.009269Z",
+    "task": "2025-08-23T10:19:38.723931Z",
+    "useSeeYouAirspace": "2026-05-09T08:47:10.796562Z",
+    "userSymbolAlignment": "2025-08-16T10:18:19.010752Z",
+    "varioConfiguration": "2025-08-15T06:38:51.009452Z",
+    "askedForBackgroundLocation": "2025-07-31T13:49:10.696086Z",
+    "askedForMicrophonePermission": "2025-07-31T13:49:18.693209Z",
+    "askedForMotionSensorPermission": "2025-07-31T13:49:25.118432Z",
+    "askedForBluetoothPermission": "2025-07-31T13:49:34.596580Z",
+    "lastUsedVersion": "2026-05-09T09:20:18.703341Z",
+    "lastSettingsTrim": "2026-05-09T08:46:45.258662Z",
+    "devices": "2026-03-19T20:48:50.851242Z",
+    "airspaceAltitudeSource": "2025-07-31T13:49:48.143306Z",
+    "altitudeWarningConfig": "2026-05-14T10:10:32.591354Z",
+    "ballast": "2026-05-15T06:24:36.937674Z",
+    "batteryStatus": "2025-07-31T13:49:48.143306Z",
+    "beepOnGround": "2025-07-31T13:49:48.143306Z",
+    "beepToTightenCircling": "2025-07-31T13:49:48.143306Z",
+    "beepingProfile": "2026-05-09T09:19:27.333837Z",
+    "copilotName": "2025-07-31T13:49:48.143306Z",
+    "enableSoundVario": "2025-07-31T13:49:48.143306Z",
+    "ignoreAirspaceAboveAltitudeConfig": "2025-07-31T13:49:48.143306Z",
+    "lowMemoryCounter": "2025-07-31T13:49:48.143306Z",
+    "macCready": "2025-07-31T13:49:48.143306Z",
+    "qnhOffsetConfig": "2025-07-31T13:49:48.143306Z",
+    "recoveryCodeCounter": "2026-03-19T20:44:49.370502Z",
+    "sendRadarThermals": "2025-07-31T13:49:48.143306Z",
+    "showOptimization": "2025-07-31T13:49:48.143306Z",
+    "showWaypointCodeInsteadOfName": "2025-07-31T13:49:48.143306Z",
+    "teamCodeConfiguration": "2025-07-31T13:49:48.143306Z",
+    "thermalAssistantMode": "2025-07-31T13:49:48.143306Z",
+    "transmitFlarmSignal": "2025-07-31T13:49:48.143306Z",
+    "useCustomAirspace": "2025-07-31T13:49:48.143306Z",
+    "varioResponsePreset": "2025-07-31T13:49:48.143306Z",
+    "varioSoundVariance": "2025-07-31T13:49:48.143306Z",
+    "askedForLanguageSelection": "2025-07-31T13:49:48.143306Z",
+    "brightness": "2025-07-31T13:49:48.143306Z",
+    "compassRoseSize": "2025-07-31T13:49:48.143306Z",
+    "didSetOSLanguageFromSettings": "2025-07-31T13:49:48.143306Z",
+    "enableAutoZoom": "2025-08-17T11:48:36.275210Z",
+    "lastUsedTaskFinishAltitude": "2025-07-31T13:49:48.143306Z",
+    "lastUsedTurnpointShape": "2025-07-31T13:49:48.143306Z",
+    "layoutPage": "2025-08-15T09:06:55.821137Z",
+    "mapFontSize": "2025-07-31T13:49:48.143306Z",
+    "mapOrientation": "2025-08-15T06:38:51.008759Z",
+    "returnToMapAfterDelay": "2025-07-31T13:49:48.143306Z",
+    "screenOrientation": "2025-07-31T13:49:48.143306Z",
+    "showCompassRose": "2025-07-31T13:49:48.143306Z",
+    "showCurrentTrackVector": "2025-07-31T13:49:48.143306Z",
+    "synchronizePermission": "2025-07-31T13:49:48.143306Z",
+    "zoomGesturesMode": "2025-07-31T13:49:48.143306Z",
+    "lastKnownPosition": "2026-05-15T06:25:56.156250Z",
+    "enableOfflineObstacles": "2026-05-15T06:24:42.091373Z",
+    "automatedRadarLayerVisibility": "2025-07-31T13:51:49.582152Z",
+    "lastUpdatedOfflineDailyAirspace": "2026-05-13T21:58:28.389686Z",
+    "lastCheckedOfflineMaps": "2026-05-14T08:17:55.810783Z",
+    "savedCameraPosition": "2026-05-14T08:42:43.200541Z",
+    "lastUpdatedOfflineObstacles": "2026-05-13T21:58:29.041397Z",
+    "lastUpdatedOfflineWeatherSet": "2025-07-31T14:37:58.154405Z",
+    "recentTargets": "2025-08-25T16:59:42.088281Z",
+    "recordedIgcFiles": "2026-05-09T09:07:58.593099Z",
+    "assignedOgnAddress": "2026-05-14T08:37:55.075795Z",
+    "buddies": "2026-05-09T09:30:58.344706Z",
+    "hangar": "2025-08-16T10:49:57.476868Z",
+    "recentTasks": "2025-08-23T10:19:38.723495Z",
+    "renamedRadarTargets": "2024-01-28T14:14:15.844841Z",
+    "safetyAltitudeReserve": "2024-01-28T14:14:15.844841Z",
+    "savedCopilots": "2025-04-27T05:33:10.192495Z",
+    "savedLayouts": "2025-08-15T10:52:05.189271Z",
+    "savedTasks": "2024-01-28T14:14:15.844841Z",
+    "unitSystem": "2024-01-28T14:14:15.844841Z",
+    "askedForAnalytics": "2025-07-31T13:49:43.098699Z",
+    "contestCache": "2024-01-28T14:14:15.844841Z",
+    "customUnitSystem": "2024-01-28T14:14:15.844841Z",
+    "dismissedPromotions": "2025-08-02T06:48:01.907065Z",
+    "enableAnalytics": "2025-07-31T13:49:43.098813Z",
+    "lastContest": "2024-01-28T14:14:15.844841Z",
+    "lastSoaringSpotClass": "2024-01-28T14:14:15.844841Z",
+    "lastSoaringSpotContest": "2024-01-28T14:14:15.844841Z",
+    "receiverEmailCached": "2024-01-28T14:14:15.844841Z",
+    "selectedLanguageCode": "2025-04-27T05:33:10.192495Z",
+    "migratedLayoutPages": "2026-03-19T20:44:41.500164Z",
+    "migratedLiveWind_2": "2026-04-05T11:08:57.315030Z",
+    "migratedClassGAirspaceDisplayStyle": "2026-04-05T11:08:57.315074Z",
+    "centralTree": "2026-05-15T06:25:26.118839Z",
+    "peripheralTree": "2026-05-15T06:24:36.938778Z",
+    "isScreenOn": "2026-05-15T06:24:59.206648Z",
+    "bleAdvertisingEnabled": "2026-04-05T11:11:51.191156Z",
+    "enableThermalSniffer": "2026-04-05T11:11:51.191156Z",
+    "securitySwitchInfo": "2026-04-05T11:11:51.191156Z",
+    "varioAverager": "2026-04-05T11:11:51.191156Z",
+    "simplifiedLayout": "2026-04-05T11:11:51.191156Z",
+    "xAlpsEventsLog": "2026-04-05T11:11:51.191156Z",
+    "uiHeartbeatCheck": "2026-05-15T06:25:36.638101Z",
+    "serviceHeartbeatCheck": "2026-05-15T06:25:36.334386Z",
+    "migratedSimplifiedLayoutSettingsSplit": "2026-05-09T09:19:27.332973Z",
+    "migratedVarioSoundBounds": "2026-05-09T09:19:27.333027Z",
+    "migratedSimplifiedLayoutAutoSwitch": "2026-05-09T09:19:27.333681Z",
+    "migratedOgnData": "2026-05-09T09:19:27.333738Z",
+    "enableOgnData": "2026-05-09T09:19:27.333767Z",
+    "migratedMinSinkVario": "2026-05-09T09:19:27.333796Z",
+    "migratedFpsLimitForOudieN": "2026-05-09T09:19:27.333866Z",
+    "adminRequest": "2026-05-09T09:20:20.553593Z",
+    "adminResponse": "2026-05-09T09:20:20.553593Z",
+    "buddySnapshots": "2026-05-09T09:31:01.025834Z",
+    "show20percentArc": "2026-05-09T09:20:20.553593Z",
+    "show5percentArc": "2026-05-09T09:20:20.553593Z",
+    "availableLogDates": "2026-05-15T06:25:36.481149Z",
+    "sinkToneMode": "2026-05-09T09:20:20.553593Z",
+    "toolbarPlacementPortrait": "2026-05-09T09:20:20.553593Z",
+    "toolbarPlacementLandscape": "2026-05-09T09:20:20.553593Z",
+    "autoSwitchToClimbPage": "2026-05-09T09:20:20.553593Z",
+    "autoSwitchToWarningPage": "2026-05-09T09:20:20.553593Z",
+    "hasSeenNimoOnboarding": "2026-05-09T09:20:20.553593Z",
+    "shouldSendAutomatedLogs": "2026-05-13T21:29:28.421691Z",
+    "hardwareOgnAddress": "2026-05-14T10:14:29.982738Z"
+  },
+  "airspaceAltitudeSource": "pressure",
+  "airspaceTimeouts": [],
+  "alreadyUploadedToDhvxc": false,
+  "automatedRadarLayerVisibility": true,
+  "beepOnGround": false,
+  "beepToTightenCircling": false,
+  "beepingProfile": {
+    "minSink": {
+      "vario": -5.0,
+      "frequency": 400
+    },
+    "maxSink": {
+      "vario": -4.0,
+      "frequency": 600
+    },
+    "minClimb": {
+      "vario": 0.0,
+      "frequency": 600,
+      "cycle": 600,
+      "duty": 0.75
+    },
+    "maxClimb": {
+      "vario": 10.0,
+      "frequency": 2200,
+      "cycle": 100,
+      "duty": 0.75
+    },
+    "useSmoothFrequencyTransitions": false,
+    "useLogScale": true,
+    "enablePurring": true
+  },
+  "bleAdvertisingEnabled": false,
+  "buddies": [
+    "FLRBADA55!FLR_BADA55",
+    "Badass"
+  ],
+  "bugs": 0.0,
+  "centralTree": {
+    "deviceNodes": [
+      {
+        "deviceId": {
+          "id": "centralDevice",
+          "type": "CentralDevice"
+        },
+        "inputPortId": {
+          "id": "dummyCentralInputPort",
+          "type": "NopDevicePort"
+        },
+        "outputPortsIds": [
+          {
+            "id": "BuiltInSensorsNopPort",
+            "type": "NopDevicePort"
+          },
+          {
+            "id": "96db91b0-4e47-56a5-5ff7-5bad2c1e0e9f",
+            "type": "BleDevicePort"
+          },
+          {
+            "id": "bbd7f7cc-daab-c17b-15fa-cd931f9563c0",
+            "type": "BleDevicePort"
+          },
+          {
+            "id": "707fa75a-3052-f471-a98e-a4342f73cd78",
+            "type": "BleDevicePort"
+          }
+        ]
+      },
+      {
+        "deviceId": {
+          "id": "8a26ac40-7a3d-440b-a281-10f1e992246d",
+          "type": "BuiltinSensors"
+        },
+        "inputPortId": {
+          "id": "BuiltInSensorsNopPort",
+          "type": "NopDevicePort"
+        },
+        "outputPortsIds": []
+      },
+      {
+        "deviceId": {
+          "id": "5ab517e0-5b59-4da0-a88a-6b71b479c9f5",
+          "type": "SensboxDevice"
+        },
+        "inputPortId": {
+          "id": "96db91b0-4e47-56a5-5ff7-5bad2c1e0e9f",
+          "type": "BleDevicePort"
+        },
+        "outputPortsIds": []
+      },
+      {
+        "deviceId": {
+          "id": "e100f509-a04f-42bc-8e87-a45585a19d21",
+          "type": "XcTracerDevice"
+        },
+        "inputPortId": {
+          "id": "bbd7f7cc-daab-c17b-15fa-cd931f9563c0",
+          "type": "BleDevicePort"
+        },
+        "outputPortsIds": []
+      },
+      {
+        "deviceId": {
+          "id": "14f55da4-ab98-41d0-864e-e6aa90bb7d6b",
+          "type": "SensboxDevice"
+        },
+        "inputPortId": {
+          "id": "707fa75a-3052-f471-a98e-a4342f73cd78",
+          "type": "BleDevicePort"
+        },
+        "outputPortsIds": []
+      }
+    ],
+    "deviceSettings": [
+      {
+        "type": "DeviceSettings",
+        "did": "8a26ac40-7a3d-440b-a281-10f1e992246d",
+        "name": "Built-in sensors"
+      },
+      {
+        "type": "DeviceSettings",
+        "did": "centralDevice"
+      },
+      {
+        "type": "DeviceSettings",
+        "did": "5ab517e0-5b59-4da0-a88a-6b71b479c9f5",
+        "name": "SoftRF-80625e-LE",
+        "lastDisconnectedTime": "2026-05-14T09:45:28.205683"
+      },
+      {
+        "type": "DeviceSettings",
+        "did": "e100f509-a04f-42bc-8e87-a45585a19d21",
+        "name": "XCT VB",
+        "lastDisconnectedTime": "2026-05-14T09:40:54.953349"
+      },
+      {
+        "type": "DeviceSettings",
+        "did": "14f55da4-ab98-41d0-864e-e6aa90bb7d6b",
+        "name": "SoftRF-887437-LE"
+      }
+    ],
+    "portSettings": [
+      {
+        "type": "DevicePortSettings",
+        "pid": "BuiltInSensorsNopPort",
+        "autoConnect": true
+      },
+      {
+        "type": "DevicePortSettings",
+        "pid": "dummyCentralInputPort",
+        "autoConnect": true
+      },
+      {
+        "type": "DevicePortSettings",
+        "pid": "96db91b0-4e47-56a5-5ff7-5bad2c1e0e9f",
+        "name": "SoftRF-80625e-LE",
+        "autoConnect": false,
+        "lastDisconnectedTime": "2026-05-14T09:45:28.202566"
+      },
+      {
+        "type": "DevicePortSettings",
+        "pid": "bbd7f7cc-daab-c17b-15fa-cd931f9563c0",
+        "name": "XCT VB",
+        "autoConnect": false,
+        "lastDisconnectedTime": "2026-05-14T09:40:54.862202"
+      },
+      {
+        "type": "DevicePortSettings",
+        "pid": "707fa75a-3052-f471-a98e-a4342f73cd78",
+        "name": "SoftRF-887437-LE",
+        "autoConnect": true
+      }
+    ]
+  },
+  "countNmeaMessages": false,
+  "disableGpsAirborneMode": false,
+  "doConnectionTesting": false,
+  "doTracking": true,
+  "emulateSecuritySealBroken": false,
+  "enableInternalRadarModule": true,
+  "enableObstaclesWarnings": true,
+  "enableOfflineContours": true,
+  "enableOfflineDailyAirspace": true,
+  "enableOfflineMapsCache": true,
+  "enableOfflineNotams": false,
+  "enableOfflineObstacles": true,
+  "enableOfflineWaypoints": false,
+  "enableOfflineWeather": true,
+  "enableRadarSanityCheck": true,
+  "enableSoundVario": false,
+  "enableSounds": true,
+  "enableThermalSniffer": false,
+  "enableTimeSync": true,
+  "enabledAirspaceDisplayStyles": [
+    "classA",
+    "classB",
+    "classC",
+    "classD",
+    "controlZone",
+    "restrictedZone",
+    "prohibitedZone",
+    "dangerousZone",
+    "airway",
+    "transponderMandatoryZone",
+    "other",
+    "militaryZone",
+    "gliderSector",
+    "radioMandatoryZone",
+    "classE",
+    "classG",
+    "tempFlightRestriction"
+  ],
+  "enabledCollections": [
+    "cmdxm5un5004h01o64mguag6n"
+  ],
+  "enabledCustomAirspaceFiles": [],
+  "enabledDataLayerIds": [
+    "rain",
+    "airspace",
+    "para",
+    "kk7_thermals",
+    "fai_area",
+    "ogn",
+    "radar",
+    "live_wind"
+  ],
+  "enabledMapIds": [
+    "light",
+    "terrain",
+    "outdoor",
+    "satellite"
+  ],
+  "fastGps": false,
+  "hangar": [
+    {
+      "uuid": "3a545cbd-7970-43b1-bd69-3134adbd72f1",
+      "type": "Paraglider",
+      "model": {
+        "type": "ParagliderModel",
+        "manufacturer": "Advance",
+        "name": "Iota 2",
+        "isCustomized": false,
+        "certification": {
+          "name": "EN-B",
+          "defaultPolar": {
+            "name": "EN-B",
+            "a": 24.44,
+            "b": -15.0,
+            "c": 3.4,
+            "isGeneric": true,
+            "isCustomized": false
+          },
+          "startYear": 2007
+        },
+        "sizes": [
+          "21",
+          "23",
+          "25",
+          "27",
+          "29"
+        ],
+        "isTandem": false,
+        "isMotorWing": false,
+        "year": 2018,
+        "isAcro": false,
+        "isMiniWing": false,
+        "isSingleSkin": false
+      },
+      "competitionId": "",
+      "size": "25",
+      "certification": {
+        "name": "EN-B",
+        "defaultPolar": {
+          "name": "EN-B",
+          "a": 24.44,
+          "b": -15.0,
+          "c": 3.4,
+          "isGeneric": true,
+          "isCustomized": false
+        },
+        "startYear": 2007
+      }
+    },
+    {
+      "uuid": "f5c24c19-bbb0-41fb-9995-480300955f8c",
+      "type": "Paraglider",
+      "model": {
+        "type": "ParagliderModel",
+        "manufacturer": "Ozone",
+        "name": "Delta 4",
+        "isCustomized": false,
+        "certification": {
+          "name": "EN-C",
+          "defaultPolar": {
+            "name": "EN-C",
+            "a": 28.89,
+            "b": -18.67,
+            "c": 4.1,
+            "isGeneric": true,
+            "isCustomized": false
+          },
+          "startYear": 2007
+        },
+        "sizes": [
+          "XS",
+          "S",
+          "MS",
+          "ML",
+          "L",
+          "XL"
+        ],
+        "isTandem": false,
+        "isMotorWing": false,
+        "polarOverride": {
+          "name": "EN-D",
+          "a": 27.78,
+          "b": -18.17,
+          "c": 4.0,
+          "isGeneric": true,
+          "isCustomized": false
+        },
+        "year": 2020,
+        "isAcro": false,
+        "isMiniWing": false,
+        "isSingleSkin": false
+      },
+      "competitionId": "58",
+      "size": "MS",
+      "certification": {
+        "name": "EN-C",
+        "defaultPolar": {
+          "name": "EN-C",
+          "a": 28.89,
+          "b": -18.67,
+          "c": 4.1,
+          "isGeneric": true,
+          "isCustomized": false
+        },
+        "startYear": 2007
+      }
+    }
+  ],
+  "hideReplayControls": false,
+  "highlightObstaclesOnMap": false,
+  "integrations": {
+    "integrations": []
+  },
+  "lastCheckedOfflineMaps": "2026-05-14T09:17:55.797257",
+  "lastKnownPosition": {
+    "timestamp": 16493565,
+    "dateTime": "2026-05-15T06:25:55.994Z",
+    "fixQuality": "good",
+    "latLng": {
+      "latitude": 0.9053494676528244,
+      "longitude": 0.002338895930961457
+    },
+    "gpsAltitude": 96.00683909152721,
+    "groundSpeed": 0.10738041996955872,
+    "track": 1.6283360739300972,
+    "isEmulated": false
+  },
+  "lastLoginMethod": "password",
+  "lastSettingsTrim": "2026-05-09T09:46:45.258442",
+  "lastUpdatedOfflineDailyAirspace": "2026-05-13T22:58:28.385163",
+  "lastUpdatedOfflineObstacles": "2026-05-13T22:58:29.031917",
+  "lastUpdatedOfflineWeatherSet": [],
+  "lowMemoryCounter": 0,
+  "macCready": 0.0,
+  "mapsConfiguration": {
+    "maps": [],
+    "layers": []
+  },
+  "migratedClassGAirspaceDisplayStyle": true,
+  "migratedDistanceCircles": true,
+  "migratedForcedXAlpsAirspace": false,
+  "migratedLayoutPages": true,
+  "migratedLiveWind_2": true,
+  "migratedOfflineMapsSelection": true,
+  "migratedShow20percentArc": false,
+  "migratedTempFlightRestriction": true,
+  "obstaclesTimeouts": [],
+  "offlineMapsOnDevice": [
+    "europe-greece-n41-e22",
+    "europe-united-kingdom-n53-w2",
+    "europe-united-kingdom-n51-w2"
+  ],
+  "offlineMaps": [
+    "europe-greece-n41-e22",
+    "europe-united-kingdom-n53-w2",
+    "europe-united-kingdom-n51-w2"
+  ],
+  "ognLogging": false,
+  "ognUpdatePeriod": 10,
+  "peripheralTree": {
+    "deviceNodes": [
+      {
+        "deviceId": {
+          "id": "peripheralDevice",
+          "type": "PeripheralDevice"
+        },
+        "inputPortId": {
+          "id": "dummyPeripheralInputPort",
+          "type": "NopDevicePort"
+        },
+        "outputPortsIds": []
+      }
+    ],
+    "deviceSettings": [
+      {
+        "type": "DeviceSettings",
+        "did": "peripheralDevice"
+      }
+    ],
+    "portSettings": [
+      {
+        "type": "DevicePortSettings",
+        "pid": "dummyPeripheralInputPort",
+        "autoConnect": true
+      }
+    ]
+  },
+  "radarAliasConfig": {
+    "mode": 0
+  },
+  "recentTargets": [
+    {
+      "type": "FlightPhaseTarget",
+      "name": "Takeoff",
+      "latLngAlt": {
+        "latitude": 0.7228338450729688,
+        "longitude": 0.38024654281050163,
+        "altitude": 376.5257591209702
+      }
+    }
+  ],
+  "recentTasks": [
+    {
+      "name": "85.3 km Polygon",
+      "modified": "2025-08-23T12:19:38.699554",
+      "task": {
+        "turnpoints": [
+          {
+            "name": "D01",
+            "code": "",
+            "latLngAlt": {
+              "latitude": 0.7215801992982755,
+              "longitude": 0.37100167203670625,
+              "altitude": 1410.0
+            },
+            "radius": 400,
+            "angle": 3.141592653589793,
+            "innerRadius": 0,
+            "innerAngle": 0.0,
+            "shape": "cylinder",
+            "direction": 0.0,
+            "directionType": "toNext"
+          },
+          {
+            "name": "B21",
+            "code": "",
+            "latLngAlt": {
+              "latitude": 0.7238870009706365,
+              "longitude": 0.37225551657133893,
+              "altitude": 640.0
+            },
+            "radius": 14000,
+            "angle": 3.141592653589793,
+            "innerRadius": 0,
+            "innerAngle": 0.0,
+            "shape": "cylinder",
+            "direction": 0.0,
+            "directionType": "symmetric"
+          },
+          {
+            "name": "B30",
+            "code": "",
+            "latLngAlt": {
+              "latitude": 0.7186859197996933,
+              "longitude": 0.3768397983846273,
+              "altitude": 804.0
+            },
+            "radius": 17000,
+            "angle": 3.141592653589793,
+            "innerRadius": 0,
+            "innerAngle": 0.0,
+            "shape": "cylinder",
+            "direction": 0.0,
+            "directionType": "symmetric"
+          },
+          {
+            "name": "A08",
+            "code": "",
+            "latLngAlt": {
+              "latitude": 0.7147502023364463,
+              "longitude": 0.3735383335715548,
+              "altitude": 600.0
+            },
+            "radius": 2000,
+            "angle": 3.141592653589793,
+            "innerRadius": 0,
+            "innerAngle": 0.0,
+            "shape": "cylinder",
+            "direction": 0.0,
+            "directionType": "symmetric"
+          },
+          {
+            "name": "A08",
+            "code": "",
+            "latLngAlt": {
+              "latitude": 0.7147502023364463,
+              "longitude": 0.3735383335715548,
+              "altitude": 600.0
+            },
+            "radius": 400,
+            "angle": 3.141592653589793,
+            "innerRadius": 0,
+            "innerAngle": 0.0,
+            "shape": "cylinder",
+            "direction": 0.0,
+            "directionType": "toPrevious"
+          }
+        ],
+        "taskType": "raceToGoal",
+        "raceStart": 49800,
+        "deadline": 82800,
+        "sssIndex": 1,
+        "essIndex": 3,
+        "startProcedure": "oneGate",
+        "numberOfGates": 1,
+        "finish1000mBelow": false,
+        "visualStartDirection": "onExit"
+      }
+    },
+    {
+      "name": "129.5 km Polygon",
+      "modified": "2025-08-23T10:52:48.606094",
+      "task": {
+        "turnpoints": [
+          {
+            "name": "D01",
+            "code": "",
+            "latLngAlt": {
+              "latitude": 0.7215801992982755,
+              "longitude": 0.37100167203670625,
+              "altitude": 1410.0
+            },
+            "radius": 800,
+            "angle": 3.141592653589793,
+            "innerRadius": 0,
+            "innerAngle": 0.0,
+            "shape": "cylinder",
+            "direction": 0.0,
+            "directionType": "toNext"
+          },
+          {
+            "name": "V07",
+            "code": "",
+            "latLngAlt": {
+              "latitude": 0.7315722092659431,
+              "longitude": 0.3739572125920334,
+              "altitude": 395.0
+            },
+            "radius": 63000,
+            "angle": 3.141592653589793,
+            "innerRadius": 0,
+            "innerAngle": 0.0,
+            "shape": "cylinder",
+            "direction": 0.0,
+            "directionType": "symmetric"
+          },
+          {
+            "name": "V07",
+            "code": "",
+            "latLngAlt": {
+              "latitude": 0.7315722092659431,
+              "longitude": 0.3739572125920334,
+              "altitude": 395.0
+            },
+            "radius": 53000,
+            "angle": 3.141592653589793,
+            "innerRadius": 0,
+            "innerAngle": 0.0,
+            "shape": "cylinder",
+            "direction": 0.0,
+            "directionType": "symmetric"
+          },
+          {
+            "name": "V07",
+            "code": "",
+            "latLngAlt": {
+              "latitude": 0.7315722092659431,
+              "longitude": 0.3739572125920334,
+              "altitude": 395.0
+            },
+            "radius": 64000,
+            "angle": 3.141592653589793,
+            "innerRadius": 0,
+            "innerAngle": 0.0,
+            "shape": "cylinder",
+            "direction": 0.0,
+            "directionType": "symmetric"
+          },
+          {
+            "name": "V07",
+            "code": "",
+            "latLngAlt": {
+              "latitude": 0.7315722092659431,
+              "longitude": 0.3739572125920334,
+              "altitude": 395.0
+            },
+            "radius": 57000,
+            "angle": 3.141592653589793,
+            "innerRadius": 0,
+            "innerAngle": 0.0,
+            "shape": "cylinder",
+            "direction": 0.0,
+            "directionType": "symmetric"
+          },
+          {
+            "name": "A10",
+            "code": "",
+            "latLngAlt": {
+              "latitude": 0.7214550591909076,
+              "longitude": 0.37437609161251206,
+              "altitude": 620.0
+            },
+            "radius": 2000,
+            "angle": 3.141592653589793,
+            "innerRadius": 0,
+            "innerAngle": 0.0,
+            "shape": "cylinder",
+            "direction": 0.0,
+            "directionType": "symmetric"
+          },
+          {
+            "name": "A10",
+            "code": "",
+            "latLngAlt": {
+              "latitude": 0.7214550591909076,
+              "longitude": 0.37437609161251206,
+              "altitude": 620.0
+            },
+            "radius": 400,
+            "angle": 3.141592653589793,
+            "innerRadius": 0,
+            "innerAngle": 0.0,
+            "shape": "cylinder",
+            "direction": 0.0,
+            "directionType": "toPrevious"
+          }
+        ],
+        "taskType": "raceToGoal",
+        "raceStart": 43200,
+        "deadline": 82800,
+        "sssIndex": 1,
+        "essIndex": 5,
+        "startProcedure": "oneGate",
+        "numberOfGates": 1,
+        "finish1000mBelow": false,
+        "visualStartDirection": "onExit"
+      }
+    },
+    {
+      "name": "260.3 km Polygon",
+      "modified": "2025-08-20T10:43:06.834132",
+      "task": {
+        "turnpoints": [
+          {
+            "name": "D01",
+            "code": "",
+            "latLngAlt": {
+              "latitude": 0.7215801992982755,
+              "longitude": 0.37100167203670625,
+              "altitude": 1410.0
+            },
+            "radius": 400,
+            "angle": 3.141592653589793,
+            "innerRadius": 0,
+            "innerAngle": 0.0,
+            "shape": "cylinder",
+            "direction": 0.0,
+            "directionType": "toNext"
+          },
+          {
+            "name": "V01",
+            "code": "",
+            "latLngAlt": {
+              "latitude": 0.7113583294681204,
+              "longitude": 0.3745563841242431,
+              "altitude": 646.0
+            },
+            "radius": 67000,
+            "angle": 3.141592653589793,
+            "innerRadius": 0,
+            "innerAngle": 0.0,
+            "shape": "cylinder",
+            "direction": 0.0,
+            "directionType": "symmetric"
+          },
+          {
+            "name": "V01",
+            "code": "",
+            "latLngAlt": {
+              "latitude": 0.7113583294681204,
+              "longitude": 0.3745563841242431,
+              "altitude": 646.0
+            },
+            "radius": 55000,
+            "angle": 3.141592653589793,
+            "innerRadius": 0,
+            "innerAngle": 0.0,
+            "shape": "cylinder",
+            "direction": 0.0,
+            "directionType": "symmetric"
+          },
+          {
+            "name": "V07",
+            "code": "",
+            "latLngAlt": {
+              "latitude": 0.7315722092659431,
+              "longitude": 0.3739572125920334,
+              "altitude": 395.0
+            },
+            "radius": 57000,
+            "angle": 3.141592653589793,
+            "innerRadius": 0,
+            "innerAngle": 0.0,
+            "shape": "cylinder",
+            "direction": 0.0,
+            "directionType": "symmetric"
+          },
+          {
+            "name": "A10",
+            "code": "",
+            "latLngAlt": {
+              "latitude": 0.7214550591909076,
+              "longitude": 0.37437609161251206,
+              "altitude": 620.0
+            },
+            "radius": 2000,
+            "angle": 3.141592653589793,
+            "innerRadius": 0,
+            "innerAngle": 0.0,
+            "shape": "cylinder",
+            "direction": 0.0,
+            "directionType": "symmetric"
+          },
+          {
+            "name": "A10",
+            "code": "",
+            "latLngAlt": {
+              "latitude": 0.7214550591909076,
+              "longitude": 0.37437609161251206,
+              "altitude": 620.0
+            },
+            "radius": 400,
+            "angle": 3.141592653589793,
+            "innerRadius": 0,
+            "innerAngle": 0.0,
+            "shape": "cylinder",
+            "direction": 0.0,
+            "directionType": "toPrevious"
+          }
+        ],
+        "taskType": "raceToGoal",
+        "raceStart": 43200,
+        "deadline": 82800,
+        "sssIndex": 1,
+        "essIndex": 4,
+        "startProcedure": "oneGate",
+        "numberOfGates": 1,
+        "finish1000mBelow": false,
+        "visualStartDirection": "onExit"
+      }
+    }
+  ],
+  "recordedIgcFiles": [
+    "2025-08-07-XNA-24EBEC5598020FBDFCD5999D75B74E2F-01.igc",
+    "2025-08-08-XNA-24EBEC5598020FBDFCD5999D75B74E2F-01.igc",
+    "2025-08-08-XNA-24EBEC5598020FBDFCD5999D75B74E2F-02.igc",
+    "2025-08-16-XNA-7511E89CE375BA968255604FF9F3471F-01.igc",
+    "2025-08-17-XNA-7511E89CE375BA968255604FF9F3471F-01.igc",
+    "2025-08-17-XNA-7511E89CE375BA968255604FF9F3471F-02.igc",
+    "2025-08-19-XNA-7511E89CE375BA968255604FF9F3471F-01.igc",
+    "2025-08-23-XNA-7511E89CE375BA968255604FF9F3471F-01.igc",
+    "2025-08-23-XNA-7511E89CE375BA968255604FF9F3471F-02.igc",
+    "2026-05-09-XNA-D740A518060FDB4F61CC143B01412674-01.igc"
+  ],
+  "recoveryCodeCounter": 1,
+  "renamedRadarTargets": {},
+  "safetyAltitudeReserve": 0.0,
+  "savedCopilots": [],
+  "savedLayouts": [
+    {
+      "name": "NavigatorLayout",
+      "modified": "2025-08-02T11:22:45.549475",
+      "layout": {
+        "pages": [
+          {
+            "navboxes": [
+              {
+                "uuid": "b8a47403-8554-4ad9-9678-ca6249f6daaf",
+                "type": "Time",
+                "left": 0.375,
+                "top": 0.0,
+                "width": 0.25,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "047f3b4a-fcff-4a7c-b9f3-4f64a25c0b5f",
+                "type": "Compass",
+                "right": 0.0,
+                "top": 0.2,
+                "width": 0.2,
+                "height": 0.1504,
+                "color": "#ffffff",
+                "opacity": 0.0,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "5e89fdde-528a-4654-b04a-84651aa7be8e",
+                "type": "Altitude",
+                "left": 0.0,
+                "bottom": 0.2,
+                "width": 0.3333,
+                "height": 0.2222,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "6dc0083a-4b4b-4bff-b969-b9a57f4c2316",
+                "type": "GroundSpeed",
+                "right": 0.0,
+                "bottom": 0.2,
+                "width": 0.3333,
+                "height": 0.2222,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "67e8c75e-d4a3-42c2-b531-a1f24658c3ac",
+                "type": "GlideRatio",
+                "left": 0.3333,
+                "bottom": 0.2,
+                "width": 0.3333,
+                "height": 0.2222,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "0bfe5796-0a5f-4e79-9d2c-e5b73a902e44",
+                "type": "Distance",
+                "left": 0.5,
+                "bottom": 0.0,
+                "width": 0.25,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "fbd35b68-0f23-484c-8ac0-bbf67873bd31",
+                "type": "To",
+                "right": 0.0,
+                "bottom": 0.0,
+                "width": 0.25,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "b2a42355-e669-4ef9-94cc-a0f13ab60195",
+                "type": "Scale",
+                "left": 0.0,
+                "bottom": 0.4222,
+                "width": 0.333,
+                "height": 0.061,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "471fd6d9-24de-45ef-ae86-3bff960cf878",
+                "type": "Circling",
+                "right": 0.0,
+                "bottom": 0.4222,
+                "width": 0.1,
+                "height": 0.1,
+                "color": "#ffffff",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "18cc8a17-fd80-4448-884a-927ba049f157",
+                "type": "Compass",
+                "left": 0.0209,
+                "top": 0.1667,
+                "width": 0.125,
+                "height": 0.125,
+                "orientation": "landscape",
+                "color": "#ffffff",
+                "opacity": 0.0,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "9ed392fe-d23c-4195-90f5-d69dec0e7e70",
+                "type": "Time",
+                "right": 0.2,
+                "top": 0.0,
+                "width": 0.25,
+                "height": 0.2,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "fe61b9f8-01cd-491f-8c9e-3340779edef9",
+                "type": "GlideRatio",
+                "right": 0.5,
+                "bottom": 0.0,
+                "width": 0.3125,
+                "height": 0.25,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "914222c7-62eb-4339-a7d1-e5c0d0a71429",
+                "type": "Altitude",
+                "left": 0.0,
+                "bottom": 0.0,
+                "width": 0.5,
+                "height": 0.3333,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "bf6656fc-1ece-4178-adac-c1e47e4938cf",
+                "type": "GroundSpeed",
+                "right": 0.0,
+                "bottom": 0.0,
+                "width": 0.5,
+                "height": 0.3333,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "e5fb0862-66b2-43a3-afdd-c9200da282d6",
+                "type": "Scale",
+                "left": 0.0,
+                "bottom": 0.3333,
+                "width": 0.333,
+                "height": 0.067,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "2081138f-9bd2-4995-870b-a9759c39d33c",
+                "type": "Target",
+                "left": 0.0,
+                "bottom": 0.0,
+                "width": 0.5,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "bf7e3bf1-3143-4c33-a645-6a6210a9766c",
+                "type": "FlownDistance",
+                "left": 0.5,
+                "bottom": 0.0,
+                "width": 0.3125,
+                "height": 0.25,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "0fc22585-a0ca-4bd6-8eb1-e018d1fffe7e",
+                "type": "ZoomInButton",
+                "right": 0.0,
+                "bottom": 0.8831,
+                "width": 0.2,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "c2a8c783-aeb4-4e39-8e13-edde1c110bfa",
+                "type": "ZoomOutButton",
+                "right": 0.0,
+                "bottom": 0.6031,
+                "width": 0.2,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "c4a5bbd7-1c2d-4bed-809b-fc54c5c5e0d7",
+                "type": "ZoomInButton",
+                "right": 0.0,
+                "top": 0.2667,
+                "width": 0.2,
+                "height": 0.2,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "8f942f4d-7910-42a3-a7e0-522e3d7004de",
+                "type": "ZoomOutButton",
+                "right": 0.0,
+                "bottom": 0.3333,
+                "width": 0.2,
+                "height": 0.2,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "28813bdf-224e-4097-841c-44dd1cca1cf9",
+                "type": "AutoZoomButton",
+                "right": 0.0,
+                "bottom": 0.8031,
+                "width": 0.2,
+                "height": 0.08,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "7eead674-da48-4598-8219-c6fa94099764",
+                "type": "Battery",
+                "left": 0.2083,
+                "top": 0.0373,
+                "width": 0.1667,
+                "height": 0.1253,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "07ae2a3d-492e-4943-a49f-dc4e05d9daf8",
+                "type": "GpsSignal",
+                "right": 0.2083,
+                "top": 0.0667,
+                "width": 0.1667,
+                "height": 0.0667,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "56fa9670-3d14-43d0-b9b8-5d45a735a3f0",
+                "type": "Battery",
+                "right": 0.45,
+                "top": 0.0167,
+                "width": 0.2217,
+                "height": 0.1667,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "07f8d511-43dc-4529-82d3-0a0a250c6b85",
+                "type": "AutoZoomButton",
+                "left": 0.0,
+                "bottom": 0.4003,
+                "width": 0.2217,
+                "height": 0.1667,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              }
+            ],
+            "selectedMapId": "",
+            "visibleLayerIds": [],
+            "userSymbolAlignment": {
+              "trackUpPortrait": [
+                0.0,
+                0.3
+              ],
+              "northUpPortrait": [
+                0.0,
+                0.0
+              ],
+              "circlingPortrait": [
+                0.0,
+                0.0
+              ],
+              "trackUpLandscape": [
+                0.0,
+                0.3
+              ],
+              "northUpLandscape": [
+                0.0,
+                0.0
+              ],
+              "circlingLandscape": [
+                0.0,
+                0.0
+              ]
+            }
+          },
+          {
+            "navboxes": [
+              {
+                "uuid": "b8a47403-8554-4ad9-9678-ca6249f6daaf",
+                "type": "Time",
+                "left": 0.375,
+                "top": 0.0,
+                "width": 0.25,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "047f3b4a-fcff-4a7c-b9f3-4f64a25c0b5f",
+                "type": "Compass",
+                "right": 0.0,
+                "top": 0.2,
+                "width": 0.2,
+                "height": 0.1504,
+                "color": "#ffffff",
+                "opacity": 0.0,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "5e89fdde-528a-4654-b04a-84651aa7be8e",
+                "type": "Altitude",
+                "left": 0.0,
+                "bottom": 0.2,
+                "width": 0.3333,
+                "height": 0.2222,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "6dc0083a-4b4b-4bff-b969-b9a57f4c2316",
+                "type": "GroundSpeed",
+                "right": 0.0,
+                "bottom": 0.2,
+                "width": 0.3333,
+                "height": 0.2222,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "67e8c75e-d4a3-42c2-b531-a1f24658c3ac",
+                "type": "GlideRatio",
+                "left": 0.0,
+                "bottom": 0.4832,
+                "width": 0.3333,
+                "height": 0.2222,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "0bfe5796-0a5f-4e79-9d2c-e5b73a902e44",
+                "type": "Distance",
+                "right": 0.25,
+                "bottom": 0.0,
+                "width": 0.25,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "fbd35b68-0f23-484c-8ac0-bbf67873bd31",
+                "type": "To",
+                "right": 0.0,
+                "bottom": 0.0,
+                "width": 0.25,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "b2a42355-e669-4ef9-94cc-a0f13ab60195",
+                "type": "Scale",
+                "left": 0.0,
+                "bottom": 0.4222,
+                "width": 0.333,
+                "height": 0.061,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "471fd6d9-24de-45ef-ae86-3bff960cf878",
+                "type": "Circling",
+                "right": 0.0,
+                "bottom": 0.4222,
+                "width": 0.1,
+                "height": 0.1,
+                "color": "#ffffff",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "18cc8a17-fd80-4448-884a-927ba049f157",
+                "type": "Compass",
+                "left": 0.0209,
+                "top": 0.1667,
+                "width": 0.125,
+                "height": 0.125,
+                "orientation": "landscape",
+                "color": "#ffffff",
+                "opacity": 0.0,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "9ed392fe-d23c-4195-90f5-d69dec0e7e70",
+                "type": "Time",
+                "right": 0.2,
+                "top": 0.0,
+                "width": 0.25,
+                "height": 0.2,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "fe61b9f8-01cd-491f-8c9e-3340779edef9",
+                "type": "GlideRatio",
+                "right": 0.5,
+                "bottom": 0.0,
+                "width": 0.3125,
+                "height": 0.25,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "914222c7-62eb-4339-a7d1-e5c0d0a71429",
+                "type": "Altitude",
+                "left": 0.0,
+                "bottom": 0.0,
+                "width": 0.5,
+                "height": 0.3333,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "bf6656fc-1ece-4178-adac-c1e47e4938cf",
+                "type": "GroundSpeed",
+                "right": 0.0,
+                "bottom": 0.0,
+                "width": 0.5,
+                "height": 0.3333,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "e5fb0862-66b2-43a3-afdd-c9200da282d6",
+                "type": "Scale",
+                "left": 0.0,
+                "bottom": 0.3333,
+                "width": 0.333,
+                "height": 0.067,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "2081138f-9bd2-4995-870b-a9759c39d33c",
+                "type": "Target",
+                "left": 0.0,
+                "bottom": 0.0,
+                "width": 0.5,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "bf7e3bf1-3143-4c33-a645-6a6210a9766c",
+                "type": "FlownDistance",
+                "left": 0.5,
+                "bottom": 0.0,
+                "width": 0.3125,
+                "height": 0.25,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "0fc22585-a0ca-4bd6-8eb1-e018d1fffe7e",
+                "type": "ZoomInButton",
+                "right": 0.0,
+                "bottom": 0.8831,
+                "width": 0.2,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "c2a8c783-aeb4-4e39-8e13-edde1c110bfa",
+                "type": "ZoomOutButton",
+                "right": 0.0,
+                "top": 0.3504,
+                "width": 0.2,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "c4a5bbd7-1c2d-4bed-809b-fc54c5c5e0d7",
+                "type": "ZoomInButton",
+                "right": 0.0,
+                "top": 0.2667,
+                "width": 0.2,
+                "height": 0.2,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "8f942f4d-7910-42a3-a7e0-522e3d7004de",
+                "type": "ZoomOutButton",
+                "right": 0.0,
+                "bottom": 0.3333,
+                "width": 0.2,
+                "height": 0.2,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "28813bdf-224e-4097-841c-44dd1cca1cf9",
+                "type": "AutoZoomButton",
+                "right": 0.0,
+                "bottom": 0.8031,
+                "width": 0.2,
+                "height": 0.08,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "7eead674-da48-4598-8219-c6fa94099764",
+                "type": "Battery",
+                "left": 0.2083,
+                "top": 0.0373,
+                "width": 0.1667,
+                "height": 0.1253,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "07ae2a3d-492e-4943-a49f-dc4e05d9daf8",
+                "type": "GpsSignal",
+                "right": 0.2083,
+                "top": 0.0667,
+                "width": 0.1667,
+                "height": 0.0667,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "56fa9670-3d14-43d0-b9b8-5d45a735a3f0",
+                "type": "Battery",
+                "right": 0.45,
+                "top": 0.0167,
+                "width": 0.2217,
+                "height": 0.1667,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "07f8d511-43dc-4529-82d3-0a0a250c6b85",
+                "type": "AutoZoomButton",
+                "left": 0.0,
+                "bottom": 0.4003,
+                "width": 0.2217,
+                "height": 0.1667,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              }
+            ],
+            "name": "Task",
+            "selectedMapId": "",
+            "visibleLayerIds": [],
+            "userSymbolAlignment": {
+              "trackUpPortrait": [
+                0.0,
+                0.3
+              ],
+              "northUpPortrait": [
+                0.0,
+                0.0
+              ],
+              "circlingPortrait": [
+                0.0,
+                0.0
+              ],
+              "trackUpLandscape": [
+                0.0,
+                0.3
+              ],
+              "northUpLandscape": [
+                0.0,
+                0.0
+              ],
+              "circlingLandscape": [
+                0.0,
+                0.0
+              ]
+            }
+          }
+        ],
+        "persistentNavboxes": [
+          {
+            "uuid": "14948bde-7cf1-4e74-a278-e920d0ecdaff",
+            "type": "MenuButton",
+            "left": 0.0,
+            "top": 0.0,
+            "width": 0.2,
+            "height": 0.2,
+            "color": "#000000",
+            "opacity": 0.0,
+            "outlineMode": "coloredOutline"
+          },
+          {
+            "uuid": "e2c103bd-7618-486d-b9df-34e1d9e0c99c",
+            "type": "LayersButton",
+            "right": 0.0,
+            "top": 0.0,
+            "width": 0.2,
+            "height": 0.2,
+            "color": "#000000",
+            "opacity": 0.0,
+            "outlineMode": "coloredOutline"
+          },
+          {
+            "uuid": "f0a3a67b-d31d-4105-922c-54ab3781b225",
+            "type": "MenuButton",
+            "left": 0.0,
+            "top": 0.0,
+            "width": 0.1667,
+            "height": 0.1667,
+            "orientation": "landscape",
+            "color": "#000000",
+            "opacity": 0.0,
+            "outlineMode": "coloredOutline"
+          },
+          {
+            "uuid": "e1a53f49-328d-4c49-9a92-e5cb6ea795de",
+            "type": "LayersButton",
+            "right": 0.0167,
+            "top": 0.0,
+            "width": 0.1667,
+            "height": 0.1667,
+            "orientation": "landscape",
+            "color": "#000000",
+            "opacity": 0.0,
+            "outlineMode": "coloredOutline"
+          },
+          {
+            "uuid": "ba902548-960e-4e6a-b1d1-18ab0c779edd",
+            "type": "Page",
+            "left": 0.3334,
+            "top": 0.3889,
+            "width": 0.3333,
+            "height": 0.2222,
+            "color": "#000000",
+            "opacity": 0.3,
+            "outlineMode": "none"
+          },
+          {
+            "uuid": "4cb3ab84-9eef-4935-938e-ddeef5e47eda",
+            "type": "Page",
+            "left": 0.25,
+            "top": 0.3334,
+            "width": 0.5,
+            "height": 0.3333,
+            "orientation": "landscape",
+            "color": "#000000",
+            "opacity": 0.3,
+            "outlineMode": "none"
+          }
+        ],
+        "version": 3,
+        "isFallback": false
+      }
+    },
+    {
+      "name": "SeeYou",
+      "modified": "2025-08-02T11:24:28.011981",
+      "layout": {
+        "pages": [
+          {
+            "navboxes": [
+              {
+                "uuid": "b8a47403-8554-4ad9-9678-ca6249f6daaf",
+                "type": "Time",
+                "left": 0.375,
+                "top": 0.0,
+                "width": 0.25,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "047f3b4a-fcff-4a7c-b9f3-4f64a25c0b5f",
+                "type": "Compass",
+                "right": 0.0,
+                "top": 0.2,
+                "width": 0.2,
+                "height": 0.1504,
+                "color": "#ffffff",
+                "opacity": 0.0,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "5e89fdde-528a-4654-b04a-84651aa7be8e",
+                "type": "Altitude",
+                "left": 0.0,
+                "bottom": 0.2,
+                "width": 0.3333,
+                "height": 0.2222,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "6dc0083a-4b4b-4bff-b969-b9a57f4c2316",
+                "type": "GroundSpeed",
+                "right": 0.0,
+                "bottom": 0.2,
+                "width": 0.3333,
+                "height": 0.2222,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "67e8c75e-d4a3-42c2-b531-a1f24658c3ac",
+                "type": "GlideRatio",
+                "left": 0.3333,
+                "bottom": 0.2,
+                "width": 0.3333,
+                "height": 0.2222,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "0bfe5796-0a5f-4e79-9d2c-e5b73a902e44",
+                "type": "Distance",
+                "left": 0.5,
+                "bottom": 0.0,
+                "width": 0.25,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "fbd35b68-0f23-484c-8ac0-bbf67873bd31",
+                "type": "To",
+                "right": 0.0,
+                "bottom": 0.0,
+                "width": 0.25,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "b2a42355-e669-4ef9-94cc-a0f13ab60195",
+                "type": "Scale",
+                "left": 0.0,
+                "bottom": 0.4222,
+                "width": 0.333,
+                "height": 0.061,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "471fd6d9-24de-45ef-ae86-3bff960cf878",
+                "type": "Circling",
+                "right": 0.0,
+                "bottom": 0.4222,
+                "width": 0.1,
+                "height": 0.1,
+                "color": "#ffffff",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "18cc8a17-fd80-4448-884a-927ba049f157",
+                "type": "Compass",
+                "left": 0.0209,
+                "top": 0.1667,
+                "width": 0.125,
+                "height": 0.125,
+                "orientation": "landscape",
+                "color": "#ffffff",
+                "opacity": 0.0,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "9ed392fe-d23c-4195-90f5-d69dec0e7e70",
+                "type": "Time",
+                "right": 0.2,
+                "top": 0.0,
+                "width": 0.25,
+                "height": 0.2,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "fe61b9f8-01cd-491f-8c9e-3340779edef9",
+                "type": "GlideRatio",
+                "right": 0.5,
+                "bottom": 0.0,
+                "width": 0.3125,
+                "height": 0.25,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "914222c7-62eb-4339-a7d1-e5c0d0a71429",
+                "type": "Altitude",
+                "left": 0.0,
+                "bottom": 0.0,
+                "width": 0.5,
+                "height": 0.3333,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "bf6656fc-1ece-4178-adac-c1e47e4938cf",
+                "type": "GroundSpeed",
+                "right": 0.0,
+                "bottom": 0.0,
+                "width": 0.5,
+                "height": 0.3333,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "e5fb0862-66b2-43a3-afdd-c9200da282d6",
+                "type": "Scale",
+                "left": 0.0,
+                "bottom": 0.3333,
+                "width": 0.333,
+                "height": 0.067,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "2081138f-9bd2-4995-870b-a9759c39d33c",
+                "type": "Target",
+                "left": 0.0,
+                "bottom": 0.0,
+                "width": 0.5,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "bf7e3bf1-3143-4c33-a645-6a6210a9766c",
+                "type": "FlownDistance",
+                "left": 0.5,
+                "bottom": 0.0,
+                "width": 0.3125,
+                "height": 0.25,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "0fc22585-a0ca-4bd6-8eb1-e018d1fffe7e",
+                "type": "ZoomInButton",
+                "right": 0.0,
+                "bottom": 0.8831,
+                "width": 0.2,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "c2a8c783-aeb4-4e39-8e13-edde1c110bfa",
+                "type": "ZoomOutButton",
+                "right": 0.0,
+                "bottom": 0.6031,
+                "width": 0.2,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "c4a5bbd7-1c2d-4bed-809b-fc54c5c5e0d7",
+                "type": "ZoomInButton",
+                "right": 0.0,
+                "top": 0.2667,
+                "width": 0.2,
+                "height": 0.2,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "8f942f4d-7910-42a3-a7e0-522e3d7004de",
+                "type": "ZoomOutButton",
+                "right": 0.0,
+                "bottom": 0.3333,
+                "width": 0.2,
+                "height": 0.2,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "28813bdf-224e-4097-841c-44dd1cca1cf9",
+                "type": "AutoZoomButton",
+                "right": 0.0,
+                "bottom": 0.8031,
+                "width": 0.2,
+                "height": 0.08,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "7eead674-da48-4598-8219-c6fa94099764",
+                "type": "Battery",
+                "left": 0.2083,
+                "top": 0.0373,
+                "width": 0.1667,
+                "height": 0.1253,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "07ae2a3d-492e-4943-a49f-dc4e05d9daf8",
+                "type": "GpsSignal",
+                "right": 0.2083,
+                "top": 0.0667,
+                "width": 0.1667,
+                "height": 0.0667,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "56fa9670-3d14-43d0-b9b8-5d45a735a3f0",
+                "type": "Battery",
+                "right": 0.45,
+                "top": 0.0167,
+                "width": 0.2217,
+                "height": 0.1667,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "07f8d511-43dc-4529-82d3-0a0a250c6b85",
+                "type": "AutoZoomButton",
+                "left": 0.0,
+                "bottom": 0.4003,
+                "width": 0.2217,
+                "height": 0.1667,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              }
+            ],
+            "selectedMapId": "",
+            "visibleLayerIds": [],
+            "userSymbolAlignment": {
+              "trackUpPortrait": [
+                0.0,
+                0.3
+              ],
+              "northUpPortrait": [
+                0.0,
+                0.0
+              ],
+              "circlingPortrait": [
+                0.0,
+                0.0
+              ],
+              "trackUpLandscape": [
+                0.0,
+                0.3
+              ],
+              "northUpLandscape": [
+                0.0,
+                0.0
+              ],
+              "circlingLandscape": [
+                0.0,
+                0.0
+              ]
+            }
+          },
+          {
+            "navboxes": [
+              {
+                "uuid": "b8a47403-8554-4ad9-9678-ca6249f6daaf",
+                "type": "Time",
+                "left": 0.375,
+                "top": 0.0,
+                "width": 0.25,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "047f3b4a-fcff-4a7c-b9f3-4f64a25c0b5f",
+                "type": "Compass",
+                "right": 0.0,
+                "top": 0.2,
+                "width": 0.2,
+                "height": 0.1504,
+                "color": "#ffffff",
+                "opacity": 0.0,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "5e89fdde-528a-4654-b04a-84651aa7be8e",
+                "type": "Altitude",
+                "left": 0.0,
+                "bottom": 0.2,
+                "width": 0.3333,
+                "height": 0.2222,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "6dc0083a-4b4b-4bff-b969-b9a57f4c2316",
+                "type": "GroundSpeed",
+                "right": 0.0,
+                "bottom": 0.2,
+                "width": 0.3333,
+                "height": 0.2222,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "67e8c75e-d4a3-42c2-b531-a1f24658c3ac",
+                "type": "GlideRatio",
+                "left": 0.0,
+                "bottom": 0.4832,
+                "width": 0.3333,
+                "height": 0.2222,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "0bfe5796-0a5f-4e79-9d2c-e5b73a902e44",
+                "type": "Distance",
+                "right": 0.25,
+                "bottom": 0.0,
+                "width": 0.25,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "fbd35b68-0f23-484c-8ac0-bbf67873bd31",
+                "type": "To",
+                "right": 0.0,
+                "bottom": 0.0,
+                "width": 0.25,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "b2a42355-e669-4ef9-94cc-a0f13ab60195",
+                "type": "Scale",
+                "left": 0.0,
+                "bottom": 0.4222,
+                "width": 0.333,
+                "height": 0.061,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "471fd6d9-24de-45ef-ae86-3bff960cf878",
+                "type": "Circling",
+                "right": 0.0,
+                "bottom": 0.4222,
+                "width": 0.1,
+                "height": 0.1,
+                "color": "#ffffff",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "18cc8a17-fd80-4448-884a-927ba049f157",
+                "type": "Compass",
+                "left": 0.0209,
+                "top": 0.1667,
+                "width": 0.125,
+                "height": 0.125,
+                "orientation": "landscape",
+                "color": "#ffffff",
+                "opacity": 0.0,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "9ed392fe-d23c-4195-90f5-d69dec0e7e70",
+                "type": "Time",
+                "right": 0.2,
+                "top": 0.0,
+                "width": 0.25,
+                "height": 0.2,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "fe61b9f8-01cd-491f-8c9e-3340779edef9",
+                "type": "GlideRatio",
+                "right": 0.5,
+                "bottom": 0.0,
+                "width": 0.3125,
+                "height": 0.25,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "914222c7-62eb-4339-a7d1-e5c0d0a71429",
+                "type": "Altitude",
+                "left": 0.0,
+                "bottom": 0.0,
+                "width": 0.5,
+                "height": 0.3333,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "bf6656fc-1ece-4178-adac-c1e47e4938cf",
+                "type": "GroundSpeed",
+                "right": 0.0,
+                "bottom": 0.0,
+                "width": 0.5,
+                "height": 0.3333,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "e5fb0862-66b2-43a3-afdd-c9200da282d6",
+                "type": "Scale",
+                "left": 0.0,
+                "bottom": 0.3333,
+                "width": 0.333,
+                "height": 0.067,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "2081138f-9bd2-4995-870b-a9759c39d33c",
+                "type": "Target",
+                "left": 0.0,
+                "bottom": 0.0,
+                "width": 0.5,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "bf7e3bf1-3143-4c33-a645-6a6210a9766c",
+                "type": "FlownDistance",
+                "left": 0.5,
+                "bottom": 0.0,
+                "width": 0.3125,
+                "height": 0.25,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "0fc22585-a0ca-4bd6-8eb1-e018d1fffe7e",
+                "type": "ZoomInButton",
+                "right": 0.0,
+                "bottom": 0.8831,
+                "width": 0.2,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "c2a8c783-aeb4-4e39-8e13-edde1c110bfa",
+                "type": "ZoomOutButton",
+                "right": 0.0,
+                "top": 0.3504,
+                "width": 0.2,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "c4a5bbd7-1c2d-4bed-809b-fc54c5c5e0d7",
+                "type": "ZoomInButton",
+                "right": 0.0,
+                "top": 0.2667,
+                "width": 0.2,
+                "height": 0.2,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "8f942f4d-7910-42a3-a7e0-522e3d7004de",
+                "type": "ZoomOutButton",
+                "right": 0.0,
+                "bottom": 0.3333,
+                "width": 0.2,
+                "height": 0.2,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "28813bdf-224e-4097-841c-44dd1cca1cf9",
+                "type": "AutoZoomButton",
+                "right": 0.0,
+                "bottom": 0.8031,
+                "width": 0.2,
+                "height": 0.08,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "7eead674-da48-4598-8219-c6fa94099764",
+                "type": "Battery",
+                "left": 0.2083,
+                "top": 0.0373,
+                "width": 0.1667,
+                "height": 0.1253,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "07ae2a3d-492e-4943-a49f-dc4e05d9daf8",
+                "type": "GpsSignal",
+                "right": 0.2083,
+                "top": 0.0667,
+                "width": 0.1667,
+                "height": 0.0667,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "56fa9670-3d14-43d0-b9b8-5d45a735a3f0",
+                "type": "Battery",
+                "right": 0.45,
+                "top": 0.0167,
+                "width": 0.2217,
+                "height": 0.1667,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "07f8d511-43dc-4529-82d3-0a0a250c6b85",
+                "type": "AutoZoomButton",
+                "left": 0.0,
+                "bottom": 0.4003,
+                "width": 0.2217,
+                "height": 0.1667,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              }
+            ],
+            "name": "Task",
+            "selectedMapId": "",
+            "visibleLayerIds": [],
+            "userSymbolAlignment": {
+              "trackUpPortrait": [
+                0.0,
+                0.3
+              ],
+              "northUpPortrait": [
+                0.0,
+                0.0
+              ],
+              "circlingPortrait": [
+                0.0,
+                0.0
+              ],
+              "trackUpLandscape": [
+                0.0,
+                0.3
+              ],
+              "northUpLandscape": [
+                0.0,
+                0.0
+              ],
+              "circlingLandscape": [
+                0.0,
+                0.0
+              ]
+            }
+          }
+        ],
+        "persistentNavboxes": [
+          {
+            "uuid": "14948bde-7cf1-4e74-a278-e920d0ecdaff",
+            "type": "MenuButton",
+            "left": 0.0,
+            "top": 0.0,
+            "width": 0.2,
+            "height": 0.2,
+            "color": "#000000",
+            "opacity": 0.0,
+            "outlineMode": "coloredOutline"
+          },
+          {
+            "uuid": "e2c103bd-7618-486d-b9df-34e1d9e0c99c",
+            "type": "LayersButton",
+            "right": 0.0,
+            "top": 0.0,
+            "width": 0.2,
+            "height": 0.2,
+            "color": "#000000",
+            "opacity": 0.0,
+            "outlineMode": "coloredOutline"
+          },
+          {
+            "uuid": "f0a3a67b-d31d-4105-922c-54ab3781b225",
+            "type": "MenuButton",
+            "left": 0.0,
+            "top": 0.0,
+            "width": 0.1667,
+            "height": 0.1667,
+            "orientation": "landscape",
+            "color": "#000000",
+            "opacity": 0.0,
+            "outlineMode": "coloredOutline"
+          },
+          {
+            "uuid": "e1a53f49-328d-4c49-9a92-e5cb6ea795de",
+            "type": "LayersButton",
+            "right": 0.0167,
+            "top": 0.0,
+            "width": 0.1667,
+            "height": 0.1667,
+            "orientation": "landscape",
+            "color": "#000000",
+            "opacity": 0.0,
+            "outlineMode": "coloredOutline"
+          },
+          {
+            "uuid": "ba902548-960e-4e6a-b1d1-18ab0c779edd",
+            "type": "Page",
+            "left": 0.3334,
+            "top": 0.3889,
+            "width": 0.3333,
+            "height": 0.2222,
+            "color": "#000000",
+            "opacity": 0.3,
+            "outlineMode": "none"
+          },
+          {
+            "uuid": "4cb3ab84-9eef-4935-938e-ddeef5e47eda",
+            "type": "Page",
+            "left": 0.25,
+            "top": 0.3334,
+            "width": 0.5,
+            "height": 0.3333,
+            "orientation": "landscape",
+            "color": "#000000",
+            "opacity": 0.3,
+            "outlineMode": "none"
+          }
+        ],
+        "version": 3,
+        "isFallback": false
+      }
+    },
+    {
+      "name": "test-layout",
+      "modified": "2025-08-15T11:52:05.165578",
+      "layout": {
+        "pages": [
+          {
+            "navboxes": [
+              {
+                "uuid": "b8a47403-8554-4ad9-9678-ca6249f6daaf",
+                "type": "Time",
+                "left": 0.3285,
+                "bottom": 0.2497,
+                "width": 0.3333,
+                "height": 0.2222,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "5e89fdde-528a-4654-b04a-84651aa7be8e",
+                "type": "Altitude",
+                "left": 0.2,
+                "top": -0.0222,
+                "width": 0.3333,
+                "height": 0.2222,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "6dc0083a-4b4b-4bff-b969-b9a57f4c2316",
+                "type": "GroundSpeed",
+                "right": 0.0049,
+                "bottom": 0.2497,
+                "width": 0.3333,
+                "height": 0.2222,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "67e8c75e-d4a3-42c2-b531-a1f24658c3ac",
+                "type": "GlideRatio",
+                "left": 0.0,
+                "top": 0.1867,
+                "width": 0.3333,
+                "height": 0.2222,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "0bfe5796-0a5f-4e79-9d2c-e5b73a902e44",
+                "type": "Distance",
+                "left": 0.3702,
+                "bottom": 0.0275,
+                "width": 0.3333,
+                "height": 0.2222,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "fbd35b68-0f23-484c-8ac0-bbf67873bd31",
+                "type": "To",
+                "right": 0.0465,
+                "bottom": 0.0497,
+                "width": 0.25,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "b2a42355-e669-4ef9-94cc-a0f13ab60195",
+                "type": "Scale",
+                "left": 0.0,
+                "bottom": 0.4222,
+                "width": 0.333,
+                "height": 0.061,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "471fd6d9-24de-45ef-ae86-3bff960cf878",
+                "type": "Circling",
+                "right": 0.0,
+                "bottom": 0.4222,
+                "width": 0.1,
+                "height": 0.1,
+                "color": "#ffffff",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "18cc8a17-fd80-4448-884a-927ba049f157",
+                "type": "Compass",
+                "left": 0.0209,
+                "top": 0.1667,
+                "width": 0.125,
+                "height": 0.125,
+                "orientation": "landscape",
+                "color": "#ffffff",
+                "opacity": 0.0,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "9ed392fe-d23c-4195-90f5-d69dec0e7e70",
+                "type": "Time",
+                "right": 0.2,
+                "top": 0.0,
+                "width": 0.25,
+                "height": 0.2,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "fe61b9f8-01cd-491f-8c9e-3340779edef9",
+                "type": "GlideRatio",
+                "right": 0.5,
+                "bottom": 0.0,
+                "width": 0.3125,
+                "height": 0.25,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "914222c7-62eb-4339-a7d1-e5c0d0a71429",
+                "type": "Altitude",
+                "left": 0.0,
+                "bottom": 0.0,
+                "width": 0.5,
+                "height": 0.3333,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "bf6656fc-1ece-4178-adac-c1e47e4938cf",
+                "type": "GroundSpeed",
+                "right": 0.0,
+                "bottom": 0.0,
+                "width": 0.5,
+                "height": 0.3333,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "e5fb0862-66b2-43a3-afdd-c9200da282d6",
+                "type": "Scale",
+                "left": 0.0,
+                "bottom": 0.3333,
+                "width": 0.333,
+                "height": 0.067,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "bf7e3bf1-3143-4c33-a645-6a6210a9766c",
+                "type": "FlownDistance",
+                "left": 0.5,
+                "bottom": 0.0,
+                "width": 0.3125,
+                "height": 0.25,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "0fc22585-a0ca-4bd6-8eb1-e018d1fffe7e",
+                "type": "ZoomInButton",
+                "right": 0.0,
+                "bottom": 0.8831,
+                "width": 0.2,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "c2a8c783-aeb4-4e39-8e13-edde1c110bfa",
+                "type": "ZoomOutButton",
+                "right": 0.0,
+                "bottom": 0.6031,
+                "width": 0.2,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "c4a5bbd7-1c2d-4bed-809b-fc54c5c5e0d7",
+                "type": "ZoomInButton",
+                "right": 0.0,
+                "top": 0.2667,
+                "width": 0.2,
+                "height": 0.2,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "8f942f4d-7910-42a3-a7e0-522e3d7004de",
+                "type": "ZoomOutButton",
+                "right": 0.0,
+                "bottom": 0.3333,
+                "width": 0.2,
+                "height": 0.2,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "28813bdf-224e-4097-841c-44dd1cca1cf9",
+                "type": "AutoZoomButton",
+                "right": 0.0,
+                "bottom": 0.8031,
+                "width": 0.2,
+                "height": 0.08,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "7eead674-da48-4598-8219-c6fa94099764",
+                "type": "Battery",
+                "right": 0.0,
+                "top": 0.0,
+                "width": 0.1667,
+                "height": 0.1253,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "07ae2a3d-492e-4943-a49f-dc4e05d9daf8",
+                "type": "GpsSignal",
+                "right": 0.0,
+                "top": 0.1262,
+                "width": 0.1667,
+                "height": 0.0667,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "56fa9670-3d14-43d0-b9b8-5d45a735a3f0",
+                "type": "Battery",
+                "right": 0.45,
+                "top": 0.0167,
+                "width": 0.2217,
+                "height": 0.1667,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "07f8d511-43dc-4529-82d3-0a0a250c6b85",
+                "type": "AutoZoomButton",
+                "left": 0.0,
+                "bottom": 0.4003,
+                "width": 0.2217,
+                "height": 0.1667,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "87bbfc01-c48d-4f04-ada5-5243941ea421",
+                "type": "Target",
+                "left": 0.0,
+                "bottom": 0.0497,
+                "width": 0.5,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              }
+            ],
+            "selectedMapId": "",
+            "visibleLayerIds": [],
+            "userSymbolAlignment": {
+              "trackUpPortrait": [
+                0.0,
+                0.3
+              ],
+              "northUpPortrait": [
+                0.0,
+                0.0
+              ],
+              "circlingPortrait": [
+                0.0,
+                0.0
+              ],
+              "trackUpLandscape": [
+                0.0,
+                0.3
+              ],
+              "northUpLandscape": [
+                0.0,
+                0.0
+              ],
+              "circlingLandscape": [
+                0.0,
+                0.0
+              ]
+            }
+          },
+          {
+            "navboxes": [
+              {
+                "uuid": "b8a47403-8554-4ad9-9678-ca6249f6daaf",
+                "type": "Time",
+                "left": 0.375,
+                "top": 0.0,
+                "width": 0.25,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "047f3b4a-fcff-4a7c-b9f3-4f64a25c0b5f",
+                "type": "Compass",
+                "right": 0.0,
+                "top": 0.2,
+                "width": 0.2,
+                "height": 0.1504,
+                "color": "#ffffff",
+                "opacity": 0.0,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "5e89fdde-528a-4654-b04a-84651aa7be8e",
+                "type": "Altitude",
+                "left": 0.0,
+                "bottom": 0.2,
+                "width": 0.3333,
+                "height": 0.2222,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "6dc0083a-4b4b-4bff-b969-b9a57f4c2316",
+                "type": "GroundSpeed",
+                "right": 0.0,
+                "bottom": 0.2,
+                "width": 0.3333,
+                "height": 0.2222,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "67e8c75e-d4a3-42c2-b531-a1f24658c3ac",
+                "type": "GlideRatio",
+                "left": 0.0,
+                "bottom": 0.4832,
+                "width": 0.3333,
+                "height": 0.2222,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "0bfe5796-0a5f-4e79-9d2c-e5b73a902e44",
+                "type": "Distance",
+                "right": 0.25,
+                "bottom": 0.0,
+                "width": 0.25,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "fbd35b68-0f23-484c-8ac0-bbf67873bd31",
+                "type": "To",
+                "right": 0.0,
+                "bottom": 0.0,
+                "width": 0.25,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "b2a42355-e669-4ef9-94cc-a0f13ab60195",
+                "type": "Scale",
+                "left": 0.0,
+                "bottom": 0.4222,
+                "width": 0.333,
+                "height": 0.061,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "471fd6d9-24de-45ef-ae86-3bff960cf878",
+                "type": "Circling",
+                "right": 0.0,
+                "bottom": 0.4222,
+                "width": 0.1,
+                "height": 0.1,
+                "color": "#ffffff",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "18cc8a17-fd80-4448-884a-927ba049f157",
+                "type": "Compass",
+                "left": 0.0209,
+                "top": 0.1667,
+                "width": 0.125,
+                "height": 0.125,
+                "orientation": "landscape",
+                "color": "#ffffff",
+                "opacity": 0.0,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "9ed392fe-d23c-4195-90f5-d69dec0e7e70",
+                "type": "Time",
+                "right": 0.2,
+                "top": 0.0,
+                "width": 0.25,
+                "height": 0.2,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "fe61b9f8-01cd-491f-8c9e-3340779edef9",
+                "type": "GlideRatio",
+                "right": 0.5,
+                "bottom": 0.0,
+                "width": 0.3125,
+                "height": 0.25,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "914222c7-62eb-4339-a7d1-e5c0d0a71429",
+                "type": "Altitude",
+                "left": 0.0,
+                "bottom": 0.0,
+                "width": 0.5,
+                "height": 0.3333,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "bf6656fc-1ece-4178-adac-c1e47e4938cf",
+                "type": "GroundSpeed",
+                "right": 0.0,
+                "bottom": 0.0,
+                "width": 0.5,
+                "height": 0.3333,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "e5fb0862-66b2-43a3-afdd-c9200da282d6",
+                "type": "Scale",
+                "left": 0.0,
+                "bottom": 0.3333,
+                "width": 0.333,
+                "height": 0.067,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "2081138f-9bd2-4995-870b-a9759c39d33c",
+                "type": "Target",
+                "left": 0.0,
+                "bottom": 0.0,
+                "width": 0.5,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "bf7e3bf1-3143-4c33-a645-6a6210a9766c",
+                "type": "FlownDistance",
+                "left": 0.5,
+                "bottom": 0.0,
+                "width": 0.3125,
+                "height": 0.25,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.5,
+                "outlineMode": "none"
+              },
+              {
+                "uuid": "0fc22585-a0ca-4bd6-8eb1-e018d1fffe7e",
+                "type": "ZoomInButton",
+                "right": 0.0,
+                "bottom": 0.8831,
+                "width": 0.2,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "c2a8c783-aeb4-4e39-8e13-edde1c110bfa",
+                "type": "ZoomOutButton",
+                "right": 0.0,
+                "top": 0.3504,
+                "width": 0.2,
+                "height": 0.2,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "c4a5bbd7-1c2d-4bed-809b-fc54c5c5e0d7",
+                "type": "ZoomInButton",
+                "right": 0.0,
+                "top": 0.2667,
+                "width": 0.2,
+                "height": 0.2,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "8f942f4d-7910-42a3-a7e0-522e3d7004de",
+                "type": "ZoomOutButton",
+                "right": 0.0,
+                "bottom": 0.3333,
+                "width": 0.2,
+                "height": 0.2,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "28813bdf-224e-4097-841c-44dd1cca1cf9",
+                "type": "AutoZoomButton",
+                "right": 0.0,
+                "bottom": 0.8031,
+                "width": 0.2,
+                "height": 0.08,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "7eead674-da48-4598-8219-c6fa94099764",
+                "type": "Battery",
+                "left": 0.2083,
+                "top": 0.0373,
+                "width": 0.1667,
+                "height": 0.1253,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "07ae2a3d-492e-4943-a49f-dc4e05d9daf8",
+                "type": "GpsSignal",
+                "right": 0.2083,
+                "top": 0.0667,
+                "width": 0.1667,
+                "height": 0.0667,
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "56fa9670-3d14-43d0-b9b8-5d45a735a3f0",
+                "type": "Battery",
+                "right": 0.45,
+                "top": 0.0167,
+                "width": 0.2217,
+                "height": 0.1667,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              },
+              {
+                "uuid": "07f8d511-43dc-4529-82d3-0a0a250c6b85",
+                "type": "AutoZoomButton",
+                "left": 0.0,
+                "bottom": 0.4003,
+                "width": 0.2217,
+                "height": 0.1667,
+                "orientation": "landscape",
+                "color": "#000000",
+                "opacity": 0.0,
+                "outlineMode": "coloredOutline"
+              }
+            ],
+            "name": "Task",
+            "selectedMapId": "",
+            "visibleLayerIds": [],
+            "userSymbolAlignment": {
+              "trackUpPortrait": [
+                0.0,
+                0.3
+              ],
+              "northUpPortrait": [
+                0.0,
+                0.0
+              ],
+              "circlingPortrait": [
+                0.0,
+                0.0
+              ],
+              "trackUpLandscape": [
+                0.0,
+                0.3
+              ],
+              "northUpLandscape": [
+                0.0,
+                0.0
+              ],
+              "circlingLandscape": [
+                0.0,
+                0.0
+              ]
+            }
+          }
+        ],
+        "persistentNavboxes": [
+          {
+            "uuid": "14948bde-7cf1-4e74-a278-e920d0ecdaff",
+            "type": "MenuButton",
+            "left": 0.0,
+            "top": 0.0,
+            "width": 0.2,
+            "height": 0.2,
+            "color": "#000000",
+            "opacity": 0.0,
+            "outlineMode": "coloredOutline"
+          },
+          {
+            "uuid": "e2c103bd-7618-486d-b9df-34e1d9e0c99c",
+            "type": "LayersButton",
+            "right": 0.0,
+            "top": 0.1929,
+            "width": 0.2,
+            "height": 0.2,
+            "color": "#000000",
+            "opacity": 0.0,
+            "outlineMode": "coloredOutline"
+          },
+          {
+            "uuid": "f0a3a67b-d31d-4105-922c-54ab3781b225",
+            "type": "MenuButton",
+            "left": 0.0,
+            "top": 0.0,
+            "width": 0.1667,
+            "height": 0.1667,
+            "orientation": "landscape",
+            "color": "#000000",
+            "opacity": 0.0,
+            "outlineMode": "coloredOutline"
+          },
+          {
+            "uuid": "e1a53f49-328d-4c49-9a92-e5cb6ea795de",
+            "type": "LayersButton",
+            "right": 0.0167,
+            "top": 0.0,
+            "width": 0.1667,
+            "height": 0.1667,
+            "orientation": "landscape",
+            "color": "#000000",
+            "opacity": 0.0,
+            "outlineMode": "coloredOutline"
+          },
+          {
+            "uuid": "ba902548-960e-4e6a-b1d1-18ab0c779edd",
+            "type": "Page",
+            "left": 0.3334,
+            "top": 0.3889,
+            "width": 0.3333,
+            "height": 0.2222,
+            "color": "#000000",
+            "opacity": 0.3,
+            "outlineMode": "none"
+          },
+          {
+            "uuid": "4cb3ab84-9eef-4935-938e-ddeef5e47eda",
+            "type": "Page",
+            "left": 0.25,
+            "top": 0.3334,
+            "width": 0.5,
+            "height": 0.3333,
+            "orientation": "landscape",
+            "color": "#000000",
+            "opacity": 0.3,
+            "outlineMode": "none"
+          }
+        ],
+        "version": 3,
+        "isFallback": false
+      }
+    }
+  ],
+  "savedTasks": [],
+  "selectedAircraft": {
+    "uuid": "f5c24c19-bbb0-41fb-9995-480300955f8c",
+    "type": "Paraglider",
+    "model": {
+      "type": "ParagliderModel",
+      "manufacturer": "Ozone",
+      "name": "Delta 4",
+      "isCustomized": false,
+      "certification": {
+        "name": "EN-C",
+        "defaultPolar": {
+          "name": "EN-C",
+          "a": 28.89,
+          "b": -18.67,
+          "c": 4.1,
+          "isGeneric": true,
+          "isCustomized": false
+        },
+        "startYear": 2007
+      },
+      "sizes": [
+        "XS",
+        "S",
+        "MS",
+        "ML",
+        "L",
+        "XL"
+      ],
+      "isTandem": false,
+      "isMotorWing": false,
+      "polarOverride": {
+        "name": "EN-D",
+        "a": 27.78,
+        "b": -18.17,
+        "c": 4.0,
+        "isGeneric": true,
+        "isCustomized": false
+      },
+      "year": 2020,
+      "isAcro": false,
+      "isMiniWing": false,
+      "isSingleSkin": false
+    },
+    "competitionId": "58",
+    "size": "MS",
+    "certification": {
+      "name": "EN-C",
+      "defaultPolar": {
+        "name": "EN-C",
+        "a": 28.89,
+        "b": -18.67,
+        "c": 4.1,
+        "isGeneric": true,
+        "isCustomized": false
+      },
+      "startYear": 2007
+    }
+  },
+  "selectedSport": "paragliding",
+  "sendRadarThermals": true,
+  "serviceHeartbeatCheck": {
+    "health_check_version": 5,
+    "status": "warning",
+    "warnings": [
+      "request count",
+      "bytes received",
+      "bytes sent",
+      "file access",
+      "file read",
+      "file write",
+      "database access"
+    ],
+    "operating_system": "Ios",
+    "operating_system_version": "26.4.2",
+    "app_version": "3.10.2+3509",
+    "account_owner": "Vlad Belayev",
+    "account_email": "v-b2@live.com",
+    "duration": 59412,
+    "startup_duration": 168,
+    "watchdog_reports_per_hour": 0.0,
+    "value_update_overflows_per_hour": 0.0,
+    "battery_level_gain_or_drop_per_hour": 0.0,
+    "low_memory": false,
+    "requests_per_hour": 58088.13559322034,
+    "bytes_received_per_hour": 4862977993.220339,
+    "bytes_sent_per_hour": 3190088.1355932206,
+    "file_accesses_per_hour": 23918.64406779661,
+    "file_reads_per_hour": 4515.254237288135,
+    "file_writes_per_hour": 3477.9661016949153,
+    "database_accesses_per_hour": 10922.033898305084,
+    "free_disk_space_percentage": 21735617331200.0,
+    "time_syncs_per_hour": 0.0,
+    "exceptions_per_hour": 0.0,
+    "screen_mostly_on": true,
+    "style_rebuilds_per_hour": 732.2033898305085,
+    "dynamic_layer_updates_per_hour": 213620.33898305084,
+    "source_updates_counter": {
+      "task": 222,
+      "position": 544,
+      "shortest_route_calculation": 222,
+      "hot_track": 188,
+      "airspace": 6,
+      "cold_track": 9,
+      "obstacles": 5,
+      "radar": 2290,
+      "potential_target": 15
+    },
+    "heartbeat": [
+      {
+        "source": "service",
+        "heartbeat_count": 1,
+        "battery_level": 100,
+        "battery_charging": false,
+        "screen_brightness": 100,
+        "screen_on": true,
+        "request_count": 952,
+        "bytes_received": 79698806,
+        "bytes_sent": 52282,
+        "file_access_count": 392,
+        "file_create_count": 0,
+        "file_read_count": 74,
+        "file_write_count": 57,
+        "file_delete_count": 0,
+        "database_access_count": 179,
+        "free_disk_space": 217356173312,
+        "log_count": 5197,
+        "time_sync_count": 0,
+        "watchdog_count": 0,
+        "value_update_overflow_count": 0,
+        "exception_count": 0,
+        "longitude": 0.13398837639214026,
+        "latitude": 51.8726737458466,
+        "altitude": 95.1237546617233,
+        "style_rebuild_count": 12,
+        "dynamic_layer_update_count": 3501,
+        "source_updates_counter": {
+          "task": 222,
+          "position": 544,
+          "shortest_route_calculation": 222,
+          "hot_track": 188,
+          "airspace": 6,
+          "cold_track": 9,
+          "obstacles": 5,
+          "radar": 2290,
+          "potential_target": 15
+        },
+        "created_at": "2026-05-15T07:25:36.333730"
+      }
+    ],
+    "requests_counter": {
+      "fusion.seeyou.cloud": 843,
+      "myaccount.seeyou.cloud": 99,
+      "api.seeyou.cloud": 5,
+      "caches.naviter.com": 1,
+      "comps.api.seeyou.cloud": 1,
+      "flights.seeyou.cloud": 3
+    },
+    "detailed_requests_counter": {
+      "https://fusion.seeyou.cloud/api/registration/1wJX6MV7a762N": 17,
+      "https://myaccount.seeyou.cloud/oauth2/token": 5,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.87271029663467&lon=0.13400958741516766&radius=250&limit=250&id=NAVFDAFAD&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 2,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.87022620305784&lon=0.1381522210868411&radius=250&limit=250&id=NAVFDAFAD&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 1,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.872808778289354&lon=0.13395951970184683&radius=250&limit=250&id=NAVFDAFAD&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 2,
+      "https://api.seeyou.cloud/public/logs/sendable?version=3.10.2+3509": 1,
+      "https://myaccount.seeyou.cloud/v1/accounts/me/settings?push_only=1": 38,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.87276792983934&lon=0.1338236211358037&radius=250&limit=250&id=NAVFDAFAD&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 4,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.872709364019755&lon=0.1340646638075782&radius=250&limit=250&id=NAVFDAFAD&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 21,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.87299590825609&lon=0.13400958741517544&radius=250&limit=250&id=NAVFDAFAD&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 253,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.872667650636544&lon=0.13407125448063084&radius=250&limit=250&id=NAVFDAFAD&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 2,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.87271512258235&lon=0.13401495194108293&radius=250&limit=250&id=NAVFDAFAD&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 4,
+      "https://myaccount.seeyou.cloud/v1/accounts/me/last_update": 14,
+      "https://myaccount.seeyou.cloud/v1/accounts/me/settings?slot=navigator&use_gzip=1": 12,
+      "https://myaccount.seeyou.cloud/v1/accounts/me?kid=XkqCauNDN9kj--fP": 14,
+      "https://myaccount.seeyou.cloud/v1/accounts/me/settings?slot=device_D740A518060FDB4F61CC143B01412674&use_gzip=1": 12,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.87299590825609&lon=0.13400958741517544&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 1,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.87318661041023&lon=0.13400300000002127&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 1,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.87316061057534&lon=0.1339320000000001&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 1,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.8731296107722&lon=0.13389900000000016&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 1,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.87303061140102&lon=0.13396100000000308&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 1,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.873022611451816&lon=0.1340000000000152&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 1,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.873007611547095&lon=0.1340239999999969&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 1,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.873007611547095&lon=0.13404100000000904&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 1,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.87288082292783&lon=0.13405294069383444&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 1,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.87280354203659&lon=0.1340797628450332&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 5,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.87277097364248&lon=0.13407797470793525&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 12,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.87300361157247&lon=0.13409300000000285&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 2,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.872764592851695&lon=0.13406170756741176&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 504,
+      "https://api.seeyou.cloud/static/ping": 2,
+      "https://myaccount.seeyou.cloud/v1/accounts/me": 2,
+      "https://api.seeyou.cloud/v1/passwordless/recovery": 2,
+      "https://myaccount.seeyou.cloud/v1/accounts/me/integrations?v=2": 2,
+      "https://caches.naviter.com/aircraft_db/aircraft_db.json": 1,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.872718&lon=0.134093&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 3,
+      "https://comps.api.seeyou.cloud/planner/collections?$sort%5Bupdated_at%5D=desc&$skip=0": 1,
+      "https://flights.seeyou.cloud/v1/flights?limit=200&mine=true": 1,
+      "https://flights.seeyou.cloud/v1/flights?limit=200&mine=true&facets=1&q=year:2026": 1,
+      "https://flights.seeyou.cloud/v1/flights?limit=200&mine=true&facets=1&q=year:-24": 1,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.87273841195533&lon=0.1339607255059506&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 1,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.87267984971713&lon=0.13398429139642298&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 1
+    },
+    "bytes_received_counter": {
+      "fusion.seeyou.cloud": 78476571,
+      "api.seeyou.cloud": 536,
+      "myaccount.seeyou.cloud": 143200,
+      "caches.naviter.com": 1045040,
+      "comps.api.seeyou.cloud": 467,
+      "flights.seeyou.cloud": 32992
+    },
+    "detailed_bytes_received_counter": {
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.87271029663467&lon=0.13400958741516766&radius=250&limit=250&id=NAVFDAFAD&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 136077,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.87022620305784&lon=0.1381522210868411&radius=250&limit=250&id=NAVFDAFAD&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 68491,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.872808778289354&lon=0.13395951970184683&radius=250&limit=250&id=NAVFDAFAD&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 133670,
+      "https://api.seeyou.cloud/public/logs/sendable?version=3.10.2+3509": 76,
+      "https://myaccount.seeyou.cloud/oauth2/token": 1424,
+      "https://myaccount.seeyou.cloud/v1/accounts/me/settings?push_only=1": 0,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.87276792983934&lon=0.1338236211358037&radius=250&limit=250&id=NAVFDAFAD&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 275587,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.872709364019755&lon=0.1340646638075782&radius=250&limit=250&id=NAVFDAFAD&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 1455042,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.87299590825609&lon=0.13400958741517544&radius=250&limit=250&id=NAVFDAFAD&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 22704356,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.872667650636544&lon=0.13407125448063084&radius=250&limit=250&id=NAVFDAFAD&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 139804,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.87271512258235&lon=0.13401495194108293&radius=250&limit=250&id=NAVFDAFAD&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 277871,
+      "https://fusion.seeyou.cloud/api/registration/1wJX6MV7a762N": 688,
+      "https://myaccount.seeyou.cloud/v1/accounts/me/last_update": 7098,
+      "https://myaccount.seeyou.cloud/v1/accounts/me/settings?slot=navigator&use_gzip=1": 61654,
+      "https://myaccount.seeyou.cloud/v1/accounts/me?kid=XkqCauNDN9kj--fP": 16436,
+      "https://myaccount.seeyou.cloud/v1/accounts/me/settings?slot=device_D740A518060FDB4F61CC143B01412674&use_gzip=1": 54584,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.87299590825609&lon=0.13400958741517544&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 93271,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.87318661041023&lon=0.13400300000002127&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 94310,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.87316061057534&lon=0.1339320000000001&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 91959,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.8731296107722&lon=0.13389900000000016&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 90485,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.87303061140102&lon=0.13396100000000308&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 91342,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.873022611451816&lon=0.1340000000000152&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 91021,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.873007611547095&lon=0.1340239999999969&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 92091,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.873007611547095&lon=0.13404100000000904&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 91820,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.87288082292783&lon=0.13405294069383444&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 89300,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.87280354203659&lon=0.1340797628450332&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 431638,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.87277097364248&lon=0.13407797470793525&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 1084411,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.87300361157247&lon=0.13409300000000285&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 182187,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.872764592851695&lon=0.13406170756741176&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 50444999,
+      "https://api.seeyou.cloud/static/ping": 0,
+      "https://myaccount.seeyou.cloud/v1/accounts/me": 1966,
+      "https://api.seeyou.cloud/v1/passwordless/recovery": 460,
+      "https://myaccount.seeyou.cloud/v1/accounts/me/integrations?v=2": 38,
+      "https://caches.naviter.com/aircraft_db/aircraft_db.json": 1045040,
+      "https://comps.api.seeyou.cloud/planner/collections?$sort%5Bupdated_at%5D=desc&$skip=0": 467,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.872718&lon=0.134093&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 188818,
+      "https://flights.seeyou.cloud/v1/flights?limit=200&mine=true": 24625,
+      "https://flights.seeyou.cloud/v1/flights?limit=200&mine=true&facets=1&q=year:2026": 1579,
+      "https://flights.seeyou.cloud/v1/flights?limit=200&mine=true&facets=1&q=year:-24": 6788,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.87273841195533&lon=0.1339607255059506&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 63029,
+      "https://fusion.seeyou.cloud/api/nearby?lat=51.87267984971713&lon=0.13398429139642298&radius=250&limit=250&id=XCT201076&trail=true&buddies=FLRBADA55%21FLR_BADA55%2CBadass": 64304
+    },
+    "bytes_sent_counter": {
+      "fusion.seeyou.cloud": 2380,
+      "myaccount.seeyou.cloud": 49902
+    },
+    "detailed_bytes_sent_counter": {
+      "https://fusion.seeyou.cloud/api/registration/1wJX6MV7a762N": 2380,
+      "https://myaccount.seeyou.cloud/oauth2/token": 915,
+      "https://myaccount.seeyou.cloud/v1/accounts/me/settings?push_only=1": 48987
+    },
+    "created_at": "2026-05-15T07:25:36.333738"
+  },
+  "showAirspaceWarningsInLog": false,
+  "showObstaclesWarningsInLog": false,
+  "showOptimization": false,
+  "showWaypointCodeInsteadOfName": false,
+  "slowProcessingCounter": 3,
+  "syncMarkersByScope": {
+    "settings": "2026-05-15T06:25:37Z",
+    "aircrafts": "2026-05-14T11:24:04Z",
+    "airspace": "2026-04-28T12:46:39Z",
+    "airports": "2026-05-01T08:16:45Z"
+  },
+  "syncOudieDateTimeWithOudieGpsOnly": true,
+  "task": {
+    "turnpoints": [
+      {
+        "name": "D01",
+        "code": "",
+        "latLngAlt": {
+          "latitude": 0.7215801992982755,
+          "longitude": 0.37100167203670625,
+          "altitude": 1410.0
+        },
+        "radius": 400,
+        "angle": 3.141592653589793,
+        "innerRadius": 0,
+        "innerAngle": 0.0,
+        "shape": "cylinder",
+        "direction": 0.0,
+        "directionType": "toNext"
+      },
+      {
+        "name": "B21",
+        "code": "",
+        "latLngAlt": {
+          "latitude": 0.7238870009706365,
+          "longitude": 0.37225551657133893,
+          "altitude": 640.0
+        },
+        "radius": 14000,
+        "angle": 3.141592653589793,
+        "innerRadius": 0,
+        "innerAngle": 0.0,
+        "shape": "cylinder",
+        "direction": 0.0,
+        "directionType": "symmetric"
+      },
+      {
+        "name": "B30",
+        "code": "",
+        "latLngAlt": {
+          "latitude": 0.7186859197996933,
+          "longitude": 0.3768397983846273,
+          "altitude": 804.0
+        },
+        "radius": 17000,
+        "angle": 3.141592653589793,
+        "innerRadius": 0,
+        "innerAngle": 0.0,
+        "shape": "cylinder",
+        "direction": 0.0,
+        "directionType": "symmetric"
+      },
+      {
+        "name": "A08",
+        "code": "",
+        "latLngAlt": {
+          "latitude": 0.7147502023364463,
+          "longitude": 0.3735383335715548,
+          "altitude": 600.0
+        },
+        "radius": 2000,
+        "angle": 3.141592653589793,
+        "innerRadius": 0,
+        "innerAngle": 0.0,
+        "shape": "cylinder",
+        "direction": 0.0,
+        "directionType": "symmetric"
+      },
+      {
+        "name": "A08",
+        "code": "",
+        "latLngAlt": {
+          "latitude": 0.7147502023364463,
+          "longitude": 0.3735383335715548,
+          "altitude": 600.0
+        },
+        "radius": 400,
+        "angle": 3.141592653589793,
+        "innerRadius": 0,
+        "innerAngle": 0.0,
+        "shape": "cylinder",
+        "direction": 0.0,
+        "directionType": "toPrevious"
+      }
+    ],
+    "taskType": "raceToGoal",
+    "raceStart": 49800,
+    "deadline": 82800,
+    "sssIndex": 1,
+    "essIndex": 3,
+    "startProcedure": "oneGate",
+    "numberOfGates": 1,
+    "finish1000mBelow": false,
+    "visualStartDirection": "onExit"
+  },
+  "thermalAssistantMode": "bubbles",
+  "transmitFlarmSignal": true,
+  "uiHeartbeatCheck": {
+    "health_check_version": 5,
+    "status": "warning",
+    "warnings": [
+      "startup duration"
+    ],
+    "operating_system": "Ios",
+    "operating_system_version": "26.4.2",
+    "app_version": "3.10.2+3509",
+    "account_owner": "Vlad Belayev",
+    "account_email": "v-b2@live.com",
+    "duration": 81463522,
+    "startup_duration": 81404375,
+    "watchdog_reports_per_hour": 0.0,
+    "value_update_overflows_per_hour": 0.0,
+    "low_memory": false,
+    "requests_per_hour": 0.08838368339000528,
+    "bytes_received_per_hour": 332.49941691319987,
+    "bytes_sent_per_hour": 42.600935393982546,
+    "file_accesses_per_hour": 5.214637320010311,
+    "file_reads_per_hour": 1.2815634091550765,
+    "file_writes_per_hour": 0.04419184169500264,
+    "database_accesses_per_hour": 0.0,
+    "exceptions_per_hour": 0.0,
+    "screen_mostly_on": true,
+    "heartbeat": [
+      {
+        "source": "ui",
+        "heartbeat_count": 1,
+        "screen_brightness": 100,
+        "screen_on": true,
+        "request_count": 2,
+        "bytes_received": 7524,
+        "bytes_sent": 964,
+        "file_access_count": 118,
+        "file_create_count": 0,
+        "file_read_count": 29,
+        "file_write_count": 1,
+        "file_delete_count": 0,
+        "database_access_count": 0,
+        "log_count": 706,
+        "watchdog_count": 0,
+        "value_update_overflow_count": 0,
+        "exception_count": 0,
+        "created_at": "2026-05-15T07:25:36.634736"
+      }
+    ],
+    "requests_counter": {
+      "api.seeyou.cloud": 2
+    },
+    "detailed_requests_counter": {
+      "https://api.seeyou.cloud/public/maps": 2
+    },
+    "bytes_received_counter": {
+      "api.seeyou.cloud": 7524
+    },
+    "detailed_bytes_received_counter": {
+      "https://api.seeyou.cloud/public/maps": 7524
+    },
+    "bytes_sent_counter": {
+      "api.seeyou.cloud": 964
+    },
+    "detailed_bytes_sent_counter": {
+      "https://api.seeyou.cloud/public/maps": 964
+    },
+    "created_at": "2026-05-15T07:25:36.634839"
+  },
+  "unitSystem": {
+    "id": "metric",
+    "name": "Custom",
+    "altitude": "m",
+    "area": "m2",
+    "date": "european",
+    "distance": "km",
+    "pressure": "mbar",
+    "radius": "km",
+    "speed": "kph",
+    "temperature": "celsius",
+    "vario": "ms",
+    "volume": "liter",
+    "weight": "kg",
+    "windSpeed": "kph",
+    "xcSpeed": "kph"
+  },
+  "useCustomAirspace": false,
+  "useMqttOgnEndpoint": true,
+  "useSeeYouAirspace": true,
+  "user": {
+    "id": "1wJX6MV7a762N",
+    "email": "v-b2@live.com",
+    "firstName": "Vlad",
+    "lastName": "Belayev",
+    "avatar": "https://myaccount.seeyou.cloud/avatars/ago90p9mcsr5l9eni6eef60cj4.200.jpg?1691236272",
+    "createdAt": "2023-08-05T07:11:39.000Z",
+    "updatedAt": "2023-08-05T11:51:12.000Z",
+    "licenseExpiration": "2025-08-30T00:00:00.000Z",
+    "hasActiveMonthlySubscription": false,
+    "hasAutoRenewSubscription": false,
+    "hasIntroOffer": false,
+    "hasPromoOffer": true,
+    "eligibleForTrialAt": "2026-08-30T00:00:00.000Z",
+    "alternateEmails": []
+  },
+  "varioAverager": 20000,
+  "varioResponsePreset": "response_instant",
+  "varioSoundVariance": 1.0,
+  "windUpdatePeriod": 10,
+  "writeEnlSoundFiles": false,
+  "writeMopToIgc": false,
+  "xAlpsLogging": false,
+  "askedForAnalytics": true,
+  "askedForBackgroundLocation": true,
+  "askedForBluetoothPermission": true,
+  "askedForLanguageSelection": false,
+  "askedForLoadingSettings": true,
+  "askedForMicrophonePermission": true,
+  "askedForMotionSensorPermission": true,
+  "askedForNotificationPermission": false,
+  "askedOgnTransmitPermission": true,
+  "autoSwitchPages": true,
+  "brightness": 100,
+  "compassRoseSize": 300,
+  "contestCache": {
+    "entries": {}
+  },
+  "customUnitSystem": {
+    "id": "custom",
+    "name": "Custom",
+    "altitude": "m",
+    "area": "m2",
+    "date": "european",
+    "distance": "km",
+    "pressure": "mbar",
+    "radius": "km",
+    "speed": "kph",
+    "temperature": "celsius",
+    "vario": "ms",
+    "volume": "liter",
+    "weight": "kg",
+    "windSpeed": "kph",
+    "xcSpeed": "kph"
+  },
+  "developerMode": false,
+  "didSetOSLanguageFromSettings": false,
+  "dismissedPromotions": [
+    "onboarding"
+  ],
+  "enableAnalytics": true,
+  "enableAutoZoom": true,
+  "maxFpsLimit": 15,
+  "fullScreenMode": false,
+  "hasRegistered": false,
+  "lastContest": "xcontest",
+  "lastUsedNavboxStyle": {
+    "color": "#000000",
+    "opacity": 0.3,
+    "outlineMode": "none"
+  },
+  "lastUsedRectangleNavboxSizeLandscape": {
+    "width": 0.5,
+    "height": 0.3333
+  },
+  "lastUsedRectangleNavboxSizePortrait": {
+    "width": 0.3333,
+    "height": 0.2222
+  },
+  "lastUsedStartTurnpoint": {
+    "name": "D01",
+    "code": "",
+    "latLngAlt": {
+      "latitude": 0.7215801992982755,
+      "longitude": 0.37100167203670625,
+      "altitude": 1410.0
+    },
+    "radius": 400,
+    "angle": 3.141592653589793,
+    "innerRadius": 0,
+    "innerAngle": 0.0,
+    "shape": "cylinder",
+    "direction": 0.0,
+    "directionType": "toNext"
+  },
+  "lastUsedTaskType": "raceToGoal",
+  "lastUsedTurnpointShape": "cylinder",
+  "lastUsedVersion": "3.10.2+3509",
+  "layout": {
+    "pages": [
+      {
+        "navboxes": [
+          {
+            "uuid": "b8a47403-8554-4ad9-9678-ca6249f6daaf",
+            "type": "Time",
+            "left": 0.3285,
+            "bottom": 0.2497,
+            "width": 0.3333,
+            "height": 0.2222,
+            "color": "#000000",
+            "opacity": 0.3,
+            "outlineMode": "none"
+          },
+          {
+            "uuid": "6dc0083a-4b4b-4bff-b969-b9a57f4c2316",
+            "type": "GroundSpeed",
+            "right": 0.0049,
+            "bottom": 0.2497,
+            "width": 0.3333,
+            "height": 0.2222,
+            "color": "#000000",
+            "opacity": 0.3,
+            "outlineMode": "none"
+          },
+          {
+            "uuid": "67e8c75e-d4a3-42c2-b531-a1f24658c3ac",
+            "type": "GlideRatio",
+            "left": 0.0,
+            "top": 0.2,
+            "width": 0.3333,
+            "height": 0.2222,
+            "color": "#000000",
+            "opacity": 0.3,
+            "outlineMode": "none"
+          },
+          {
+            "uuid": "0bfe5796-0a5f-4e79-9d2c-e5b73a902e44",
+            "type": "Distance",
+            "right": 0.0049,
+            "bottom": 0.0275,
+            "width": 0.3333,
+            "height": 0.2222,
+            "color": "#000000",
+            "opacity": 0.5,
+            "outlineMode": "none"
+          },
+          {
+            "uuid": "b2a42355-e669-4ef9-94cc-a0f13ab60195",
+            "type": "Scale",
+            "left": 0.0,
+            "bottom": 0.4978,
+            "width": 0.333,
+            "height": 0.061,
+            "color": "#000000",
+            "opacity": 0.0,
+            "outlineMode": "coloredOutline"
+          },
+          {
+            "uuid": "471fd6d9-24de-45ef-ae86-3bff960cf878",
+            "type": "Circling",
+            "right": 0.0049,
+            "bottom": 0.4719,
+            "width": 0.1,
+            "height": 0.1,
+            "color": "#ffffff",
+            "opacity": 0.0,
+            "outlineMode": "coloredOutline"
+          },
+          {
+            "uuid": "18cc8a17-fd80-4448-884a-927ba049f157",
+            "type": "Compass",
+            "left": 0.0209,
+            "top": 0.1667,
+            "width": 0.125,
+            "height": 0.125,
+            "orientation": "landscape",
+            "color": "#ffffff",
+            "opacity": 0.0,
+            "outlineMode": "none"
+          },
+          {
+            "uuid": "9ed392fe-d23c-4195-90f5-d69dec0e7e70",
+            "type": "Time",
+            "right": 0.2,
+            "top": 0.0,
+            "width": 0.25,
+            "height": 0.2,
+            "orientation": "landscape",
+            "color": "#000000",
+            "opacity": 0.0,
+            "outlineMode": "coloredOutline"
+          },
+          {
+            "uuid": "fe61b9f8-01cd-491f-8c9e-3340779edef9",
+            "type": "GlideRatio",
+            "right": 0.5,
+            "bottom": 0.0,
+            "width": 0.3125,
+            "height": 0.25,
+            "orientation": "landscape",
+            "color": "#000000",
+            "opacity": 0.5,
+            "outlineMode": "none"
+          },
+          {
+            "uuid": "914222c7-62eb-4339-a7d1-e5c0d0a71429",
+            "type": "Altitude",
+            "left": 0.0,
+            "bottom": 0.0,
+            "width": 0.5,
+            "height": 0.3333,
+            "orientation": "landscape",
+            "color": "#000000",
+            "opacity": 0.5,
+            "outlineMode": "none"
+          },
+          {
+            "uuid": "bf6656fc-1ece-4178-adac-c1e47e4938cf",
+            "type": "GroundSpeed",
+            "right": 0.0,
+            "bottom": 0.0,
+            "width": 0.5,
+            "height": 0.3333,
+            "orientation": "landscape",
+            "color": "#000000",
+            "opacity": 0.5,
+            "outlineMode": "none"
+          },
+          {
+            "uuid": "e5fb0862-66b2-43a3-afdd-c9200da282d6",
+            "type": "Scale",
+            "left": 0.0,
+            "bottom": 0.3333,
+            "width": 0.333,
+            "height": 0.067,
+            "orientation": "landscape",
+            "color": "#000000",
+            "opacity": 0.0,
+            "outlineMode": "coloredOutline"
+          },
+          {
+            "uuid": "bf7e3bf1-3143-4c33-a645-6a6210a9766c",
+            "type": "FlownDistance",
+            "left": 0.5,
+            "bottom": 0.0,
+            "width": 0.3125,
+            "height": 0.25,
+            "orientation": "landscape",
+            "color": "#000000",
+            "opacity": 0.5,
+            "outlineMode": "none"
+          },
+          {
+            "uuid": "0fc22585-a0ca-4bd6-8eb1-e018d1fffe7e",
+            "type": "ZoomInButton",
+            "right": 0.0,
+            "bottom": 0.8831,
+            "width": 0.2,
+            "height": 0.2,
+            "color": "#000000",
+            "opacity": 0.0,
+            "outlineMode": "coloredOutline"
+          },
+          {
+            "uuid": "c2a8c783-aeb4-4e39-8e13-edde1c110bfa",
+            "type": "ZoomOutButton",
+            "right": 0.0,
+            "bottom": 0.6031,
+            "width": 0.2,
+            "height": 0.2,
+            "color": "#000000",
+            "opacity": 0.0,
+            "outlineMode": "coloredOutline"
+          },
+          {
+            "uuid": "c4a5bbd7-1c2d-4bed-809b-fc54c5c5e0d7",
+            "type": "ZoomInButton",
+            "right": 0.0,
+            "top": 0.2667,
+            "width": 0.2,
+            "height": 0.2,
+            "orientation": "landscape",
+            "color": "#000000",
+            "opacity": 0.0,
+            "outlineMode": "coloredOutline"
+          },
+          {
+            "uuid": "8f942f4d-7910-42a3-a7e0-522e3d7004de",
+            "type": "ZoomOutButton",
+            "right": 0.0,
+            "bottom": 0.3333,
+            "width": 0.2,
+            "height": 0.2,
+            "orientation": "landscape",
+            "color": "#000000",
+            "opacity": 0.0,
+            "outlineMode": "coloredOutline"
+          },
+          {
+            "uuid": "28813bdf-224e-4097-841c-44dd1cca1cf9",
+            "type": "AutoZoomButton",
+            "right": 0.0,
+            "bottom": 0.8031,
+            "width": 0.2,
+            "height": 0.08,
+            "color": "#000000",
+            "opacity": 0.0,
+            "outlineMode": "coloredOutline"
+          },
+          {
+            "uuid": "7eead674-da48-4598-8219-c6fa94099764",
+            "type": "Battery",
+            "right": 0.0,
+            "top": 0.0,
+            "width": 0.1667,
+            "height": 0.1253,
+            "color": "#000000",
+            "opacity": 0.0,
+            "outlineMode": "coloredOutline"
+          },
+          {
+            "uuid": "07ae2a3d-492e-4943-a49f-dc4e05d9daf8",
+            "type": "GpsSignal",
+            "right": 0.0,
+            "top": 0.1262,
+            "width": 0.1667,
+            "height": 0.0667,
+            "color": "#000000",
+            "opacity": 0.0,
+            "outlineMode": "coloredOutline"
+          },
+          {
+            "uuid": "56fa9670-3d14-43d0-b9b8-5d45a735a3f0",
+            "type": "Battery",
+            "right": 0.45,
+            "top": 0.0167,
+            "width": 0.2217,
+            "height": 0.1667,
+            "orientation": "landscape",
+            "color": "#000000",
+            "opacity": 0.0,
+            "outlineMode": "coloredOutline"
+          },
+          {
+            "uuid": "07f8d511-43dc-4529-82d3-0a0a250c6b85",
+            "type": "AutoZoomButton",
+            "left": 0.0,
+            "bottom": 0.4003,
+            "width": 0.2217,
+            "height": 0.1667,
+            "orientation": "landscape",
+            "color": "#000000",
+            "opacity": 0.0,
+            "outlineMode": "coloredOutline"
+          },
+          {
+            "uuid": "87bbfc01-c48d-4f04-ada5-5243941ea421",
+            "type": "Target",
+            "left": 0.0,
+            "bottom": 0.0274,
+            "width": 0.6667,
+            "height": 0.2222,
+            "color": "#000000",
+            "opacity": 0.5,
+            "outlineMode": "none"
+          },
+          {
+            "uuid": "4e17e8fd-8d1a-4e3f-8bc1-b6fe5d1711d3",
+            "type": "TurningRadius",
+            "right": 0.0001,
+            "top": 0.2,
+            "width": 0.3333,
+            "height": 0.2222,
+            "color": "#000000",
+            "opacity": 0.3,
+            "outlineMode": "none"
+          },
+          {
+            "uuid": "f84b6fd9-264f-4cf9-b67d-b51e4837784d",
+            "type": "RequiredGlideRatio",
+            "left": 0.3333,
+            "top": 0.2,
+            "width": 0.3333,
+            "height": 0.2222,
+            "color": "#000000",
+            "opacity": 0.3,
+            "outlineMode": "none"
+          },
+          {
+            "uuid": "dc29af75-2afc-4c82-8a86-18cab3304d9e",
+            "type": "ArrivalAltitude",
+            "left": 0.4897,
+            "top": -0.0124,
+            "width": 0.3333,
+            "height": 0.2222,
+            "color": "#000000",
+            "opacity": 0.5,
+            "outlineMode": "none"
+          },
+          {
+            "uuid": "f22aadf7-f0b8-4222-af07-cc5ca2e2f20e",
+            "type": "NextTurnpointButton",
+            "right": 0.0996,
+            "top": 0.3436,
+            "width": 0.3333,
+            "height": 0.3333,
+            "color": "#99e6ff",
+            "opacity": 0.0,
+            "outlineMode": "coloredOutline"
+          },
+          {
+            "uuid": "ababc4a4-409d-4f20-a3db-41737ed51bc9",
+            "type": "PreviousTurnpointButton",
+            "left": 0.0,
+            "top": 0.3507,
+            "width": 0.3333,
+            "height": 0.3333,
+            "color": "#99e6ff",
+            "opacity": 0.0,
+            "outlineMode": "coloredOutline"
+          },
+          {
+            "uuid": "6dcb1d0c-5479-4789-b626-3f81455828fc",
+            "type": "GpsAltitude",
+            "left": 0.1564,
+            "top": -0.0124,
+            "width": 0.3333,
+            "height": 0.2222,
+            "color": "#000000",
+            "opacity": 0.5,
+            "outlineMode": "none"
+          },
+          {
+            "uuid": "682f1ac7-47c0-451c-900e-73f455b2af41",
+            "type": "TargetEstimatedTime",
+            "left": 0.0,
+            "bottom": 0.2496,
+            "width": 0.3333,
+            "height": 0.2222,
+            "color": "#000000",
+            "opacity": 0.3,
+            "outlineMode": "none"
+          }
+        ],
+        "selectedMapId": "outdoor",
+        "visibleLayerIds": [
+          "airspace",
+          "para",
+          "kk7_thermals",
+          "ogn",
+          "radar"
+        ],
+        "transitionZoomLevel": 9.91,
+        "userSymbolAlignment": {
+          "trackUpPortrait": [
+            0.0,
+            0.4248
+          ],
+          "northUpPortrait": [
+            0.0,
+            0.0
+          ],
+          "circlingPortrait": [
+            0.0,
+            0.0
+          ],
+          "trackUpLandscape": [
+            0.0,
+            0.3
+          ],
+          "northUpLandscape": [
+            0.0,
+            0.0
+          ],
+          "circlingLandscape": [
+            0.0,
+            0.0
+          ]
+        }
+      }
+    ],
+    "persistentNavboxes": [
+      {
+        "uuid": "14948bde-7cf1-4e74-a278-e920d0ecdaff",
+        "type": "MenuButton",
+        "left": 0.0,
+        "top": 0.0,
+        "width": 0.2,
+        "height": 0.2,
+        "color": "#000000",
+        "opacity": 0.0,
+        "outlineMode": "coloredOutline"
+      },
+      {
+        "uuid": "e2c103bd-7618-486d-b9df-34e1d9e0c99c",
+        "type": "LayersButton",
+        "right": 0.0,
+        "top": 0.3893,
+        "width": 0.2,
+        "height": 0.2,
+        "color": "#000000",
+        "opacity": 0.0,
+        "outlineMode": "coloredOutline"
+      },
+      {
+        "uuid": "f0a3a67b-d31d-4105-922c-54ab3781b225",
+        "type": "MenuButton",
+        "left": 0.0,
+        "top": 0.0,
+        "width": 0.1667,
+        "height": 0.1667,
+        "orientation": "landscape",
+        "color": "#000000",
+        "opacity": 0.0,
+        "outlineMode": "coloredOutline"
+      },
+      {
+        "uuid": "e1a53f49-328d-4c49-9a92-e5cb6ea795de",
+        "type": "LayersButton",
+        "right": 0.0167,
+        "top": 0.0,
+        "width": 0.1667,
+        "height": 0.1667,
+        "orientation": "landscape",
+        "color": "#000000",
+        "opacity": 0.0,
+        "outlineMode": "coloredOutline"
+      }
+    ],
+    "version": 3,
+    "isFallback": false
+  },
+  "layoutPage": 0,
+  "mapFontSize": "normal",
+  "mapOrientation": "circlingNorth",
+  "navigationOverlayAutoCloseDelay": 10,
+  "returnToMapAfterDelay": true,
+  "savedCameraPosition": {
+    "latLng": {
+      "latitude": 0.9053505342571979,
+      "longitude": 0.002339818197897133
+    },
+    "zoom": 18.0,
+    "bearing": 0.0
+  },
+  "screenOrientation": "portraitUp",
+  "simplifiedLayoutPageType": "glide",
+  "show20percentArc": false,
+  "show5percentArc": true,
+  "showAvailableNavboxSizes": false,
+  "showCompassRose": false,
+  "showCurrentTrackVector": true,
+  "showDebugButton": false,
+  "showMap": true,
+  "showNavboxes": true,
+  "simplifiedLayout": {
+    "pages": {
+      "glide": {
+        "template": "navboxes5",
+        "navboxes": [
+          {
+            "uuid": "a61c777d-9376-43eb-baf3-a365727500fb",
+            "type": "GroundSpeed",
+            "colorVariant": "white"
+          },
+          {
+            "uuid": "6305a791-51e3-46e5-8ebb-6b2c6829794c",
+            "type": "Altitude",
+            "colorVariant": "white"
+          },
+          {
+            "uuid": "63d3cc78-c4cf-4691-94ae-13fa24bf375e",
+            "type": "GlideRatio",
+            "colorVariant": "white"
+          },
+          {
+            "uuid": "a666a5c1-3d92-4701-94ff-8956adc99233",
+            "type": "Wind",
+            "colorVariant": "white"
+          },
+          {
+            "uuid": "de232256-4567-42be-983f-9d81de60effa",
+            "type": "LastThermalVario",
+            "colorVariant": "white"
+          }
+        ],
+        "showVario": true,
+        "visibleLayerIds": null,
+        "isEnabled": true
+      },
+      "climb": {
+        "template": "navboxes4onMap",
+        "navboxes": [
+          {
+            "uuid": "db5786b7-fedc-4d18-8b0c-be5435f75dac",
+            "type": "GroundSpeed",
+            "colorVariant": "white"
+          },
+          {
+            "uuid": "7d06290d-6a5d-4b44-b617-e417db131cd3",
+            "type": "Altitude",
+            "colorVariant": "white"
+          },
+          {
+            "uuid": "28a708a2-a00b-4c29-83b4-0629150f48d7",
+            "type": "AverageVario",
+            "colorVariant": "white"
+          },
+          {
+            "uuid": "67298f4c-62a8-430a-8ebe-8bb8fcdb134d",
+            "type": "GlideRatio",
+            "colorVariant": "white"
+          }
+        ],
+        "showVario": true,
+        "visibleLayerIds": null,
+        "isEnabled": false
+      },
+      "airspace": {
+        "template": "navboxes4hybrid",
+        "navboxes": [
+          {
+            "uuid": "9aa55ed6-c0c0-4fce-9626-42fbb5fb79fe",
+            "type": "GroundSpeed",
+            "colorVariant": "white"
+          },
+          {
+            "uuid": "46b1e1b6-5fbb-4822-a6a2-64fac10ab046",
+            "type": "Altitude",
+            "colorVariant": "white"
+          },
+          {
+            "uuid": "fc010a61-b4da-404d-a967-5aa21e9f5fc8",
+            "type": "AverageVario",
+            "colorVariant": "white"
+          },
+          {
+            "uuid": "0f7c7185-7844-472f-b429-14af71c18d40",
+            "type": "GlideRatio",
+            "colorVariant": "white"
+          }
+        ],
+        "showVario": true,
+        "visibleLayerIds": null,
+        "isEnabled": false
+      }
+    }
+  },
+  "synchronizePermission": "wifiOnly",
+  "usePlanetV2Endpoint": false,
+  "usernameCached": "v-b2@live.com",
+  "zoomGesturesMode": "disabled",
+  "xAlpsEventsLog": [],
+  "xAlpsEventsQueue": [],
+  "xAlpsShowRace": false,
+  "migratedSimplifiedLayoutSettingsSplit": true,
+  "migratedVarioSoundBounds": true,
+  "migratedSimplifiedLayoutAutoSwitch": true,
+  "migratedOgnData": true,
+  "enableOgnData": true,
+  "migratedMinSinkVario": true,
+  "migratedFpsLimitForOudieN": true,
+  "shouldSendAutomatedLogs": false,
+  "availableLogDates": [
+    "2026-04-17",
+    "2026-05-09",
+    "2026-05-13",
+    "2026-05-14",
+    "2026-05-15"
+  ],
+  "buddySnapshots": {
+    "FLRBADA55!FLR_BADA55": {
+      "ognAddress": "FLRBADA55!FLR_BADA55"
+    },
+    "Badass": {
+      "ognAddress": "Badass"
+    }
+  },
+  "assignedOgnAddress": "XCT201076",
+  "altitudeWarningConfig": {
+    "enabled": false,
+    "unit": "m",
+    "altitude": 5000.0
+  },
+  "isScreenOn": true
+}

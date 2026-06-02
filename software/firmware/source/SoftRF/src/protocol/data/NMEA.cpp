@@ -698,7 +698,7 @@ if (NMEA_Source != DEST_NONE) {     // only external sources
         if (settings->debug_flags & DEBUG_BLE_TX) {
           Serial.print("BLE_TX: ");
           Serial.write(buf, size);
-          if (!nl) Serial.println();
+          Serial.println();
         }
         SoC->Bluetooth_ops->write((const byte *) buf, size);
         if (nl)

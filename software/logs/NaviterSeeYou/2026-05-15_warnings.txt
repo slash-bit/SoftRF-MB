@@ -1,0 +1,7 @@
+
+
+07:24:36.954 AirspaceService: Warning altitude set to null
+07:24:36.962 Loaded 0 airspaces
+07:24:36.962 Loaded 0 obstacles
+07:24:38.421 Loaded 24936 airspaces
+07:24:42.421 Loaded 11893 obstacles

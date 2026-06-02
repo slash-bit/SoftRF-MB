@@ -7,13 +7,14 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="SoftRF">
-<meta name="application-name" content="SoftRF Settings">
+<meta name="application-name" content="SoftRF Settings Configurator">
 <meta name="msapplication-TileColor" content="#1a1a2e">
 <meta name="msapplication-config" content="browserconfig.xml">
 <link rel="manifest" href="./manifest.json">
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%234361ee' width='192' height='192'/><text x='50%' y='50%' font-size='120' font-weight='bold' fill='white' text-anchor='middle' dominant-baseline='central'>SR</text></svg>">
-<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%234361ee' width='192' height='192'/><text x='50%' y='50%' font-size='120' font-weight='bold' fill='white' text-anchor='middle' dominant-baseline='central'>SR</text></svg>">
-<title>SoftRF Settings</title>
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<link rel="apple-touch-icon" sizes="192x192" href="icon-192.png">
+<title>SoftRF Settings Configurator</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
 /* ═══════════════════════════════════════════════════════════════
@@ -39,6 +40,8 @@
   --primary-light: #eef0ff;
   --success: #10b981;
   --success-bg: #ecfdf5;
+  --info: #3b82f6;
+  --info-bg: #eff6ff;
   --danger: #ef4444;
   --danger-hover: #dc2626;
   --danger-bg: #fef2f2;
@@ -73,6 +76,8 @@
     --primary-light: #1e1e3a;
     --success: #34d399;
     --success-bg: #0d2f23;
+    --info: #60a5fa;
+    --info-bg: #0d1f3c;
     --danger: #f87171;
     --danger-hover: #ef4444;
     --danger-bg: #2d1515;
@@ -82,6 +87,226 @@
     --shadow: 0 1px 3px rgba(0,0,0,0.4);
     --shadow-lg: 0 4px 12px rgba(0,0,0,0.4);
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   E-ink / High-Contrast Mode
+   .eink on <html> = manual toggle; prefers-contrast:more = auto.
+   .eink-off on <html> overrides the media query (user turned it off).
+   ═══════════════════════════════════════════════════════════════ */
+:root.eink {
+  --bg: #ffffff;
+  --bg-card: #ffffff;
+  --bg-header: #000000;
+  --bg-tab: #ffffff;
+  --bg-input: #ffffff;
+  --bg-input-focus: #ffffff;
+  --bg-group: #f0f0f0;
+  --text: #000000;
+  --text-secondary: #000000;
+  --text-header: #ffffff;
+  --text-tab: #000000;
+  --text-tab-active: #000000;
+  --border: #000000;
+  --border-focus: #000000;
+  --primary: #000000;
+  --primary-hover: #333333;
+  --primary-light: #eeeeee;
+  --success: #000000;
+  --success-bg: #e0e0e0;
+  --info: #000000;
+  --info-bg: #e0e0e0;
+  --danger: #000000;
+  --danger-hover: #333333;
+  --danger-bg: #e0e0e0;
+  --warning: #000000;
+  --warning-bg: #e0e0e0;
+  --shadow-sm: none;
+  --shadow: none;
+  --shadow-lg: none;
+  --radius: 4px;
+  --radius-sm: 2px;
+  --transition: 0s;
+}
+@media (prefers-contrast: more) {
+  :root:not(.eink-off) {
+    --bg: #ffffff;
+    --bg-card: #ffffff;
+    --bg-header: #000000;
+    --bg-tab: #ffffff;
+    --bg-input: #ffffff;
+    --bg-input-focus: #ffffff;
+    --bg-group: #f0f0f0;
+    --text: #000000;
+    --text-secondary: #000000;
+    --text-header: #ffffff;
+    --text-tab: #000000;
+    --text-tab-active: #000000;
+    --border: #000000;
+    --border-focus: #000000;
+    --primary: #000000;
+    --primary-hover: #333333;
+    --primary-light: #eeeeee;
+    --success: #000000;
+    --success-bg: #e0e0e0;
+    --info: #000000;
+    --info-bg: #e0e0e0;
+    --danger: #000000;
+    --danger-hover: #333333;
+    --danger-bg: #e0e0e0;
+    --warning: #000000;
+    --warning-bg: #e0e0e0;
+    --shadow-sm: none;
+    --shadow: none;
+    --shadow-lg: none;
+    --radius: 4px;
+    --radius-sm: 2px;
+    --transition: 0s;
+  }
+}
+
+/* Extra e-ink rules that can't be expressed as variables */
+:root.eink * { box-shadow: none !important; text-shadow: none !important; animation: none !important; transition: none !important; }
+@media (prefers-contrast: more) { :root:not(.eink-off) * { box-shadow: none !important; text-shadow: none !important; animation: none !important; transition: none !important; } }
+
+:root.eink body { font-size: 16px; }
+@media (prefers-contrast: more) { :root:not(.eink-off) body { font-size: 16px; } }
+
+:root.eink .header-logo { background: #ffffff; color: #000000; border: 2px solid #ffffff; }
+@media (prefers-contrast: more) { :root:not(.eink-off) .header-logo { background: #ffffff; color: #000000; border: 2px solid #ffffff; } }
+
+/* ── E-ink header buttons ── */
+/* Disconnected / idle: solid white pill */
+:root.eink .btn-connect.disconnected,
+:root.eink .btn-connect-usb.disconnected,
+:root.eink .btn-install {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #ffffff !important;
+}
+/* Connected = Disconnect action: solid red */
+:root.eink .btn-connect.connected,
+:root.eink .btn-connect-usb.connected {
+  background: #cc0000 !important;
+  color: #ffffff !important;
+  border: 2px solid #cc0000 !important;
+}
+/* Connecting: grey */
+:root.eink .btn-connect.connecting,
+:root.eink .btn-connect-usb.connecting {
+  background: #888888 !important;
+  color: #ffffff !important;
+  border: 2px solid #888888 !important;
+}
+:root.eink .status-dot { background: #ffffff !important; animation: none !important; }
+:root.eink .connected .status-dot { background: #ffffff !important; }
+:root.eink .eink-toggle-label { color: rgba(255,255,255,0.85); }
+:root.eink .eink-toggle-track { background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.4); }
+
+/* ── E-ink Save & Reboot button: solid blue ── */
+:root.eink .btn-primary {
+  background: #0055cc !important;
+  color: #ffffff !important;
+  border: 2px solid #0055cc !important;
+}
+
+/* ── E-ink danger buttons (Shutdown, modal danger): solid red ── */
+:root.eink .btn-action.danger {
+  background: #cc0000 !important;
+  color: #ffffff !important;
+  border: 2px solid #cc0000 !important;
+}
+
+/* ── E-ink battery bar: solid green ── */
+:root.eink #st-batbar { background: #007700 !important; }
+
+/* ── prefers-contrast: more mirrors ── */
+@media (prefers-contrast: more) {
+  :root:not(.eink-off) .btn-connect.disconnected,
+  :root:not(.eink-off) .btn-connect-usb.disconnected,
+  :root:not(.eink-off) .btn-install {
+    background: #ffffff !important; color: #000000 !important; border: 2px solid #ffffff !important;
+  }
+  :root:not(.eink-off) .btn-connect.connected,
+  :root:not(.eink-off) .btn-connect-usb.connected {
+    background: #cc0000 !important; color: #ffffff !important; border: 2px solid #cc0000 !important;
+  }
+  :root:not(.eink-off) .btn-connect.connecting,
+  :root:not(.eink-off) .btn-connect-usb.connecting {
+    background: #888888 !important; color: #ffffff !important; border: 2px solid #888888 !important;
+  }
+  :root:not(.eink-off) .status-dot { background: #ffffff !important; animation: none !important; }
+  :root:not(.eink-off) .btn-primary { background: #0055cc !important; color: #ffffff !important; border: 2px solid #0055cc !important; }
+  :root:not(.eink-off) .btn-action.danger { background: #cc0000 !important; color: #ffffff !important; border: 2px solid #cc0000 !important; }
+  :root:not(.eink-off) #st-batbar { background: #007700 !important; }
+}
+
+:root.eink .tab-btn { border-bottom: 3px solid transparent; font-weight: 600; }
+@media (prefers-contrast: more) { :root:not(.eink-off) .tab-btn { border-bottom: 3px solid transparent; font-weight: 600; } }
+
+:root.eink .tab-btn.active { border-bottom-color: #000000; font-weight: 700; }
+@media (prefers-contrast: more) { :root:not(.eink-off) .tab-btn.active { border-bottom-color: #000000; font-weight: 700; } }
+
+:root.eink .card, :root.eink .status-card { border: 2px solid #000000; }
+@media (prefers-contrast: more) { :root:not(.eink-off) .card, :root:not(.eink-off) .status-card { border: 2px solid #000000; } }
+
+:root.eink input, :root.eink select { border: 2px solid #000000 !important; font-size: 15px; }
+@media (prefers-contrast: more) { :root:not(.eink-off) input, :root:not(.eink-off) select { border: 2px solid #000000 !important; font-size: 15px; } }
+
+/* E-ink toggle switch */
+.eink-toggle-wrap {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+.eink-toggle-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.65);
+  letter-spacing: 0.03em;
+  user-select: none;
+  white-space: nowrap;
+}
+.eink-toggle {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.eink-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+.eink-toggle-track {
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.3);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.eink-toggle input:checked + .eink-toggle-track {
+  background: rgba(255,255,255,0.85);
+}
+.eink-toggle-track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ffffff;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+.eink-toggle input:checked + .eink-toggle-track::after {
+  transform: translateX(16px);
+  background: #000000;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -96,6 +321,7 @@
 html {
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
 }
 
 body {
@@ -107,6 +333,7 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   padding-bottom: 80px;
+  overscroll-behavior-y: none;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -247,6 +474,83 @@ body {
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PWA Install Button
+   ═══════════════════════════════════════════════════════════════ */
+.btn-install {
+  display: none; /* shown by JS when install is available */
+  align-items: center;
+  gap: 5px;
+  padding: 7px 11px;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+  flex-shrink: 0;
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.85);
+}
+.btn-install:hover { background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.5); }
+.btn-install.visible { display: flex; }
+
+/* Manual install help modal */
+.install-modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 9999;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 0 16px 0;
+}
+.install-modal-overlay.open { display: flex; }
+.install-modal {
+  background: var(--bg-card);
+  border-radius: 20px 20px 12px 12px;
+  padding: 24px 20px 20px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: var(--shadow-lg);
+  animation: slideUp 0.25s ease;
+}
+@keyframes slideUp {
+  from { transform: translateY(40px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.install-modal h3 { font-size: 17px; margin-bottom: 12px; color: var(--text); }
+.install-modal p  { font-size: 14px; color: var(--text-secondary); margin-bottom: 10px; line-height: 1.5; }
+.install-modal ol { padding-left: 20px; color: var(--text-secondary); font-size: 14px; line-height: 1.8; }
+.install-modal .modal-close {
+  float: right;
+  background: none;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  line-height: 1;
+  margin-top: -4px;
+}
+.install-modal .modal-close:hover { color: var(--text); }
+
+/* PWA diagnostics panel (hidden by default, shown in debug tab) */
+#pwaDiagPanel {
+  background: var(--bg-group);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-size: 12px;
+  font-family: monospace;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.6;
+  margin-top: 8px;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -413,6 +717,10 @@ body {
 .btn-action:hover { border-color: var(--primary); color: var(--primary); }
 .btn-action.danger { color: var(--danger); border-color: var(--danger); }
 .btn-action.danger:hover { background: var(--danger-bg); }
+.btn-action.success { color: var(--success); border-color: var(--success); }
+.btn-action.success:hover { background: var(--success-bg); }
+.btn-action.info { color: var(--info); border-color: var(--info); }
+.btn-action.info:hover { background: var(--info-bg); }
 
 /* ═══════════════════════════════════════════════════════════════
    Settings Groups & Form Controls
@@ -448,6 +756,21 @@ body {
 .setting-row.modified {
   border-color: var(--warning);
   background: var(--warning-bg);
+}
+.setting-row.missing {
+  border-color: var(--danger);
+  background: var(--danger-bg);
+  opacity: 0.75;
+}
+.setting-row.garbled {
+  border-color: var(--danger);
+  background: var(--danger-bg);
+}
+.setting-row.garbled .setting-label::after {
+  content: ' ⚠ corrupt — reload';
+  color: var(--danger);
+  font-size: 0.75em;
+  font-weight: 600;
 }
 
 .setting-info {
@@ -485,7 +808,7 @@ body {
   width: 100%;
   min-width: 100px;
   padding: 8px 12px;
-  border: 1px solid var(--border);
+  border: 1px solid #999;
   border-radius: var(--radius-sm);
   background: var(--bg-input);
   color: var(--text);
@@ -530,36 +853,92 @@ body {
 .toggle-slider {
   position: absolute;
   inset: 0;
-  background: #e9e9ea;
-  border: 1px solid #d5d5d5;
+  background: #c8c8c8;
+  border: 2px solid #555;
   border-radius: 16px;
   cursor: pointer;
   transition: background 0.25s ease, border-color 0.25s ease;
 }
 .toggle-slider::before {
-  content: '';
+  content: 'OFF';
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: 700;
+  color: #333;
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 27px;
-  height: 27px;
+  width: 23px;
+  height: 23px;
   background: #ffffff;
+  border: 2px solid #555;
   border-radius: 50%;
   transition: transform 0.25s ease;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.25), 0 0 1px rgba(0,0,0,0.1);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.35);
 }
 .toggle input:checked + .toggle-slider {
   background: #34c759;
-  border-color: #34c759;
+  border-color: #1a7a32;
 }
 .toggle input:checked + .toggle-slider::before {
+  content: 'ON';
+  color: #1a7a32;
+  border-color: #1a7a32;
   transform: translateX(20px);
+}
+@media (forced-colors: active), (prefers-contrast: more) {
+  .toggle-slider {
+    background: ButtonFace;
+    border: 2px solid ButtonText;
+  }
+  .toggle-slider::before {
+    background: ButtonText;
+    color: ButtonFace;
+    border-color: ButtonText;
+  }
+  .toggle input:checked + .toggle-slider {
+    background: Highlight;
+    border-color: ButtonText;
+  }
+  .toggle input:checked + .toggle-slider::before {
+    background: HighlightText;
+    color: Highlight;
+    border-color: ButtonText;
+  }
 }
 
 /* Text input for strings */
 .setting-control input[type="text"].wide {
   min-width: 140px;
 }
+
+/* Bitfield checkboxes */
+.bitfield-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  justify-content: flex-end;
+}
+.bitfield-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.bitfield-item input[type=checkbox] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+:root.eink .bitfield-item input[type=checkbox],
+@media (prefers-contrast: more) { :root:not(.eink-off) .bitfield-item input[type=checkbox] { accent-color: #000000; } }
 
 /* ═══════════════════════════════════════════════════════════════
    Collapsible Section (Hidden/Debug settings)
@@ -644,9 +1023,8 @@ body {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 300;
-  background: rgba(0,0,0,0.5);
-  backdrop-filter: blur(4px);
+  z-index: 1000;
+  background: rgba(0,0,0,0.6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -654,6 +1032,7 @@ body {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease;
+  /* backdrop-filter omitted: causes invisible overlay on some embedded Chromium builds */
 }
 .modal-overlay.visible { opacity: 1; pointer-events: auto; }
 
@@ -663,9 +1042,11 @@ body {
   padding: 24px;
   max-width: 360px;
   width: 100%;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
   transform: scale(0.95);
   transition: transform 0.2s ease;
+  position: relative;
+  z-index: 1001;
 }
 .modal-overlay.visible .modal { transform: scale(1); }
 
@@ -733,8 +1114,7 @@ body {
   position: fixed;
   inset: 0;
   z-index: 500;
-  background: rgba(0,0,0,0.7);
-  backdrop-filter: blur(8px);
+  background: rgba(0,0,0,0.75);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -813,199 +1193,371 @@ body {
 /* ═══════════════════════════════════════════════════════════════
    Traffic Tab — Map Layout
    ═══════════════════════════════════════════════════════════════ */
-#tab-traffic.active { display: block; padding: 0; max-width: none; }
+/* ═══════════════════════════════════════════════════════════════
+   Traffic Tab — full-screen map + bottom-sheet list
+   ═══════════════════════════════════════════════════════════════ */
+#tab-traffic.active { display: flex; flex-direction: column; padding: 0; max-width: none; height: calc(100vh - 100px); }
 
 .traffic-layout {
   position: relative;
-  width: 100%;
-  height: calc(100vh - 100px);
-}
-
-.traffic-map {
-  width: 100%;
-  height: 100%;
-  z-index: 0;
-}
-
-.traffic-panel {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 220px;
-  max-height: calc(100% - 60px);
-  background: rgba(255,255,255,0.88);
-  backdrop-filter: blur(12px);
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
-  z-index: 500;
+  flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-@media (prefers-color-scheme: dark) {
-  .traffic-panel {
-    background: rgba(26,26,46,0.88);
-  }
-}
-
-.traffic-panel-header {
-  padding: 8px 12px;
-  border-bottom: 1px solid rgba(0,0,0,0.08);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: pointer;
-  user-select: none;
-}
-
-.traffic-panel-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.traffic-panel-toggle {
-  background: none;
-  border: none;
-  font-size: 14px;
-  cursor: pointer;
-  color: var(--text-secondary);
-  padding: 0 4px;
-  transition: transform var(--transition);
-}
-.traffic-panel-toggle.collapsed { transform: rotate(-90deg); }
-
-.traffic-panel-body {
-  padding: 8px 10px;
-  overflow-y: auto;
+/* Map takes all space above the bottom sheet */
+.traffic-map {
   flex: 1;
+  width: 100%;
+  min-height: 0;
+  z-index: 0;
 }
-.traffic-panel-body.collapsed { display: none; }
 
-.alarm-state {
-  display: flex;
+/* ── Alarm banner (thin strip above map) ── */
+.alarm-banner {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  z-index: 510;
+  display: none;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 6px 10px;
-  border-radius: 4px;
-  margin-bottom: 8px;
-  font-size: 12px;
-  font-weight: 600;
-}
-.alarm-none { background: rgba(76,175,80,0.12); color: #2e7d32; }
-.alarm-low { background: rgba(255,152,0,0.12); color: #e65100; }
-.alarm-important { background: rgba(255,87,34,0.15); color: #bf360c; }
-.alarm-urgent { background: rgba(229,57,53,0.18); color: #b71c1c; animation: alarm-flash 0.8s infinite; }
-
-@keyframes alarm-flash {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
-}
-
-.traffic-summary {
-  font-size: 11px;
-  color: #666;
-  margin-bottom: 8px;
-}
-
-.aircraft-item {
-  background: rgba(255,255,255,0.6);
-  border: 1px solid rgba(0,0,0,0.08);
-  border-radius: 6px;
-  padding: 8px 10px;
-  margin-bottom: 6px;
-}
-.aircraft-item.emergency {
-  border-color: #e53935;
-  background: rgba(229,57,53,0.06);
-}
-
-.aircraft-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
-}
-
-.aircraft-id {
-  font-size: 12px;
+  padding: 6px 12px;
+  font-size: 13px;
   font-weight: 700;
-  color: #333;
-  font-family: 'Courier New', monospace;
+  pointer-events: none;
 }
+.alarm-banner.visible { display: flex; }
+.alarm-banner.alarm-low      { background: rgba(255,152,0,0.92);  color: #fff; }
+.alarm-banner.alarm-important { background: rgba(255,87,34,0.95); color: #fff; }
+.alarm-banner.alarm-urgent   { background: #e53935; color: #fff; animation: alarm-flash 0.7s infinite; }
+@keyframes alarm-flash { 0%,100%{opacity:1} 50%{opacity:0.55} }
 
-.aircraft-alert {
-  font-size: 10px;
-  font-weight: 600;
-  padding: 1px 6px;
-  border-radius: 8px;
-}
-.aircraft-alert.alert-none { background: rgba(76,175,80,0.12); color: #2e7d32; }
-.aircraft-alert.alert-low { background: rgba(255,152,0,0.12); color: #e65100; }
-.aircraft-alert.alert-imp { background: rgba(255,87,34,0.15); color: #bf360c; }
-.aircraft-alert.alert-urg { background: rgba(229,57,53,0.18); color: #b71c1c; }
-
-.aircraft-details {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1px 0;
-}
-
-.aircraft-detail {
-  font-size: 10px;
-  color: #666;
-}
-.aircraft-detail span {
-  font-weight: 600;
-  color: #333;
-}
-
-@media (prefers-color-scheme: dark) {
-  .aircraft-item { background: rgba(30,30,50,0.6); border-color: rgba(255,255,255,0.08); }
-  .aircraft-id { color: #e5e7eb; }
-  .aircraft-detail { color: #9ca3af; }
-  .aircraft-detail span { color: #e5e7eb; }
-  .traffic-summary { color: #9ca3af; }
-}
-
-.aircraft-gnd-badge {
-  font-size: 9px;
-  font-weight: 600;
-  color: #607d8b;
-  background: rgba(96,125,139,0.12);
-  padding: 1px 5px;
-  border-radius: 3px;
-  margin-right: 4px;
-  vertical-align: middle;
-}
-
+/* ── Follow button ── */
 .follow-btn {
   position: absolute;
-  bottom: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 8px 16px;
+  top: 10px;
+  right: 10px;
+  padding: 7px 14px;
   border: none;
   border-radius: 20px;
-  background: rgba(102,126,234,0.9);
+  background: rgba(102,126,234,0.92);
   color: #fff;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  z-index: 500;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  z-index: 510;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
   display: none;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
-.follow-btn:hover { background: rgba(85,104,211,0.95); }
 .follow-btn.visible { display: flex; }
-.follow-btn.active { background: rgba(76,175,80,0.9); }
-.follow-btn.active:hover { background: rgba(56,142,60,0.95); }
+.follow-btn.active  { background: rgba(76,175,80,0.92); }
 
-@media (max-width: 768px) {
-  .traffic-panel { width: 180px; }
+/* ── Bottom sheet ── */
+.traffic-sheet {
+  position: relative;
+  z-index: 500;
+  background: #fff;
+  border-top: 1px solid #e5e7eb;
+  box-shadow: 0 -4px 16px rgba(0,0,0,0.10);
+  display: flex;
+  flex-direction: column;
+  /* collapsed = 44px (handle+header only); expanded via JS */
+  height: 44px;
+  transition: height 0.3s cubic-bezier(0.4,0,0.2,1);
+  overflow: hidden;
+}
+.traffic-sheet.expanded { height: 33vh; max-height: 33vh; }
+
+@media (prefers-color-scheme: dark) {
+  .traffic-sheet { background: #1a1a2e; border-top-color: #2d2d4a; }
+}
+
+/* drag handle */
+.sheet-handle {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 20px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.sheet-handle::before {
+  content: '';
+  width: 36px; height: 4px;
+  background: #d1d5db;
+  border-radius: 2px;
+}
+
+/* sheet header row */
+.sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+  user-select: none;
+}
+.sheet-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+.sheet-count {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* scrollable list */
+.sheet-body {
+  overflow-y: auto;
+  flex: 1;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Aircraft list rows ── */
+.aircraft-item {
+  display: grid;
+  grid-template-columns: 14px 1fr auto auto auto;
+  align-items: center;
+  gap: 0 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #f0f2f5;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.aircraft-item:active, .aircraft-item:hover { background: #f5f6fa; }
+.aircraft-item.emergency { background: rgba(229,57,53,0.06); border-left: 3px solid #e53935; }
+
+@media (prefers-color-scheme: dark) {
+  .aircraft-item { border-bottom-color: #2d2d4a; }
+  .aircraft-item:hover { background: #252540; }
+}
+
+/* type-colour dot */
+.ac-dot {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ac-id {
+  font-size: 14px;
+  font-weight: 700;
+  font-family: 'Courier New', monospace;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ac-id small {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  font-family: inherit;
+}
+
+/* icon + value pair used for dist and alt columns */
+.ac-metric {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+.ac-metric-icon {
+  font-size: 12px;
+  line-height: 1;
+  opacity: 0.55;
+  flex-shrink: 0;
+}
+.ac-metric-val {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.ac-vario {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  text-align: right;
+  min-width: 44px;
+}
+
+/* status pill on each row */
+.ac-row-status {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+  white-space: nowrap;
+  text-align: center;
+}
+.ac-row-status.landed   { background: #f59e0b; color: #fff; }
+.ac-row-status.airborne { background: #10b981; color: #fff; }
+.ac-row-status.ground   { background: #6b7280; color: #fff; }
+.ac-row-status.urgent   { background: #ef4444; color: #fff; }
+/* Vario colour bands: sink-blue / sink-grey / zero-grey / weak-green / strong-green / thermal-orange */
+.ac-vario.vario-sink   { color: #3b82f6; }   /* < -2 m/s  — blue  */
+.ac-vario.vario-down   { color: #9ca3af; }   /* -2 – -0.3 — grey  */
+.ac-vario.vario-zero   { color: var(--text-secondary); } /* ±0.3    */
+.ac-vario.vario-weak   { color: #10b981; }   /* 0.3 – 1.5 — green */
+.ac-vario.vario-good   { color: #16a34a; }   /* 1.5 – 2.5 — dark green */
+.ac-vario.vario-strong { color: #f97316; animation: vario-pulse 0.7s ease-in-out infinite; } /* >2.5 — orange + pulse */
+@keyframes vario-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}
+
+/* Leaflet divIcon for aircraft arrows — removes default white background/border */
+.ac-arrow-icon { background: transparent !important; border: none !important; }
+.ac-arrow-icon > div {
+  display: flex; align-items: center; justify-content: center;
+  transform-origin: center center;
+}
+
+.ac-status-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.ac-status-badge.landed  { background: #f59e0b; color: #fff; }
+.ac-status-badge.airborne{ background: #10b981; color: #fff; }
+.ac-status-badge.urgent  { background: #ef4444; color: #fff; }
+.ac-status-badge.ground  { background: #6b7280; color: #fff; }
+
+/* ── Aircraft detail bottom-sheet (full-width, slides up) ── */
+.ac-detail-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(0,0,0,0.35);
+  display: none;
+  align-items: flex-end;
+}
+.ac-detail-overlay.open { display: flex; }
+
+.ac-detail-sheet {
+  width: 100%;
+  background: #fff;
+  border-radius: 20px 20px 0 0;
+  padding: 0 0 16px 0;
+  max-height: 52vh;
+  overflow-y: auto;
+  animation: slideUp 0.25s ease;
+}
+@media (prefers-color-scheme: dark) {
+  .ac-detail-sheet { background: #1a1a2e; }
+}
+
+.ac-detail-handle {
+  display: flex; justify-content: center;
+  padding: 10px 0 4px;
+}
+.ac-detail-handle::before {
+  content: ''; width: 36px; height: 4px;
+  background: #d1d5db; border-radius: 2px;
+}
+
+.ac-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px 10px;
+  border-left: 5px solid transparent; /* set by JS to aircraft type colour */
+  border-bottom: 1px solid #f0f2f5;
+}
+@media (prefers-color-scheme: dark) {
+  .ac-detail-header { border-bottom-color: #2d2d4a; }
+  .ac-detail-sheet .ac-detail-grid-label { color: #9ca3af; }
+  .ac-detail-sheet .ac-detail-grid-val   { color: #e5e7eb; }
+}
+
+.ac-detail-id {
+  font-size: 22px;
+  font-weight: 800;
+  font-family: 'Courier New', monospace;
+  color: var(--text);
+}
+.ac-detail-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+.ac-detail-close {
+  background: none; border: none;
+  font-size: 22px; cursor: pointer;
+  color: var(--text-secondary); padding: 4px;
+  line-height: 1;
+}
+.ac-detail-close:hover { color: var(--text); }
+
+.ac-detail-follow {
+  background: none; border: none;
+  font-size: 28px; cursor: pointer;
+  /* hollow star by default — filled amber when active */
+  color: transparent;
+  -webkit-text-stroke: 2px #9ca3af;
+  padding: 4px 8px 4px 0;
+  line-height: 1; transition: color 0.15s, -webkit-text-stroke 0.15s;
+}
+.ac-detail-follow:hover { -webkit-text-stroke-color: #f59e0b; }
+.ac-detail-follow.active { color: #f59e0b; -webkit-text-stroke: 2px #f59e0b; }
+
+.ac-detail-badges {
+  display: flex; gap: 8px;
+  padding: 10px 20px;
+  flex-wrap: wrap;
+}
+.ac-detail-badge {
+  font-size: 12px; font-weight: 600;
+  padding: 4px 12px; border-radius: 12px;
+  border: 1.5px solid currentColor;
+}
+.ac-detail-badge.source  { color: #6b7280; }
+.ac-detail-badge.status-landed   { background: #f59e0b; color: #fff; border-color: #f59e0b; }
+.ac-detail-badge.status-airborne { background: #10b981; color: #fff; border-color: #10b981; }
+.ac-detail-badge.status-urgent   { background: #ef4444; color: #fff; border-color: #ef4444; }
+
+.ac-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0 0;
+  padding: 8px 20px 0;
+}
+.ac-detail-cell {
+  padding: 8px 0;
+}
+.ac-detail-grid-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6b7280;
+  margin-bottom: 2px;
+}
+.ac-detail-grid-val {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.ac-detail-age {
+  font-size: 11px;
+  color: var(--text-secondary);
+  padding: 6px 20px 0;
+  text-align: right;
+}
+@media (prefers-color-scheme: dark) {
+  .ac-detail-grid-label { color: #9ca3af; }
 }
 </style>
 </head>
@@ -1016,11 +1568,19 @@ body {
   <div class="header-left">
     <div class="header-logo">SR</div>
     <div class="header-info">
-      <div class="header-title">SoftRF Settings</div>
+      <div class="header-title">SoftRF Settings Configurator <span id="appVersionSpan" style="font-size:10px;font-weight:normal;opacity:0.85;vertical-align:middle">v1.5</span></div>
       <div class="header-device" id="deviceName">Not connected</div>
     </div>
   </div>
   <div class="connect-group" id="connectGroup">
+    <div class="eink-toggle-wrap" title="E-ink / high-contrast mode">
+      <span class="eink-toggle-label">E-ink</span>
+      <label class="eink-toggle" aria-label="Toggle e-ink mode">
+        <input type="checkbox" id="einkToggle" onchange="App.eink.toggle(this.checked)">
+        <span class="eink-toggle-track"></span>
+      </label>
+    </div>
+    <button class="btn-install" id="btnInstall" onclick="App.pwa.triggerInstall()">&#10515; Install</button>
     <button class="btn-connect disconnected" id="btnConnect" onclick="App.transport.toggle()">
       <span class="status-dot"></span>
       <span id="btnConnectText">BLE</span>
@@ -1030,6 +1590,21 @@ body {
     </button>
   </div>
 </header>
+
+<!-- ═══════════════════ PWA Manual Install Modal ═══════════════════ -->
+<div class="install-modal-overlay" id="installModalOverlay" onclick="if(event.target===this)App.pwa.closeModal()">
+  <div class="install-modal">
+    <button class="modal-close" onclick="App.pwa.closeModal()" aria-label="Close">&times;</button>
+    <h3>&#10515; Add to Home Screen</h3>
+    <p id="installModalDesc">Your browser doesn't support automatic installation. Follow the steps below:</p>
+    <ol id="installModalSteps">
+      <li>Open your browser menu (&#8942; or share icon)</li>
+      <li>Tap <strong>"Add to Home Screen"</strong> or <strong>"Install App"</strong></li>
+      <li>Confirm by tapping <strong>"Add"</strong></li>
+    </ol>
+    <p style="margin-top:14px;font-size:12px;opacity:0.6" id="installModalBrowser"></p>
+  </div>
+</div>
 
 <!-- ═══════════════════ Tab Bar ═══════════════════ -->
 <nav class="tab-bar">
@@ -1047,6 +1622,17 @@ body {
     <p>Connect to a SoftRF device to view status</p>
   </div>
   <div id="statusCards" class="status-grid" style="display:none">
+    <div class="status-card" id="groundTypeCard" style="display:none">
+      <div class="status-card-title">Ground Status</div>
+      <div class="status-actions">
+        <button class="btn-action success" onclick="App.commands.setGroundType(9)">Landed OK</button>
+        <button class="btn-action info" onclick="App.commands.setGroundType(8)">Need a Ride</button>
+      </div>
+      <div class="status-actions mt-8">
+        <button class="btn-action danger" onclick="App.commands.setGroundType(13)">Need Medical Help</button>
+        <button class="btn-action danger" onclick="App.commands.setGroundType(14)">Distress (SOS)</button>
+      </div>
+    </div>
     <div class="status-card">
       <div class="status-card-title">Device Info</div>
       <div class="status-row">
@@ -1100,6 +1686,14 @@ body {
         <span class="status-label">Last Update</span>
         <span class="status-value" id="st-lastupd">--</span>
       </div>
+      <div class="status-row" id="st-mtu-row" style="display:none">
+        <span class="status-label">BLE Packet</span>
+        <span class="status-value" id="st-mtu">--</span>
+      </div>
+      <div class="status-row" id="st-crc-row" style="display:none">
+        <span class="status-label">CRC Errors</span>
+        <span class="status-value" id="st-crc">0</span>
+      </div>
     </div>
     <div class="status-card">
       <div class="status-card-title">Device Control</div>
@@ -1114,6 +1708,13 @@ body {
         <button class="btn-action" onclick="App.commands.updateFirmware()">Update Firmware</button>
       </div>
     </div>
+    <div class="status-card" id="pwaDiagCard">
+      <div class="status-card-title">PWA / App Status</div>
+      <div id="pwaDiagPanel">Checking...</div>
+      <div class="status-actions mt-8">
+        <button class="btn-action" onclick="App.pwa.showInstallHelp()">Install Help</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1126,21 +1727,49 @@ body {
 <!-- ═══════════════════ Traffic Tab ═══════════════════ -->
 <div class="tab-content" id="tab-traffic">
   <div class="traffic-layout">
+    <!-- Map fills everything above the sheet -->
     <div id="trafficMap" class="traffic-map"></div>
-    <div class="traffic-panel" id="trafficPanel">
-      <div class="traffic-panel-header">
-        <span class="traffic-panel-title">Traffic</span>
-        <button class="traffic-panel-toggle" id="trafficPanelToggle" title="Toggle panel">&#9660;</button>
+
+    <!-- Alarm banner floats above map when active -->
+    <div class="alarm-banner" id="trf-alarm"></div>
+
+    <!-- Follow button top-right -->
+    <button class="follow-btn" id="followBtn" title="Center map on my position">&#9678; Follow</button>
+
+    <!-- Bottom sheet -->
+    <div class="traffic-sheet" id="trafficSheet">
+      <div class="sheet-handle" id="sheetHandle"></div>
+      <div class="sheet-header" id="sheetHeader">
+        <span class="sheet-title">Traffic</span>
+        <span class="sheet-count" id="trf-count">No traffic detected</span>
       </div>
-      <div class="traffic-panel-body" id="trafficPanelBody">
-        <div class="alarm-state alarm-none" id="trf-alarm">
-          <span>No Alarm</span>
-        </div>
-        <div class="traffic-summary" id="trf-count">No traffic detected</div>
+      <div class="sheet-body">
         <div id="trf-list"></div>
       </div>
     </div>
-    <button class="follow-btn" id="followBtn" title="Center map on my position">&#9678; Follow</button>
+  </div>
+</div>
+
+<!-- Aircraft detail sheet -->
+<div class="ac-detail-overlay" id="acDetailOverlay" onclick="if(event.target===this)App.traffic.closeDetail()">
+  <div class="ac-detail-sheet" id="acDetailSheet">
+    <div class="ac-detail-handle"></div>
+    <div class="ac-detail-header" id="acd-header">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div id="acd-icon" style="width:32px;height:32px;flex-shrink:0;display:flex;align-items:center;justify-content:center"></div>
+        <div>
+          <div class="ac-detail-id" id="acd-id">---</div>
+          <div class="ac-detail-sub" id="acd-sub"></div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:0">
+        <button class="ac-detail-follow" id="acd-follow" title="Follow track" onclick="App.traffic.toggleFollow()">&#9733;</button>
+        <button class="ac-detail-close" onclick="App.traffic.closeDetail()">&#x2715;</button>
+      </div>
+    </div>
+    <div class="ac-detail-badges" id="acd-badges"></div>
+    <div class="ac-detail-grid" id="acd-grid"></div>
+    <div class="ac-detail-age" id="acd-age"></div>
   </div>
 </div>
 
@@ -1177,6 +1806,8 @@ body {
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+const APP_VERSION = 'v1.7';
+
 /* ═══════════════════════════════════════════════════════════════
    App Namespace
    ═══════════════════════════════════════════════════════════════ */
@@ -1187,6 +1818,7 @@ const App = {
     values: {},       // key -> value (from device)
     formValues: {},   // key -> current form value
     dirty: new Set(),
+    garbled: new Set(),
     settingsLoaded: false,
     heartbeatTime: null,
     debugVisible: false,
@@ -1303,17 +1935,24 @@ const SETTINGS_META = [
   { key:'follow_id', label:'Follow ID', tab:'advanced', group:'Identity',
     type:'hex6', desc:'Prioritise traffic from this ID' },
 
+  // ── Advanced: Serial Port ──
+  { key:'baud_rate', label:'Baud Rate', tab:'advanced', group:'Serial Port',
+    type:'select', options:[
+      {v:'0',l:'Default (38400)'},{v:'2',l:'9600'},{v:'3',l:'19200'},
+      {v:'4',l:'38400'},{v:'5',l:'57600'},{v:'6',l:'115200'}],
+    desc:'Serial / USB port baud rate (applies to any output set to Serial, USB or Serial 2)',
+    showIf: () => {
+      const v1 = String(App.state.formValues['nmea_out']  ?? App.state.values['nmea_out']  ?? '');
+      const v2 = String(App.state.formValues['nmea_out2'] ?? App.state.values['nmea_out2'] ?? '');
+      return v1==='1'||v1==='4'||v1==='6'||v2==='1'||v2==='4'||v2==='6';
+    } },
+
   // ── Advanced: NMEA Output 1 ──
   { key:'nmea_out', label:'Output Destination', tab:'advanced', group:'NMEA Output 1',
     type:'select', options:[
       {v:'0',l:'Off'},{v:'1',l:'Serial'},{v:'2',l:'UDP'},{v:'3',l:'TCP'},
       {v:'4',l:'USB'},{v:'5',l:'Bluetooth'},{v:'6',l:'Serial 2'}],
     desc:'Primary NMEA output destination' },
-  { key:'baud_rate', label:'Baud Rate', tab:'advanced', group:'NMEA Output 1',
-    type:'select', options:[
-      {v:'0',l:'Default (38400)'},{v:'2',l:'9600'},{v:'3',l:'19200'},
-      {v:'4',l:'38400'},{v:'5',l:'57600'},{v:'6',l:'115200'}],
-    desc:'Serial baud rate' },
   { key:'nmea_g', label:'GNSS Sentences', tab:'advanced', group:'NMEA Output 1',
       type:'select', options:[
       {v:'00',l:'Off'},{v:'01',l:'Basic'},{v:'03',l:'GSA'},{v:'0f',l:'All'}],
@@ -1323,7 +1962,9 @@ const SETTINGS_META = [
       {v:'00',l:'Off'},{v:'01',l:'Basic'},{v:'03',l:'LK8EX1'}],
     desc:'Barometric sensor sentences' },
   { key:'nmea_t', label:'Traffic Sentences', tab:'advanced', group:'NMEA Output 1',
-    type:'toggle', desc:'PFLAU/PFLAA traffic sentences' },
+    type:'bitfield', bits:[
+      {bit:1, l:'PFLAU+PFLAA'}, {bit:2, l:'PFLAJ'}, {bit:4, l:'PFLAM'}, {bit:8, l:'FNNGB'}],
+    desc:'Traffic sentence types (select all that apply)' },
   { key:'nmea_e', label:'External Input', tab:'advanced', group:'NMEA Output 1',
     type:'select', options:[
       {v:'00',l:'Off'},{v:'01',l:'Tunnel'},{v:'02',l:'Output'},{v:'03',l:'Both'}],
@@ -1337,11 +1978,6 @@ const SETTINGS_META = [
       {v:'0',l:'Off'},{v:'1',l:'Serial'},{v:'2',l:'UDP'},{v:'3',l:'TCP'},
       {v:'4',l:'USB'},{v:'5',l:'Bluetooth'},{v:'6',l:'Serial 2'}],
     desc:'Secondary NMEA output destination' },
-  { key:'baudrate2', label:'Baud Rate 2', tab:'advanced', group:'NMEA Output 2',
-    type:'select', options:[
-      {v:'0',l:'Off'},{v:'2',l:'9600'},{v:'3',l:'19200'},
-      {v:'4',l:'38400'},{v:'5',l:'57600'},{v:'6',l:'115200'}],
-    desc:'Second serial port baud rate' },
   { key:'nmea2_g', label:'GNSS Sentences', tab:'advanced', group:'NMEA Output 2',
       type:'select', options:[
       {v:'00',l:'Off'},{v:'01',l:'Basic'},{v:'03',l:'GSA'},{v:'0f',l:'All'}],
@@ -1351,7 +1987,9 @@ const SETTINGS_META = [
       {v:'00',l:'Off'},{v:'01',l:'Basic'},{v:'03',l:'LK8EX1'}],
     desc:'Barometric sensor sentences' },
   { key:'nmea2_t', label:'Traffic Sentences', tab:'advanced', group:'NMEA Output 2',
-    type:'toggle', desc:'PFLAU/PFLAA traffic sentences' },
+    type:'bitfield', bits:[
+      {bit:1, l:'PFLAU+PFLAA'}, {bit:2, l:'PFLAJ'}, {bit:4, l:'PFLAM'}, {bit:8, l:'FNNGB'}],
+    desc:'Traffic sentence types (select all that apply)' },
   { key:'nmea2_e', label:'External Input', tab:'advanced', group:'NMEA Output 2',
     type:'select', options:[
       {v:'00',l:'Off'},{v:'01',l:'Tunnel'},{v:'02',l:'Output'},{v:'03',l:'Both'}],
@@ -1370,8 +2008,8 @@ const SETTINGS_META = [
     desc:'Relay received traffic' },
   { key:'expire', label:'Traffic Expiry', tab:'advanced', group:'Protocols',
     type:'number', min:1, max:30, desc:'Traffic expiration time (seconds)' },
-  { key:'pflaa_cs', label:'ADSB Callsign in PFLAA', tab:'advanced', group:'Protocols',
-    type:'toggle', desc:'Include ADSB callsign in PFLAA sentences' },
+  { key:'pflaa_cs', label:'Callsign in PFLAA', tab:'advanced', group:'Protocols',
+    type:'toggle', desc:'Include callsign in PFLAA sentences' },
   { key:'gn_to_gp', label:'GN to GP', tab:'advanced', group:'Protocols',
     type:'toggle', desc:'Convert GNGGA to GPGGA' },
 
@@ -1389,7 +2027,7 @@ const SETTINGS_META = [
   { key:'rfc', label:'Freq Correction', tab:'advanced', group:'Debug',
     type:'number', min:-30, max:30, desc:'Frequency correction (+-30 kHz)', hidden:true },
   { key:'debug_flags', label:'Debug Flags', tab:'advanced', group:'Debug',
-    type:'hex6', desc:'Debug bitmask (hex)', hidden:true },
+    type:'hex8', desc:'Debug bitmask (hex)', hidden:true },
 
 ];
 
@@ -1402,6 +2040,7 @@ SETTINGS_META.forEach(s => SETTINGS_MAP[s.key] = s);
    ═══════════════════════════════════════════════════════════════ */
 App.nmea = {
   buffer: '',
+  _crcErrors: 0,
 
   checksum(sentence) {
     let cs = 0;
@@ -1416,16 +2055,109 @@ App.nmea = {
     return '$' + body + '*' + cs;
   },
 
-  // Process incoming data chunk (may be partial lines)
+  // Process incoming data chunk (may be partial lines / BLE notifications).
+  //
+  // Strategy: scan the accumulated buffer for COMPLETE sentences, defined as:
+  //   • NMEA:     $<body>*HH  (two hex digits after '*', optional \r\n)
+  //   • Settings: any \n-terminated line that doesn't start with '$'
+  //
+  // We never split on '$' mid-buffer because the firmware may legitimately
+  // include '!' (callsign separator) or other non-newline chars inside a
+  // sentence that arrives across multiple BLE notifications.
+  //
+  // Anything left after the last complete sentence stays in this.buffer and
+  // is prepended to the next incoming chunk — this is the sole reassembly
+  // mechanism for split BLE notifications.
   feed(chunk) {
     this.buffer += chunk;
-    const lines = this.buffer.split('\n');
-    // Keep the last (potentially incomplete) piece in buffer
-    this.buffer = lines.pop() || '';
-    for (const raw of lines) {
-      const line = raw.replace(/\r$/, '').trim();
-      if (line) this.processLine(line);
+    let pos = 0;
+    const buf = this.buffer;
+    const len = buf.length;
+
+    while (pos < len) {
+      const ch = buf[pos];
+
+      if (ch === '$') {
+        // Look for the end of this NMEA sentence: '*' followed by exactly 2 hex digits.
+        // The sentence may be followed by optional \r and/or \n.
+        const star = buf.indexOf('*', pos + 1);
+        if (star < 0) break; // sentence not complete yet — wait for more data
+
+        // Check the two checksum chars exist
+        if (star + 2 >= len) break; // not enough chars yet
+
+        // Ensure the checksum field is exactly 2 hex digits followed by a
+        // non-hex char (or end of buffer).  This guards against a '*' that
+        // is part of the sentence body rather than the checksum delimiter.
+        const c1 = buf[star + 1], c2 = buf[star + 2];
+        if (!/[0-9A-Fa-f]/.test(c1) || !/[0-9A-Fa-f]/.test(c2)) {
+          // Not a real checksum — skip this '$' and keep scanning
+          pos++;
+          continue;
+        }
+
+        // Consume optional \r\n after *HH
+        let end = star + 3;
+        if (end < len && buf[end] === '\r') end++;
+        if (end < len && buf[end] === '\n') end++;
+
+        const sentence = buf.slice(pos, star + 3);
+        this.processLine(sentence);
+        pos = end;
+
+      } else {
+        // Non-NMEA data (settings lines, orphan fragments).
+        // Collect up to the next \n.
+        const nl = buf.indexOf('\n', pos);
+        if (nl < 0) break; // incomplete line — wait
+
+        const raw = buf.slice(pos, nl).replace(/\r$/, '').trim();
+        pos = nl + 1;
+        if (!raw) continue;
+
+        // If it starts with '$' this is a sentence whose '$' was already
+        // handled above — shouldn't normally happen but guard anyway.
+        if (raw.startsWith('$')) { this.processLine(raw); continue; }
+
+        // Silently discard orphan firmware fragments (e.g. "08.", "000", "50!")
+        // that arrive between sentences due to firmware NUS flush timing.
+        // A valid settings line must contain ',' and its first token must be
+        // a known key or the word "SoftRF".
+        if (!raw.includes(',')) continue;
+        const firstToken = raw.split(',')[0];
+        if (!SETTINGS_MAP[firstToken] && firstToken !== 'SoftRF') continue;
+
+        // Settings lines may be concatenated; split them.
+        const sublines = App.nmea._splitConcatenatedSettings(raw);
+        for (const sl of sublines) this.processLine(sl);
+      }
     }
+
+    // Keep whatever wasn't consumed
+    this.buffer = buf.slice(pos);
+  },
+
+  // Split a line that may contain multiple concatenated settings lines.
+  // Matches any known label key preceded by a non-newline character.
+  _splitConcatenatedSettings(line) {
+    if (!App.nmea._settingsRe) {
+      const keys = Object.keys(SETTINGS_MAP).sort((a, b) => b.length - a.length);
+      // Match a known key preceded by a non-identifier char (digit/punctuation — not a letter
+      // or underscore, which would mean we're matching a suffix of a longer key name)
+      App.nmea._settingsRe = new RegExp('(?<=[^a-zA-Z_])(' + keys.join('|') + ')(?=,)', 'g');
+    }
+    const parts = line.split(App.nmea._settingsRe).filter((_, i) => i % 2 === 0);
+    if (parts.length <= 1) return [line];
+    // Reattach the captured key to the part after it
+    const result = [];
+    const m = [...line.matchAll(App.nmea._settingsRe)];
+    let pos = 0;
+    for (const match of m) {
+      result.push(line.slice(pos, match.index));
+      pos = match.index;
+    }
+    result.push(line.slice(pos));
+    return result.filter(s => s.trim());
   },
 
   validateChecksum(sentence) {
@@ -1443,6 +2175,12 @@ App.nmea = {
     // Discard garbage before $ if present
     const dollarIdx = line.indexOf('$');
     if (dollarIdx > 0) line = line.substring(dollarIdx);
+
+    // If no $ at all, check if a known NMEA type appears mid-line (BLE ate the $)
+    if (!line.startsWith('$')) {
+      const m = line.match(/(PSRFH|PSRFS|PFLAA|PFLAU|FNNGB|[A-Z]{2}GGA|[A-Z]{2}RMC),/);
+      if (m) line = '$' + line.substring(m.index);
+    }
 
     App.debug('< ' + line);
 
@@ -1464,8 +2202,18 @@ App.nmea = {
       // Validate checksum
       let crcOk = true;
       if (starIdx >= 0 && !this.validateChecksum(line)) {
-        App.debug('[CRC FAIL] ' + line);
         crcOk = false;
+        this._crcErrors = (this._crcErrors || 0) + 1;
+        // Update status row counter
+        const el = document.getElementById('st-crc');
+        if (el) {
+          el.textContent = this._crcErrors;
+          el.style.color = this._crcErrors > 20 ? 'var(--danger)' : 'var(--warning)';
+        }
+        // Log to debug panel only once every 10 errors to avoid flooding
+        if (this._crcErrors % 10 === 1) {
+          App.debug('[CRC] ' + this._crcErrors + ' corrupt sentences so far. Last: ' + line.substring(0, 60));
+        }
       }
 
       // Strip checksum and parse
@@ -1473,8 +2221,10 @@ App.nmea = {
       const fields = body.split(',');
       const type = fields[0];
 
-      // For GPS sentences, reject on CRC fail (position accuracy matters)
-      // For traffic/heartbeat, process anyway (firmware may have checksum bugs)
+      // Reject CRC failures for GPS position sentences — bad lat/lon is worse
+      // than no fix.  Traffic sentences (PFLAA/PFLAU/FNNGB) are allowed through
+      // on CRC fail because some firmware builds have known checksum quirks; the
+      // ID-validation guard in parsePFLAA catches any genuinely corrupt packets.
       if (!crcOk && (type.endsWith('GGA') || type.endsWith('RMC'))) {
         return;
       }
@@ -1505,25 +2255,49 @@ App.nmea = {
       return;
     }
 
-    // Settings dump line (label,value # comment)
-    if (line.includes(',') && !line.startsWith('#')) {
-      const commentIdx = line.indexOf('#');
-      const data = commentIdx >= 0 ? line.substring(0, commentIdx) : line;
-      const commaIdx = data.indexOf(',');
+    // Settings dump line from PSRFC,LST: compact "label,value" with no comments.
+    // Strip a leading '#' that can arrive as a BLE packet-boundary artifact.
+    const settingsLine = line.startsWith('#') ? line.slice(1) : line;
+    if (settingsLine.includes(',')) {
+      const commaIdx = settingsLine.indexOf(',');
       if (commaIdx > 0) {
-        const label = data.substring(0, commaIdx).trim();
-        const value = data.substring(commaIdx + 1).trim();
+        const label = settingsLine.substring(0, commaIdx).trim();
+        const rawVal = settingsLine.substring(commaIdx + 1).trim();
+        const meta = SETTINGS_MAP[label];
+        // text fields may contain spaces; all others take the first token
+        const value = (meta && meta.type === 'text') ? rawVal : rawVal.split(/\s/)[0];
         if (label === 'SoftRF') {
           // Version line — start of settings dump
           App.state._settingsCount = 0;
           return;
         }
+        // Skip malformed lines: empty value or label containing spaces
+        // (can happen when BLE chunks arrive without newline between settings)
+        if (value === '' || label.includes(' ')) return;
         if (SETTINGS_MAP[label]) {
+          // Validate value against its expected type.
+          // A BLE notification drop can cause a GPS sentence fragment to be
+          // appended to a settings value (e.g. igc_pilot "Mos7306.4466,W,...").
+          // Commas in a value are never valid for any setting type.
+          if (value.includes(',')) {
+            App.debug('[SETTINGS] Corrupt value for ' + label + ': ' + value);
+            return;
+          }
           App.state.values[label] = value;
           App.state._settingsCount = (App.state._settingsCount || 0) + 1;
           App.ui.updateControl(label, value);
+        } else if (!App.state.settingsLoaded) {
+          // Unknown label during settings dump — likely a BLE-corrupted prefix.
+          // Try to identify the intended setting by suffix match (e.g. "gn_gp" → "gn_to_gp").
+          const candidate = Object.keys(SETTINGS_MAP).find(k => k.endsWith(label) || k.endsWith('_' + label));
+          if (candidate) App.state.garbled.add(candidate);
         }
-        // Reset idle timer
+        // debug_flags is always the last setting — use it as terminator
+        if (label === 'debug_flags') {
+          App.settings._onSettingsComplete();
+          return;
+        }
+        // Reset idle timer (fallback if debug_flags never arrives)
         App.settings._resetIdleTimer();
       }
     }
@@ -1575,6 +2349,17 @@ App.transport = {
     App.ui.hideLoading();
     App.toast('Connected to ' + name + ' (' + type.toUpperCase() + ')', 'success');
     document.getElementById('dfuRow').style.display = (type === 'ble') ? '' : 'none';
+    document.getElementById('groundTypeCard').style.display = '';
+    const mtuRow = document.getElementById('st-mtu-row');
+    if (mtuRow) mtuRow.style.display = (type === 'ble') ? '' : 'none';
+    const crcRow = document.getElementById('st-crc-row');
+    if (crcRow) crcRow.style.display = (type === 'ble') ? '' : 'none';
+    const crcEl = document.getElementById('st-crc');
+    if (crcEl) { crcEl.textContent = '0'; crcEl.style.color = ''; }
+    App.nmea._crcErrors = 0;
+    const ph = document.getElementById('statusPlaceholder');
+    if (ph) ph.querySelector('p').textContent = 'Waiting for heartbeat from device…';
+    // Small delay for GATT to stabilise before sending first command
     setTimeout(() => App.commands.refreshSettings(), 500);
   },
 
@@ -1584,6 +2369,18 @@ App.transport = {
     App.ui.setConnState('disconnected');
     App.toast('Device disconnected', 'info');
     document.getElementById('dfuRow').style.display = 'none';
+    document.getElementById('groundTypeCard').style.display = 'none';
+    const mtuRow = document.getElementById('st-mtu-row');
+    if (mtuRow) mtuRow.style.display = 'none';
+    const mtuEl = document.getElementById('st-mtu');
+    if (mtuEl) mtuEl.textContent = '--';
+    const crcRow = document.getElementById('st-crc-row');
+    if (crcRow) crcRow.style.display = 'none';
+    const crcEl = document.getElementById('st-crc');
+    if (crcEl) { crcEl.textContent = '0'; crcEl.style.color = ''; }
+    App.nmea._crcErrors = 0;
+    const ph = document.getElementById('statusPlaceholder');
+    if (ph) ph.querySelector('p').textContent = 'Connect to a SoftRF device to view status';
   }
 };
 
@@ -1595,6 +2392,7 @@ App.ble = {
   server: null,
   writeChar: null,   // characteristic to write data to device
   profile: null,     // 'nus' or 'hm10'
+  maxNotifyLen: 0,   // largest BLE notification seen — proxy for negotiated MTU
 
   // Nordic UART Service
   NUS_SERVICE:  '6e400001-b5a3-f393-e0a9-e50e24dcca9e',
@@ -1694,10 +2492,39 @@ App.ble = {
     this.server = null;
     this.writeChar = null;
     this.profile = null;
+    this.maxNotifyLen = 0;
+    clearTimeout(this._mtuWarnTimer);
     App.transport._onDisconnected();
   },
 
   _onData(event) {
+    const len = event.target.value.byteLength;
+    if (len > this.maxNotifyLen) {
+      this.maxNotifyLen = len;
+      const mtu = len + 3;  // ATT header is 3 bytes
+      const msg = '[BLE] Max notification: ' + len + ' B/packet (ATT MTU ≥ ' + mtu + ')';
+      App.debug(msg);
+      console.log(msg);
+      const el = document.getElementById('st-mtu');
+      if (el) {
+        el.textContent = len + ' B/packet (MTU ≥ ' + mtu + ')';
+        // Highlight in amber if stuck at BLE 4.0 default — data still works but
+        // worth noting so the user can try reconnecting from a device that
+        // supports a higher MTU.
+        el.style.color = (len <= 20) ? 'var(--warning)' : '';
+      }
+      // After the initial burst of small packets, warn once if MTU is minimal
+      if (len === 20) {
+        clearTimeout(this._mtuWarnTimer);
+        this._mtuWarnTimer = setTimeout(() => {
+          if (this.maxNotifyLen <= 20) {
+            App.toast('BLE MTU is 20 B (minimum). Data will still work but may be slow. Try reconnecting.', 'info');
+          }
+        }, 3000);
+      } else if (len > 20) {
+        clearTimeout(this._mtuWarnTimer);
+      }
+    }
     const text = new TextDecoder().decode(event.target.value);
     App.nmea.feed(text);
   },
@@ -1768,20 +2595,14 @@ App.serial = {
   _startReading() {
     const decoder = new TextDecoder();
     this.reader = this.port.readable.getReader();
-    let buffer = '';
 
     this.readLoop = (async () => {
       try {
         while (true) {
           const { value, done } = await this.reader.read();
           if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
-          for (const raw of lines) {
-            const line = raw.replace(/\r$/, '').trim();
-            if (line) App.nmea.feed(line + '\n');
-          }
+          if (!value || !value.byteLength) continue;
+          App.nmea.feed(decoder.decode(value, { stream: true }));
         }
       } catch (err) {
         if (err.name !== 'NetworkError') {
@@ -1841,8 +2662,25 @@ App.heartbeat = {
     const traffic = fields[9] || '0';
     const rssi = fields.length > 10 ? fields[10] : '--';
 
+    // Sanity-check: proto and voltage must look like integers from the firmware.
+    // If proto contains non-digit characters the sentence is corrupted (e.g. a
+    // settings-dump line mis-routed through NMEA parsing on some BLE stacks).
+    if (!/^\d+$/.test(proto) || voltage > 60000 || millis < 0) {
+      App.debug('[PSRFH CORRUPT] ' + fields.join(','));
+      return;
+    }
+
     const volts = (voltage / 100).toFixed(2);
-    const pct = Math.max(0, Math.min(100, Math.round((voltage - 330) / (420 - 330) * 100)));
+    const v = voltage / 100;
+    const lv = [3.300, 3.680, 3.730, 3.754, 3.770, 3.780, 3.858, 3.914, 3.984, 4.070, 4.170];
+    const lp = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+    let pct = 0;
+    if (v >= lv[lv.length-1]) { pct = 100; }
+    else if (v > lv[0]) {
+      for (let i = 0; i < lv.length - 1; i++) {
+        if (v <= lv[i+1]) { pct = Math.round(lp[i] + (v - lv[i]) / (lv[i+1] - lv[i]) * (lp[i+1] - lp[i])); break; }
+      }
+    }
     const uptimeSec = Math.floor(millis / 1000);
     const h = Math.floor(uptimeSec / 3600);
     const m = Math.floor((uptimeSec % 3600) / 60);
@@ -1917,20 +2755,51 @@ App.traffic = {
     const relEast = parseInt(fields[3]) || 0;
     const relVert = parseInt(fields[4]) || 0;
     let rawId = fields[6] || 'Unknown';
-    let acName = null;
+    let callsign = null;
     if (rawId.includes('!')) {
       const parts = rawId.split('!');
-      rawId = parts[0]; acName = parts[1];
+      rawId = parts[0];
+      callsign = parts[1] || null;
     }
-    const groundSpeed = parseFloat(fields[9]) || null;
-    const climbRate = parseFloat(this.stripChecksum(fields[10])) || null;
+    // Reject malformed IDs — valid PFLAA IDs are exactly 6 hex digits.
+    // Fragmented BLE packets produce garbled strings like "88BBFLR_88BB50".
+    if (!/^[0-9A-Fa-f]{6}$/.test(rawId)) {
+      App.debug('[PFLAA BAD ID] ' + rawId);
+      return;
+    }
+    // FLR_/FNT_/PAW_ prefixes encode protocol origin, not meaningful callsigns.
+    // A real callsign (e.g. "D-KABC") should be used as the display name.
+    const PROTO_PREFIXES = /^(FLR_|FNT_|PAW_)/i;
+    const acName = (callsign && !PROTO_PREFIXES.test(callsign)) ? callsign : null;
+    // Derive sub-protocol from prefix for the source badge
+    const proto = callsign
+      ? (callsign.toUpperCase().startsWith('FLR_') ? 'flarm'
+       : callsign.toUpperCase().startsWith('FNT_') ? 'fanet'
+       : callsign.toUpperCase().startsWith('PAW_') ? 'paw'
+       : 'flarm')
+      : 'flarm';
+    // PFLAA field order: AlarmLevel,RelN,RelE,RelV,IDType,ID,Track,TurnRate,GroundSpeed,ClimbRate,AcftType
+    const _hdg = parseFloat(fields[7]);
+    const heading = isNaN(_hdg) ? null : _hdg;
+    const _spd = parseFloat(fields[9]);
+    const groundSpeed = isNaN(_spd) ? null : _spd;
+    const _climb = parseFloat(this.stripChecksum(fields[10]));
+    const climbRate = isNaN(_climb) ? null : _climb;
     const acftType = parseInt(this.stripChecksum(fields[11])) || 0;
 
     App.state.traffic[rawId] = {
       id: rawId, name: acName, alarmLevel, relNorth, relEast, relVert,
-      groundSpeed, climbRate, acftType, lastSeen: Date.now(), source: 'pflaa'
+      heading, groundSpeed, climbRate, acftType,
+      isGround: false,   // PFLAA only reports airborne targets
+      lastSeen: Date.now(), source: 'pflaa', proto
     };
     App.map.updateTrafficMarker(rawId);
+    // Feed track point if this aircraft is being followed
+    if (App.state.gps.lat != null && App.map.followedId === rawId) {
+      const tlat = App.state.gps.lat + (relNorth / 111320);
+      const tlon = App.state.gps.lon + (relEast / (111320 * Math.cos(App.state.gps.lat * Math.PI / 180)));
+      App.map.updateAcTrack(rawId, tlat, tlon, climbRate);
+    }
     this.updateUI();
   },
 
@@ -1951,18 +2820,20 @@ App.traffic = {
   },
 
   parseFNNGB(fields) {
-    const manufacturer = fields[1] || '';
-    const idHex = fields[2] || '';
-    const name = fields[3] || '';
+    const manufacturer = (fields[1] || '').trim();
+    const idHex = (fields[2] || '').trim();
+    const name = (fields[3] || '').trim();
     const typeStatus = parseInt(fields[4]);
     const lat = parseFloat(fields[5]);
     const lon = parseFloat(fields[6]);
     const alt = parseFloat(fields[7]);
     const climb = parseFloat(fields[8]);
     const speed = parseFloat(fields[9]);
+    const heading = parseFloat(fields[10]);
 
     if (isNaN(lat) || isNaN(lon)) return;
-    const fanetId = manufacturer + ':' + idHex;
+    // Combine vendor + device ID into a single hex string (e.g. "88" + "7437" → "887437")
+    const fanetId = manufacturer + idHex;
     const isGround = !isNaN(typeStatus) && typeStatus >= 10;
     const groundStatus = isGround ? typeStatus - 10 : null;
     const acftType = isGround ? null : (isNaN(typeStatus) ? 0 : typeStatus);
@@ -1970,6 +2841,7 @@ App.traffic = {
     App.state.traffic[fanetId] = {
       id: fanetId, name: name || null, alarmLevel: 0,
       relNorth: null, relEast: null, relVert: null,
+      heading: !isNaN(heading) ? heading : null,
       groundSpeed: !isNaN(speed) ? speed : null,
       climbRate: !isNaN(climb) ? climb : null,
       acftType, lastSeen: Date.now(), source: 'fanet',
@@ -1977,7 +2849,20 @@ App.traffic = {
       isGround, groundStatus
     };
     App.map.updateTrafficMarker(fanetId);
+    // Feed track point if this aircraft is being followed
+    App.map.updateAcTrack(fanetId, lat, lon, !isNaN(climb) ? climb : null);
     this.updateUI();
+  },
+
+  // Returns CSS class name for a climbRate value
+  varioClass(v) {
+    if (v == null)  return 'vario-zero';
+    if (v > 2.5)    return 'vario-strong';
+    if (v > 1.5)    return 'vario-good';
+    if (v > 0.3)    return 'vario-weak';
+    if (v >= -0.3)  return 'vario-zero';
+    if (v >= -2.0)  return 'vario-down';
+    return 'vario-sink';
   },
 
   formatDistance(relNorth, relEast) {
@@ -1986,38 +2871,106 @@ App.traffic = {
     return dist >= 1000 ? (dist / 1000).toFixed(1) + ' km' : Math.round(dist) + ' m';
   },
 
+  // Returns solid colour for aircraft type
+  acftColor(ac) {
+    if (ac.isGround) return '#607d8b';
+    const t = ac.acftType || 0;
+    if (ac.source === 'fanet') {
+      // FANET: 1=PG,2=HG → orange; 4=Glider → blue; 5=Powered,6=Heli → red; rest grey
+      if (t === 1 || t === 2) return '#f97316';
+      if (t === 4)            return '#3b82f6';
+      if (t === 5 || t === 6) return '#ef4444';
+      return '#6b7280';
+    }
+    // PFLAA: 1=Glider → blue; 2=Tow,8=Powered,9=Jet,3=Heli → red; 6=HG,7=PG → orange
+    if (t === 1)              return '#3b82f6';
+    if (t === 2 || t === 8 || t === 9 || t === 3) return '#ef4444';
+    if (t === 6 || t === 7)   return '#f97316';
+    return '#6b7280';
+  },
+
+  acftTypeLabel(ac) {
+    if (ac.isGround) return this.GROUND_STATUS[ac.groundStatus] || 'Ground';
+    if (ac.source === 'fanet') return this.FANET_TYPES[ac.acftType] || 'Other';
+    return this.ACFT_TYPES[ac.acftType] || 'Unknown';
+  },
+
+  _acftIcon(ac) {
+    const sz = 32;
+    const fill = this.acftColor(ac);
+    const stroke = 'rgba(0,0,0,0.6)';
+    const sw = 2;
+
+    // Helper: SVG with a single path from assets that use viewBox="0 0 128 128"
+    // These use .cls-1 style — we override with inline fill/stroke attributes.
+    const svg128 = (path) =>
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${sz}" height="${sz}" viewBox="0 0 128 128">` +
+      `<path d="${path}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" stroke-miterlimit="10"/>` +
+      `</svg>`;
+
+    // Helper: Potrace SVGs (paraglider, hang glider) use a Y-flip group transform.
+    // We keep the group transform and override fill via the group attribute.
+    const svgPotrace = (pathD, extraPath='') =>
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${sz}" height="${sz}" viewBox="0 0 206 231">` +
+      `<g transform="translate(0,231) scale(0.1,-0.1)" fill="${fill}" stroke="${stroke}" stroke-width="${sw * 10}">` +
+      `<path d="${pathD}"/>` + extraPath +
+      `</g></svg>`;
+
+    const GLIDER_PATH = `M63.96,88.7c-.87-.02-1.6-.59-1.86-1.38-2.25-.1-6.47-.29-6.53-.29-.55-.03-1.06-.28-1.42-.69-.36-.42-.53-.96-.47-1.51-.04-.92-.1-2.59,1.32-3.43,1.83-.67,4.39-1.03,6.44-1.27l-.06-1.23c-.23-4.96-.64-13.78-.82-16.86l-.03-.02c-10.62-.32-29.7-.82-43.51-.82-4.67,0-8.37.06-11.03.17l-.37.49c-.38.51-.97.81-1.61.81-.54,0-1.06-.21-1.43-.6-.38-.38-.59-.9-.58-1.44.02-1.15.47-2.43,1.32-3.8.29-.46.76-.79,1.29-.9,15.12-3.1,34.34-3.53,52.86-3.53h2.46c.03-3.25.34-7.39,1.74-11.27,0-.01.1-.28.16-.39.02-.04.19-.36.21-.38.08-.14.19-.28.31-.4.23-.19.69-.5.97-.58.16-.04.51-.07.68-.07s.51.03.67.07c.35.09.66.27.92.52.05.05.1.1.14.16.08.09.29.41.32.46.02.04.23.49.25.54,1.15,3.36,1.72,7.05,1.75,11.34h2.58c18.49,0,37.68.43,52.78,3.53.58.12,1.08.49,1.36,1.02.49.93.98,1.94,1.18,3.04.03.13.04.27.04.41,0,.05,0,.12,0,.19-.06,1.06-.94,1.98-2,1.98,0,0-.26-.01-.37-.03-.49-.05-.93-.27-1.24-.69l-.37-.49c-2.69-.12-6.4-.17-11.07-.17-13,0-30.67.44-43.47.82l-.9,18.11c2.05.23,4.55.57,6.09,1.11,1.77.91,1.71,2.65,1.68,3.4.06.54-.12,1.18-.48,1.6s-.88.76-1.42.79l-6.52.29c-.26.82-1.03,1.38-1.9,1.38h-.04Z`;
+    const HELI_PATH = `M101.24,12.23c-1.04-1.04-2.79-.97-3.91.15l-17.44,17.44c-2.11-10.8-8.02-18.59-15.01-18.59s-13.44,8.52-15.27,20.1L30.67,12.38c-1.12-1.12-2.87-1.19-3.91-.15-1.04,1.04-.97,2.79.15,3.91l22.14,22.14c0,.07,0,.13,0,.2,0,6.98,1.54,13.33,4.05,18.15l-26.18,26.18c-1.12,1.12-1.19,2.87-.15,3.91,1.04,1.04,2.79.97,3.91-.15l25.42-25.42c1.08,1.24,2.25,2.23,3.48,2.99v35.33l-15.93,10.75v6.03l16.76-7.45h8.97l16.76,7.45v-6.02l-15.93-10.75v-35.33c.92-.56,1.79-1.26,2.62-2.08l24.52,24.52c1.12,1.12,2.87,1.19,3.91.16,1.04-1.04.97-2.79-.15-3.91l-25.02-25.02c2.88-4.93,4.66-11.76,4.66-19.3,0-.65-.03-1.29-.06-1.92l20.42-20.42c1.12-1.12,1.19-2.87.15-3.91Z`;
+    const PLANE_PATH = `M121.75,44.17c-3.75-.03-7.5-.06-11.25-.08-12.8-.08-25.6-.17-38.4-.23-.72,0-.85-.27-.89-.91-.18-3.09-.27-6.2-.66-9.27-.35-2.71-1.02-5.39-1.62-8.07-.05-.21-.13-.4-.21-.58,5.68-.23,9.69-.79,9.69-1.44,0-.76-5.45-1.39-12.66-1.53-.1-.15-.19-.29-.28-.44-.46-.79-.72-1.7-1.1-2.54-.15-.32-.4-.58-.71-1.01-.37.59-.68,1.01-.91,1.47-.41.82-.79,1.66-1.17,2.5-8.06.06-14.41.73-14.41,1.55,0,.72,4.91,1.32,11.57,1.5-1.16,4.39-2.18,8.8-2.13,13.39.01,1.55-.1,3.1-.14,4.65-.02.58-.22.9-.88.92-1.7.05-3.39.21-5.09.24-6.5.11-13,.16-19.5.27-8.05.14-16.1.31-24.14.5-2.07.05-2.63.64-2.83,2.69-.01.15-.03.3-.03.45.09,3.32.19,6.64.26,9.97.01.71.33.96.98,1.03,2.78.28,5.56.61,8.35.88,4.68.45,9.36.87,14.03,1.3,5.2.47,10.41.93,15.61,1.41,3.93.37,7.87.71,11.78,1.19,2.43.3,2.04-.18,2.51,2.48,1.21,6.84,2.32,13.69,3.44,20.55.28,1.7.42,3.42.64,5.13.07.56-.15.82-.71.89-.69.09-1.38.25-2.07.35-3.88.56-7.77,1.07-11.64,1.68-1.01.16-1.98.61-2.95.99-.18.07-.37.43-.36.64.16,2.69.37,5.39.54,8.08.04.59.29.81.88.82,2.97.05,5.95.14,8.92.21,2.65.07,5.3.12,7.95.21,1.17.04,1.26.13,1.42,1.28.1.74.08,1.5.2,2.24.04.27.31.51.48.76.26-.2.67-.34.75-.6.22-.73.37-1.5.44-2.26.12-1.39.23-1.55,1.6-1.57,4.02-.05,8.05-.1,12.07-.14,1.77-.02,3.54,0,5.57,0,0-2.86.03-5.56-.02-8.25-.01-.86-.52-1.52-1.33-1.85-.76-.3-1.55-.61-2.35-.74-4.14-.68-8.29-1.3-12.44-1.95-1.7-.27-1.74-.29-1.51-1.99.31-2.38.64-4.75,1-7.13.94-6.2,1.91-12.39,2.84-18.59.11-.7.39-1.01,1.11-1.09,4.35-.49,8.69-1.02,13.03-1.52,5.24-.6,10.48-1.17,15.72-1.75,4.79-.53,9.59-1.02,14.38-1.58,2.56-.3,5.1-.68,7.65-1.03.42-.06.82-.11.84-.73.11-3.72.28-7.44.37-11.17.03-1.08-1.19-2.2-2.24-2.21Z`;
+    const JET_PATH = `M111.18,72.23l-5.56-3s-6.44-3.71-9.37-5.08l-5.05-2.73v-3.57c0-2.41-1.68-4.6-4.06-4.97-2.51-.38-4.7,1.22-5.34,3.46l-8.2-4.45v-17.15c-.03-4.99-1.17-10.03-3.33-14.45-.84-1.98-2.49-3.48-4.6-4.14-3.09-.78-6.37.69-7.78,3.54-2.31,4.66-3.54,9.88-3.51,15.08v17.12l-8.2,4.45c-.63-2.24-2.82-3.84-5.34-3.46-2.38.36-4.06,2.56-4.06,4.97v3.57s-5.05,2.73-5.05,2.73c-3.75,2.26-9.37,5.08-9.37,5.08l-5.56,3c-.51.3-.84.84-.84,1.41v9.61c0,.51.27,1.02.69,1.32.27.18.6.27.9.27.21,0,.39-.03.57-.09l36.25-13.61v13.7c0,.12.03.21.03.3l1.62,8.38-15.29,9.16c-.48.3-.75.81-.75,1.38v6.4c0,.48.21.9.54,1.23.3.24.66.36,1.05.36.09,0,.18,0,.27-.03l17.39-2.88c.9,1.74,2.7,2.91,4.75,2.91s3.87-1.2,4.75-2.91l17.39,2.88c.09.03.18.03.27.03.39,0,.75-.12,1.05-.36.36-.33.54-.75.54-1.23v-6.4c0-.57-.27-1.08-.75-1.38l-15.29-9.16,1.62-8.38c0-.09.03-.18.03-.3v-13.7l36.25,13.61c.18.06.36.09.57.09.3,0,.63-.09.9-.27.42-.3.69-.81.69-1.32v-9.61c0-.57-.33-1.11-.84-1.41Z`;
+    // Potrace paths: used inside a Y-flip group — stroke-width is in Potrace units (×10 of display)
+    const PARA_PATH = `M720 1369 c-331 -24 -440 -92 -440 -276 0 -60 20 -86 73 -98 49 -10 1147 -15 1270 -5 135 10 157 25 157 104 0 187 -105 250 -460 275 -165 12 -431 12 -600 0z m40 -189 l0 -180 -45 0 -45 0 0 174 0 175 43 4 c23 2 43 4 45 5 1 1 2 -79 2 -178z m100 0 l0 -180 -45 0 -45 0 0 180 0 180 45 0 45 0 0 -180z m110 0 l0 -180 -50 0 -50 0 0 180 0 180 50 0 50 0 0 -180z m110 0 l0 -180 -50 0 -50 0 0 180 0 180 50 0 50 0 0 -180z m110 0 l0 -180 -50 0 -50 0 0 180 0 180 50 0 50 0 0 -180z m100 0 l0 -180 -45 0 -45 0 0 180 0 180 45 0 45 0 0 -180z m100 -6 l0 -174 -45 0 -45 0 0 178 0 177 45 -3 45 -4 0 -174z m-730 1 l0 -175 -40 0 -40 0 0 169 0 170 33 4 c17 2 35 5 40 5 4 1 7 -77 7 -173z m796 165 l24 0 0 -170 0 -170 -40 0 -40 0 0 176 c0 157 2 175 16 170 9 -3 27 -6 40 -6z m-886 -170 l0 -170 -40 0 -40 0 0 159 0 159 38 10 c20 5 38 10 40 11 1 1 2 -75 2 -169z m973 156 l27 -6 0 -160 0 -160 -40 0 -40 0 0 170 c0 131 3 168 13 166 6 -3 24 -7 40 -10z m-1067 -324 c-3 -2 -21 -1 -41 2 l-36 7 3 141 3 141 35 12 35 12 3 -155 c1 -85 0 -157 -2 -160z m1182 150 c1 -80 -1 -142 -6 -142 -5 0 -24 -3 -41 -6 l-31 -6 0 160 0 161 38 -13 37 -13 3 -141z m-1268 -8 l0 -136 -32 6 c-53 10 -70 39 -62 105 12 100 23 101 23 4 1 -55 5 -93 11 -93 6 0 10 38 10 95 0 67 -4 95 -12 95 -6 0 1 14 17 30 16 17 32 30 37 30 4 0 8 -61 8 -136z m1325 106 c16 -16 23 -30 17 -30 -8 0 -12 -28 -12 -95 0 -57 4 -95 10 -95 6 0 10 38 11 93 1 95 10 91 24 -10 8 -59 -12 -89 -62 -99 l-33 -6 0 136 c0 75 4 136 8 136 5 0 21 -13 37 -30z`;
+    const HG_PATH = `M633 1482 c-211 -108 -383 -201 -383 -205 0 -5 10 -23 22 -39 l21 -31 131 6 c72 4 228 18 346 32 118 13 224 25 235 25 19 0 20 -5 17 -80 -3 -70 -1 -80 13 -80 15 0 17 10 13 80 -3 75 -2 80 17 80 11 0 117 -12 235 -25 118 -14 274 -28 346 -32 l131 -6 21 31 c12 16 22 34 22 39 0 11 -758 398 -785 400 -11 1 -192 -87 -402 -195z m392 114 l0 -63 -83 -28 c-46 -15 -85 -25 -87 -23 -2 2 -7 22 -10 43 l-7 40 94 47 c51 26 93 47 93 47 0 1 0 -28 0 -63z m200 -71 c-3 -21 -8 -41 -10 -43 -2 -2 -41 8 -87 23 l-83 28 0 62 0 62 93 -46 94 -46 -7 -40z m-398 -15 l10 -40 -99 -31 c-55 -17 -101 -29 -103 -27 -2 1 -5 11 -7 21 -2 14 18 29 87 66 50 27 92 49 95 50 3 0 11 -17 17 -39z m530 -12 c77 -40 90 -50 86 -68 -3 -11 -8 -20 -12 -20 -4 0 -50 13 -103 30 l-95 30 10 40 c6 22 14 39 17 38 3 -2 46 -24 97 -50z m-334 -94 c-1 -59 -3 -107 -5 -109 -2 -1 -30 -5 -64 -9 l-61 -7 -17 87 c-10 47 -16 88 -14 90 3 3 144 50 158 53 3 1 4 -47 3 -105z m117 75 c39 -11 70 -24 70 -27 0 -4 -7 -45 -17 -91 l-16 -83 -36 6 c-20 3 -49 6 -66 6 l-30 0 0 110 c0 86 3 109 13 105 7 -2 44 -14 82 -26z m-286 -111 c19 -99 19 -95 4 -95 -7 0 -52 -4 -99 -8 l-86 -7 -16 63 c-9 35 -15 64 -14 65 3 2 182 62 188 63 4 1 14 -36 23 -81z m489 46 c48 -15 86 -33 84 -39 -3 -5 -10 -35 -17 -66 l-12 -55 -57 7 c-31 5 -75 9 -98 10 -24 2 -43 5 -43 8 0 3 7 43 16 89 11 51 21 81 28 79 6 -2 50 -17 99 -33z m-733 11 c0 -8 0 -18 1 -22 0 -6 -105 -42 -123 -43 -25 0 0 24 50 49 66 35 72 36 72 16z m920 -15 c33 -17 60 -35 60 -40 0 -6 -3 -10 -7 -10 -19 1 -124 37 -124 43 1 4 1 14 1 22 0 20 1 20 70 -15z m-892 -94 c7 -31 12 -59 10 -61 -1 -2 -32 -6 -68 -10 l-65 -7 -13 47 c-7 26 -11 49 -10 50 11 7 115 42 122 41 5 -1 16 -28 24 -60z m892 36 c25 -8 46 -16 48 -17 1 -1 -3 -24 -10 -50 l-13 -47 -44 6 c-24 3 -55 6 -68 6 -27 0 -27 -3 -2 93 8 31 14 37 27 32 9 -4 37 -14 62 -23z m-1066 9 c5 -8 -19 -19 -99 -45 -11 -4 5 6 35 23 65 36 58 33 64 22z m1253 -48 c-7 -6 -116 41 -111 48 2 5 29 -4 59 -18 30 -15 53 -28 52 -30z m-1237 -24 c15 -54 8 -59 -97 -59 -71 0 -84 3 -93 19 -9 18 -2 22 78 49 48 17 90 31 94 31 4 1 12 -18 18 -40z m1227 7 c75 -25 82 -29 73 -47 -9 -16 -22 -19 -93 -19 -105 0 -112 5 -97 59 7 26 16 41 23 38 7 -2 49 -16 94 -31z`;
+
+    if (ac.isGround) return `<span style="font-size:20px;line-height:${sz}px">🚶</span>`;
+
+    const t = ac.acftType || 0;
+
+    // FANET type mapping (FANET uses different type numbering than FLARM)
+    if (ac.source === 'fanet') {
+      if (t === 4) return `<span style="font-size:20px;line-height:${sz}px">⛵</span>`;
+      if (t === 1 || t === 2) return svgPotrace(PARA_PATH);  // FANET paraglider/hangglider
+      if (t === 6) return svg128(HELI_PATH);
+      return svg128(PLANE_PATH);
+    }
+
+    // FLARM/OGN type codes
+    if (t === 11) return `<span style="font-size:20px;line-height:${sz}px">🎈</span>`;
+    if (t === 6 || t === 7) return svgPotrace(PARA_PATH);   // paraglider
+    if (t === 9) return svgPotrace(HG_PATH);                // hang glider
+    if (t === 3) return svg128(HELI_PATH);
+    if (t === 1) return svg128(GLIDER_PATH);
+    if (t === 8 || t === 13) return svg128(JET_PATH);
+    return svg128(PLANE_PATH);
+  },
+
   updateAlarmUI() {
     const el = document.getElementById('trf-alarm');
     if (!el) return;
     const a = App.state.alarm;
-    const labels = ['No Alarm', 'Low Alert', 'Important', 'URGENT'];
-    const classes = ['alarm-none', 'alarm-low', 'alarm-important', 'alarm-urgent'];
+    if (!a || a.level === 0) { el.className = 'alarm-banner'; el.textContent = ''; return; }
+    const labels = ['', 'Low Alert', 'Important', 'URGENT'];
+    const classes = ['', 'alarm-low', 'alarm-important', 'alarm-urgent'];
     const level = Math.min(a.level, 3);
-    el.className = 'alarm-state ' + classes[level];
-    let label = labels[level];
-    if (a.closestId && a.level > 0) label += ' - ' + a.closestId;
-    el.innerHTML = '<span>' + label + '</span>';
+    el.className = 'alarm-banner visible ' + classes[level];
+    el.textContent = '⚠ ' + labels[level] + (a.closestId ? ' — ' + a.closestId : '');
   },
 
   updateUI() {
     const traffic = App.state.traffic;
     const ids = Object.keys(traffic);
 
-    // Count
     let airCount = 0, groundCount = 0;
-    for (const id of ids) {
-      if (traffic[id].isGround) groundCount++; else airCount++;
-    }
-    let countText = ids.length === 0 ? 'No traffic detected' : '';
-    if (ids.length > 0) {
-      const parts = [];
-      if (airCount > 0) parts.push(airCount + ' airborne');
-      if (groundCount > 0) parts.push(groundCount + ' ground');
-      countText = parts.join(', ') + ' in range';
-    }
-    document.getElementById('trf-count').textContent = countText;
+    for (const id of ids) { if (traffic[id].isGround) groundCount++; else airCount++; }
+    const parts = [];
+    if (airCount > 0) parts.push(airCount + ' airborne');
+    if (groundCount > 0) parts.push(groundCount + ' ground');
+    document.getElementById('trf-count').textContent =
+      ids.length === 0 ? 'No traffic' : parts.join(', ');
 
-    // Sort: emergencies first, alarm level, airborne before ground
+    // Sort: emergencies → alarm level → airborne first → closest
     ids.sort((a, b) => {
       const acA = traffic[a], acB = traffic[b];
       const emerA = acA.isGround && acA.groundStatus >= 12 ? 1 : 0;
@@ -2026,51 +2979,150 @@ App.traffic = {
       const alarmDiff = (acB.alarmLevel || 0) - (acA.alarmLevel || 0);
       if (alarmDiff !== 0) return alarmDiff;
       if (acA.isGround !== acB.isGround) return acA.isGround ? 1 : -1;
-      return (acB.lastSeen || 0) - (acA.lastSeen || 0);
+      const distA = Math.hypot(acA.relNorth || 0, acA.relEast || 0);
+      const distB = Math.hypot(acB.relNorth || 0, acB.relEast || 0);
+      return distA - distB;
     });
 
     let html = '';
     for (const id of ids) {
       const ac = traffic[id];
-      const displayName = ac.name || ac.id;
+      // Show real callsign if present, otherwise hex ID
+      const displayName = this.escapeHtml(ac.name || ac.id);
+      const displaySub = ac.name ? this.escapeHtml(ac.id) : '';
       const isEmergency = ac.isGround && ac.groundStatus >= 12;
-
-      let typeLabel;
-      if (ac.isGround) typeLabel = this.GROUND_STATUS[ac.groundStatus] || 'Ground #' + ac.groundStatus;
-      else if (ac.source === 'fanet') typeLabel = this.FANET_TYPES[ac.acftType] || 'Other';
-      else typeLabel = this.ACFT_TYPES[ac.acftType] || 'Unknown';
-
-      let speedStr = '--';
-      if (ac.groundSpeed != null) {
-        speedStr = ac.source === 'fanet' ? ac.groundSpeed + ' km/h' : ac.groundSpeed + ' m/s';
-      }
-
-      let altStr;
-      if (ac.source === 'fanet' && ac.absAlt != null) altStr = ac.absAlt + 'm MSL';
-      else if (ac.relVert != null) altStr = (ac.relVert >= 0 ? '+' : '') + ac.relVert + 'm';
-      else altStr = '--';
+      const color = this.acftColor(ac);
+      const typeLabel = this.acftTypeLabel(ac);
 
       const distStr = this.formatDistance(ac.relNorth, ac.relEast);
 
-      const alertLevel = Math.min(ac.alarmLevel || 0, 3);
-      const alertLabels = ['None', 'Low', 'Imp.', 'URG'];
-      const alertClasses = ['alert-none', 'alert-low', 'alert-imp', 'alert-urg'];
+      let altStr = '--';
+      if (ac.source === 'fanet' && ac.absAlt != null) altStr = Math.round(ac.absAlt * 3.28084) + 'ft';
+      else if (ac.relVert != null) altStr = (ac.relVert >= 0 ? '+' : '') + Math.round(ac.relVert * 3.28084) + 'ft';
 
-      html += `<div class="aircraft-item${isEmergency ? ' emergency' : ''}">
-        <div class="aircraft-header">
-          <div class="aircraft-id">${ac.isGround ? '<span class="aircraft-gnd-badge">GND</span>' : ''}${this.escapeHtml(displayName)}</div>
-          <span class="aircraft-alert ${alertClasses[alertLevel]}">${alertLabels[alertLevel]}</span>
-        </div>
-        <div class="aircraft-details">
-          <div class="aircraft-detail">Alt: <span>${altStr}</span></div>
-          <div class="aircraft-detail">Speed: <span>${speedStr}</span></div>
-          <div class="aircraft-detail">Climb: <span>${ac.climbRate != null ? ac.climbRate + ' m/s' : '--'}</span></div>
-          <div class="aircraft-detail">Dist: <span>${distStr}</span></div>
-          <div class="aircraft-detail">Type: <span>${typeLabel}</span></div>
-        </div>
+      let varioHtml = '<span class="ac-vario vario-zero">—</span>';
+      if (ac.climbRate != null) {
+        const v = ac.climbRate;
+        const cls = this.varioClass(v);
+        const arrow = v > 0.3 ? '↑' : v < -0.3 ? '↓' : '↕';
+        varioHtml = `<span class="ac-vario ${cls}">${arrow}${Math.abs(v).toFixed(1)}</span>`;
+      }
+
+      // Status pill — correct logic per source
+      let statusCls, statusTxt;
+      if (isEmergency)       { statusCls = 'urgent';   statusTxt = 'SOS'; }
+      else if (ac.alarmLevel >= 2) { statusCls = 'urgent'; statusTxt = 'Alert'; }
+      else if (ac.isGround)  { statusCls = 'landed';   statusTxt = 'Landed'; }
+      else                   { statusCls = 'airborne'; statusTxt = 'Air'; }
+
+      html += `<div class="aircraft-item${isEmergency ? ' emergency' : ''}" onclick="App.traffic.showDetail('${id.replace(/'/g,"\\'")}')">
+        <div class="ac-dot" style="background:${color}"></div>
+        <div class="ac-id">${displayName}<small>${displaySub ? displaySub + ' · ' : ''}${typeLabel}</small></div>
+        <div class="ac-metric"><span class="ac-metric-icon">↔</span><span class="ac-metric-val">${distStr}</span></div>
+        <div class="ac-metric"><span class="ac-metric-icon">↕</span><span class="ac-metric-val">${altStr}</span></div>
+        ${varioHtml}
       </div>`;
     }
     document.getElementById('trf-list').innerHTML = html;
+  },
+
+  _detailId: null,
+
+  showDetail(id) {
+    const ac = App.state.traffic[id];
+    if (!ac) return;
+    this._detailId = id;
+    // Primary label: real callsign if present, otherwise hex ID
+    const name = ac.name || ac.id;
+    const typeLabel = this.acftTypeLabel(ac);
+    const color = this.acftColor(ac);
+
+    // Accent colour stripe + type icon
+    const hdr = document.getElementById('acd-header');
+    if (hdr) hdr.style.borderLeftColor = color;
+    const iconEl = document.getElementById('acd-icon');
+    if (iconEl) iconEl.innerHTML = this._acftIcon(ac);
+
+    document.getElementById('acd-id').textContent = name;
+    // Sub-line: type label + hex ID (when callsign is shown as primary)
+    const idSuffix = ac.name ? '  ·  ' + ac.id : '';
+    document.getElementById('acd-sub').textContent = typeLabel + idSuffix;
+
+    // Badges — source chip (outline) + status pill (filled)
+    let badges = '';
+    const src = ac.source === 'fanet' ? 'FANET'
+              : ac.proto === 'paw'   ? 'PilotAware'
+              : ac.proto === 'fanet' ? 'FANET/OGN'
+              : 'FLARM';
+    badges += `<span class="ac-detail-badge source">${src}</span>`;
+    if (ac.isGround && ac.groundStatus >= 12)
+      badges += `<span class="ac-detail-badge status-urgent">Emergency</span>`;
+    else if (ac.isGround)
+      badges += `<span class="ac-detail-badge status-landed">Landed</span>`;
+    else
+      badges += `<span class="ac-detail-badge status-airborne">Airborne</span>`;
+    document.getElementById('acd-badges').innerHTML = badges;
+
+    // Data cells
+    const distStr = this.formatDistance(ac.relNorth, ac.relEast);
+    let relAltStr = '--', altMslStr = '--', speedStr = '--', headingStr = '--';
+
+    if (ac.relVert != null) relAltStr = (ac.relVert >= 0 ? '+' : '') + Math.round(ac.relVert * 3.28084) + ' ft';
+    else if (ac.source === 'fanet' && ac.absAlt != null) relAltStr = Math.round(ac.absAlt * 3.28084) + ' ft MSL';
+
+    if (ac.source === 'fanet' && ac.absAlt != null) altMslStr = Math.round(ac.absAlt * 3.28084) + ' ft';
+
+    let varioStr = '--', varioCls = '';
+    if (ac.climbRate != null) {
+      const arrow = ac.climbRate > 0.1 ? '↑ ' : ac.climbRate < -0.1 ? '↓ ' : '';
+      varioStr = arrow + Math.abs(ac.climbRate).toFixed(1) + ' m/s';
+      varioCls = this.varioClass(ac.climbRate);
+    }
+    if (ac.groundSpeed != null)
+      speedStr = ac.source === 'fanet'
+        ? ac.groundSpeed + ' km/h'
+        : Math.round(ac.groundSpeed * 3.6) + ' km/h';
+    if (ac.heading != null) headingStr = ac.heading + '°';
+
+    const cells = [
+      ['DISTANCE',   distStr,    ''],
+      ['REL HEIGHT', relAltStr,  ''],
+      ['VARIO',      varioStr,   varioCls],
+      ['ALT MSL',    altMslStr,  ''],
+      ['SPEED',      speedStr,   ''],
+      ['HEADING',    headingStr, ''],
+    ];
+    document.getElementById('acd-grid').innerHTML = cells.map(([lbl, val, cls]) =>
+      `<div class="ac-detail-cell">
+        <div class="ac-detail-grid-label">${lbl}</div>
+        <div class="ac-detail-grid-val ${cls}" style="color:${val==='--'?'var(--text-secondary)':''}">${val}</div>
+      </div>`
+    ).join('');
+
+    const secs = Math.round((Date.now() - ac.lastSeen) / 1000);
+    document.getElementById('acd-age').textContent = secs + '" ago';
+
+    // Follow star button state
+    const followBtn = document.getElementById('acd-follow');
+    if (followBtn) followBtn.classList.toggle('active', App.map.followedId === id);
+
+    document.getElementById('acDetailOverlay').classList.add('open');
+  },
+
+  toggleFollow() {
+    const id = this._detailId;
+    if (!id) return;
+    if (App.map.followedId === id) {
+      App.map.setFollowedAc(null);
+    } else {
+      App.map.setFollowedAc(id);
+    }
+    const followBtn = document.getElementById('acd-follow');
+    if (followBtn) followBtn.classList.toggle('active', App.map.followedId === id);
+  },
+
+  closeDetail() {
+    document.getElementById('acDetailOverlay').classList.remove('open');
   }
 };
 
@@ -2081,6 +3133,9 @@ setInterval(() => {
   for (const id in App.state.traffic) {
     if (now - App.state.traffic[id].lastSeen > 30000) {
       delete App.state.traffic[id];
+      // If the followed aircraft expired, clear its track
+      if (id === App.map.followedId) App.map.setFollowedAc(null);
+      delete App.map.acTracks[id];
       changed = true;
     }
   }
@@ -2094,9 +3149,25 @@ App.map = {
   leaflet: null,
   ownMarker: null,
   trackLine: null,
-  acMarkers: {},
+  acMarkers: {},    // id -> { marker, label }
+  radarRings: [],
   followMode: true,
   _initialized: false,
+
+  followedId: null,           // aircraft ID being track-followed
+  acTracks: {},               // id -> [ {lat, lon, climbRate} ]
+  _trackPolylines: [],        // active Leaflet polylines for the track
+
+  // All possible rings: [distanceMetres, minZoomToShow]
+  RING_DEFS: [
+    [500,    14],
+    [1000,   13],
+    [2000,   12],
+    [3000,   11],
+    [5000,   10],
+    [10000,   9],
+    [20000,   8],
+  ],
 
   init() {
     if (this._initialized) return;
@@ -2104,14 +3175,22 @@ App.map = {
     if (!container || !container.offsetWidth) return;
     this._initialized = true;
 
-    this.leaflet = L.map('trafficMap', { zoomControl: false }).setView([0.0, 0.0
-      
-    ], 13);
+    this.leaflet = L.map('trafficMap', { zoomControl: false }).setView([51.5, -1.0], 13);
     L.control.zoom({ position: 'bottomright' }).addTo(this.leaflet);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; OSM &copy; CARTO',
       subdomains: 'abcd', maxZoom: 19
     }).addTo(this.leaflet);
+
+    // Bottom-sheet toggle
+    const sheet = document.getElementById('trafficSheet');
+    const handle = document.getElementById('sheetHandle');
+    const header = document.getElementById('sheetHeader');
+    [handle, header].forEach(el => el.addEventListener('click', () => {
+      sheet.classList.toggle('expanded');
+      // Let Leaflet re-measure after the sheet animation
+      setTimeout(() => this.leaflet && this.leaflet.invalidateSize(), 320);
+    }));
 
     // Follow button
     const btn = document.getElementById('followBtn');
@@ -2119,50 +3198,156 @@ App.map = {
     btn.addEventListener('click', () => {
       this.followMode = !this.followMode;
       btn.classList.toggle('active', this.followMode);
-      if (this.followMode && App.state.gps.lat != null) {
+      if (this.followMode && App.state.gps.lat != null)
         this.leaflet.setView([App.state.gps.lat, App.state.gps.lon]);
-      }
     });
-
-    // Stop follow on user drag
     this.leaflet.on('dragstart', () => {
       this.followMode = false;
       btn.classList.remove('active');
     });
 
-    // Traffic panel toggle
-    const toggle = document.getElementById('trafficPanelToggle');
-    const body = document.getElementById('trafficPanelBody');
-    document.getElementById('trafficPanel').querySelector('.traffic-panel-header').addEventListener('click', () => {
-      body.classList.toggle('collapsed');
-      toggle.classList.toggle('collapsed');
+    // Redraw rings on zoom so visibility thresholds apply immediately
+    this.leaflet.on('zoomend', () => {
+      if (App.state.gps.lat != null) {
+        this.updateRadarRings(App.state.gps.lat, App.state.gps.lon);
+      }
+    });
+  },
+
+  // Draw dashed radar rings centred on own position, filtered by current zoom
+  updateRadarRings(lat, lon) {
+    this.radarRings.forEach(r => this.leaflet.removeLayer(r));
+    this.radarRings = [];
+    if (!this.leaflet) return;
+    const zoom = this.leaflet.getZoom();
+    this.RING_DEFS.forEach(([dist, minZoom]) => {
+      if (zoom < minZoom) return;
+      const ring = L.circle([lat, lon], {
+        radius: dist,
+        color: '#555',
+        weight: 1,
+        dashArray: '6 6',
+        fill: false,
+        opacity: 0.45
+      }).addTo(this.leaflet);
+      // Distance label at the east edge of each ring
+      const labelLon = lon + (dist / (111320 * Math.cos(lat * Math.PI / 180)));
+      const labelText = dist >= 1000 ? (dist / 1000) + 'km' : dist + 'm';
+      const lbl = L.marker([lat, labelLon], {
+        icon: L.divIcon({
+          html: `<span style="font-size:10px;color:#555;background:rgba(255,255,255,0.75);padding:1px 3px;border-radius:2px;white-space:nowrap">${labelText}</span>`,
+          className: '', iconAnchor: [0, 8]
+        }),
+        interactive: false
+      }).addTo(this.leaflet);
+      this.radarRings.push(ring, lbl);
     });
   },
 
   updateOwnPosition(lat, lon) {
     if (!this.leaflet) return;
+
+    // Own position dot
     if (this.ownMarker) {
       this.ownMarker.setLatLng([lat, lon]);
     } else {
       const icon = L.divIcon({
-        html: '<div style="width:16px;height:16px;background:#667eea;border:3px solid white;border-radius:50%;box-shadow:0 0 8px rgba(102,126,234,0.6);"></div>',
-        iconSize: [16,16], iconAnchor: [8,8], className: ''
+        html: `<svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="9" cy="9" r="6" fill="#667eea" stroke="white" stroke-width="2.5"/>
+        </svg>`,
+        iconSize: [18, 18], iconAnchor: [9, 9], className: ''
       });
       this.ownMarker = L.marker([lat, lon], { icon, zIndexOffset: 1000 }).addTo(this.leaflet);
     }
 
-    // Track
+    // Track polyline
     App.state.track.push({ lat, lon });
     if (App.state.track.length > 5000) App.state.track.shift();
     const latlngs = App.state.track.map(p => [p.lat, p.lon]);
-    if (this.trackLine) {
-      this.trackLine.setLatLngs(latlngs);
-    } else {
-      this.trackLine = L.polyline(latlngs, { color: '#667eea', weight: 3, opacity: 0.7 }).addTo(this.leaflet);
-    }
+    if (this.trackLine) this.trackLine.setLatLngs(latlngs);
+    else this.trackLine = L.polyline(latlngs, { color: '#667eea', weight: 2, opacity: 0.6 }).addTo(this.leaflet);
 
+    this.updateRadarRings(lat, lon);
     if (this.followMode) this.leaflet.setView([lat, lon]);
     document.getElementById('followBtn').classList.add('visible');
+  },
+
+  _arrowIcon(color, headingDeg) {
+    const rot = headingDeg != null ? headingDeg : 0;
+    const html = `<div style="width:33px;height:33px;display:flex;align-items:center;justify-content:center;transform:rotate(${rot}deg);transform-origin:center center;">` +
+      `<svg width="33" height="33" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">` +
+      `<path d="M66.76,42.49l17.41,40.62c1.16,2.71-1.88,5.3-4.37,3.71l-14.18-9.05c-.98-.63-2.24-.63-3.23,0l-14.18,9.05c-2.49,1.59-5.53-1-4.37-3.71l17.41-40.62c1.04-2.42,4.48-2.42,5.51,0Z"` +
+      ` fill="${color}" stroke="rgba(0,0,0,0.55)" stroke-width="4" stroke-linejoin="round"/>` +
+      `</svg></div>`;
+    return L.divIcon({ html, iconSize: [33,33], iconAnchor: [16,16], className: 'ac-arrow-icon' });
+  },
+
+  _groundIcon(color) {
+    const svg = `<svg width="21" height="21" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
+      <rect x="1.5" y="1.5" width="18" height="18" rx="4" fill="${color}" stroke="rgba(0,0,0,0.55)" stroke-width="1.5"/>
+    </svg>`;
+    return L.divIcon({ html: svg, iconSize: [21,21], iconAnchor: [10,10], className: '' });
+  },
+
+  // Colour for a track segment based on climbRate
+  _trackColor(climbRate) {
+    if (climbRate == null) return '#9ca3af';
+    if (climbRate > 2.5)   return '#f97316';
+    if (climbRate > 1.5)   return '#16a34a';
+    if (climbRate > 0.3)   return '#10b981';
+    if (climbRate >= -2.0) return '#9ca3af';
+    return '#3b82f6';
+  },
+
+  setFollowedAc(id) {
+    // Clear old track polylines
+    this._trackPolylines.forEach(p => this.leaflet && this.leaflet.removeLayer(p));
+    this._trackPolylines = [];
+    this.followedId = id;
+    if (!id) return;
+    // Start fresh track from current position if available
+    if (!this.acTracks[id]) this.acTracks[id] = [];
+    this._redrawTrack(id);
+  },
+
+  updateAcTrack(id, lat, lon, climbRate) {
+    if (id !== this.followedId) return;
+    if (!this.acTracks[id]) this.acTracks[id] = [];
+    const track = this.acTracks[id];
+    // Avoid duplicate consecutive identical points
+    const last = track[track.length - 1];
+    if (last && last.lat === lat && last.lon === lon) return;
+    track.push({ lat, lon, climbRate: climbRate ?? null });
+    // Keep max 600 points (~10 min at 1s intervals)
+    if (track.length > 600) track.splice(0, track.length - 600);
+    this._redrawTrack(id);
+  },
+
+  _redrawTrack(id) {
+    if (!this.leaflet) return;
+    this._trackPolylines.forEach(p => this.leaflet.removeLayer(p));
+    this._trackPolylines = [];
+    const track = this.acTracks[id];
+    if (!track || track.length < 2) return;
+
+    // Split into colour-coded segments; draw a new polyline each time colour changes
+    let segStart = 0;
+    let curColor = this._trackColor(track[0].climbRate);
+    for (let i = 1; i <= track.length; i++) {
+      const color = i < track.length ? this._trackColor(track[i].climbRate) : null;
+      if (color !== curColor || i === track.length) {
+        const pts = track.slice(segStart, i).map(p => [p.lat, p.lon]);
+        if (pts.length >= 2) {
+          const pl = L.polyline(pts, {
+            color: curColor, weight: 3, opacity: 0.85,
+            lineJoin: 'round', lineCap: 'round'
+          }).addTo(this.leaflet);
+          this._trackPolylines.push(pl);
+        }
+        segStart = i - 1; // overlap by one point for smooth join
+        curColor = color;
+      }
+    }
   },
 
   updateTrafficMarker(id) {
@@ -2180,42 +3365,49 @@ App.map = {
       return;
     }
 
-    const color = ac.isGround ? '#607d8b' : (ac.alarmLevel >= 2 ? '#e53935' : ac.alarmLevel >= 1 ? '#ff9800' : '#4caf50');
-    const icon = L.divIcon({
-      html: `<div style="width:12px;height:12px;background:${color};border:2px solid white;border-radius:50%;box-shadow:0 0 4px rgba(0,0,0,0.3);"></div>`,
-      iconSize: [12,12], iconAnchor: [6,6], className: ''
+    const color = App.traffic.acftColor(ac);
+    const icon = ac.isGround
+      ? this._groundIcon(color)
+      : this._arrowIcon(color, ac.heading != null ? ac.heading : null);
+
+    // Altitude label
+    let altLbl = '';
+    if (ac.relVert != null) altLbl = (ac.relVert >= 0 ? '+' : '') + Math.round(ac.relVert * 3.28084) + 'ft';
+    else if (ac.source === 'fanet' && ac.absAlt != null) altLbl = Math.round(ac.absAlt * 3.28084) + 'ft';
+    const nameLbl = ac.name || '';
+    const labelText = [altLbl, nameLbl].filter(Boolean).join(' ');
+
+    const labelIcon = L.divIcon({
+      html: labelText
+        ? `<span style="font-size:11px;font-weight:600;color:#111;background:rgba(255,255,255,0.82);padding:1px 4px;border-radius:3px;white-space:nowrap;pointer-events:none">${App.traffic.escapeHtml(labelText)}</span>`
+        : '',
+      className: '', iconAnchor: [-12, 6]
     });
 
     if (this.acMarkers[id]) {
-      this.acMarkers[id].setLatLng([lat, lon]).setIcon(icon);
+      this.acMarkers[id].marker.setLatLng([lat, lon]).setIcon(icon);
+      this.acMarkers[id].label.setLatLng([lat, lon]).setIcon(labelIcon);
     } else {
-      this.acMarkers[id] = L.marker([lat, lon], { icon }).addTo(this.leaflet);
+      const marker = L.marker([lat, lon], { icon }).addTo(this.leaflet);
+      marker.on('click', () => App.traffic.showDetail(id));
+      const label = L.marker([lat, lon], { icon: labelIcon, interactive: false }).addTo(this.leaflet);
+      this.acMarkers[id] = { marker, label };
     }
-
-    const name = App.traffic.escapeHtml(ac.name || ac.id);
-    let popup = `<b>${name}</b>`;
-    if (ac.relVert != null) popup += `<br>Alt: ${(ac.relVert >= 0 ? '+' : '') + ac.relVert}m`;
-    else if (ac.absAlt != null) popup += `<br>Alt: ${ac.absAlt}m MSL`;
-    if (ac.groundSpeed != null) popup += `<br>Speed: ${ac.groundSpeed}${ac.source === 'fanet' ? ' km/h' : ' m/s'}`;
-    this.acMarkers[id].bindPopup(popup);
   },
 
   removeTrafficMarker(id) {
     if (this.acMarkers[id]) {
-      this.leaflet.removeLayer(this.acMarkers[id]);
+      this.leaflet.removeLayer(this.acMarkers[id].marker);
+      this.leaflet.removeLayer(this.acMarkers[id].label);
       delete this.acMarkers[id];
     }
   }
 };
 
-// Clean stale markers along with stale traffic
-const _origStaleClean = setInterval;  // reference
-// Patch into the existing stale cleanup — add marker removal
+// Purge map markers for expired traffic entries
 (function() {
   const origUpdateUI = App.traffic.updateUI.bind(App.traffic);
-  // Before each UI update, also clean map markers for removed IDs
   App.traffic.updateUI = function() {
-    // Remove map markers for traffic that no longer exists
     for (const id in App.map.acMarkers) {
       if (!App.state.traffic[id]) App.map.removeTrafficMarker(id);
     }
@@ -2281,9 +3473,26 @@ App.gps = {
 App.commands = {
   async refreshSettings() {
     if (!App.state.connected) return;
+
+    // Clear all stale state so reconnect after reboot starts clean
+    App.state.values = {};
+    App.state.formValues = {};
+    App.state.dirty.clear();
+    App.state.garbled.clear();
     App.state.settingsLoaded = false;
+
+    // Clear all row styles and visibility left over from previous session
+    SETTINGS_META.forEach(s => {
+      const row = document.getElementById('row-' + s.key);
+      if (row) { row.classList.remove('modified', 'missing', 'garbled'); row.style.display = ''; }
+    });
+    document.querySelectorAll('.settings-group').forEach(g => g.style.display = '');
+    App.ui.updateSaveBar();
+
     App.ui.showLoading('Reading settings...', 'This may take a few seconds');
-    await App.transport.sendNmea('PSRFS,?');
+    App.settings._startHardTimeout();
+    // PSRFC,LST returns compact label,value lines with no comments — fits small MTU better.
+    await App.transport.sendNmea('PSRFC,LST');
   },
 
   reboot() {
@@ -2322,6 +3531,26 @@ App.commands = {
     );
   },
 
+  setGroundType(gtype) {
+    const LABELS = {
+      8: 'Need a Ride', 9: 'Landed OK',
+      13: 'Need Medical Help', 14: 'Distress (SOS)'
+    };
+    const label = LABELS[gtype] || ('Ground type ' + gtype.toString(16).toUpperCase());
+    const isDanger = gtype >= 13;
+    App.modal.show('Set Ground Status',
+      'Send ground status to network: ' + label + (isDanger ? '\n\nThis will activate FANET distress transmissions.' : ''),
+      [
+        { text: 'Cancel', cls: 'btn-ghost', action: () => App.modal.hide() },
+        { text: 'Confirm', cls: isDanger ? 'btn-primary' : 'btn-primary', action: async () => {
+          App.modal.hide();
+          await App.transport.sendNmea('PSRFC,GT' + gtype.toString(16).toUpperCase());
+          App.toast('Ground status set: ' + label, isDanger ? 'error' : 'success');
+        }}
+      ]
+    );
+  },
+
   async _triggerDfu() {
     try {
       App.ui.showLoading('Entering DFU mode...', 'Device will disconnect and restart into bootloader');
@@ -2339,23 +3568,75 @@ App.commands = {
    ═══════════════════════════════════════════════════════════════ */
 App.settings = {
   _idleTimer: null,
+  _hardTimer: null,
 
   _resetIdleTimer() {
     clearTimeout(this._idleTimer);
-    this._idleTimer = setTimeout(() => this._onSettingsComplete(), 1000);
+    // Generous fallback — only fires if debug_flags never arrives (truncated dump)
+    this._idleTimer = setTimeout(() => this._onSettingsComplete(), 8000);
+  },
+
+  _startHardTimeout() {
+    clearTimeout(this._hardTimer);
+    this._hardTimer = setTimeout(() => {
+      if (!App.state.settingsLoaded) {
+        App.state.settingsLoaded = true;
+        clearTimeout(this._idleTimer);
+        App.ui.hideLoading();
+        App.toast('Connected — this firmware does not support remote settings', 'warn');
+      }
+    }, 60000);
   },
 
   _onSettingsComplete() {
     if (App.state.settingsLoaded) return;
+    clearTimeout(this._idleTimer);
+    clearTimeout(this._hardTimer);
     App.state.settingsLoaded = true;
-    // Sync form values with device values
+
+    // Sync form values — preserve any user edits already made
     App.state.formValues = { ...App.state.values };
     App.state.dirty.clear();
     App.ui.updateSaveBar();
     App.ui.hideLoading();
 
-    const count = Object.keys(App.state.values).length;
-    App.toast(count + ' settings loaded', 'success');
+    // Hide settings not sent by this device; show ones that were received
+    let missing = 0, garbled = 0;
+    SETTINGS_META.forEach(s => {
+      if (s.type === 'button') return;
+      const row = document.getElementById('row-' + s.key);
+      if (!row) return;
+      if (s.key in App.state.values) {
+        row.style.display = '';
+        row.classList.remove('missing', 'garbled');
+      } else if (App.state.garbled.has(s.key)) {
+        row.style.display = '';
+        row.classList.remove('missing');
+        row.classList.add('garbled');
+        garbled++;
+      } else {
+        row.style.display = 'none';
+        row.classList.remove('garbled');
+        row.classList.add('missing');
+        missing++;
+      }
+    });
+
+    // Hide group headers whose every setting row is hidden
+    document.querySelectorAll('.settings-group').forEach(group => {
+      const rows = group.querySelectorAll('.setting-row');
+      const allHidden = rows.length > 0 && [...rows].every(r => r.style.display === 'none');
+      group.style.display = allHidden ? 'none' : '';
+    });
+
+    App.ui.applyShowIf();
+
+    const parts = [];
+    const received = App.state._settingsCount || 0;
+    parts.push(`${received} settings loaded`);
+    if (garbled > 0) parts.push(`${garbled} corrupted — reload to retry`);
+    if (missing > 0) parts.push(`${missing} not supported on this device`);
+    App.toast(parts.join(', '), garbled > 0 ? 'warn' : 'success');
   },
 
   onChange(key, value) {
@@ -2367,6 +3648,7 @@ App.settings = {
     }
     App.ui.updateSettingRowStyle(key);
     App.ui.updateSaveBar();
+    App.ui.applyShowIf();
   },
 
   discard() {
@@ -2612,6 +3894,19 @@ App.ui = {
       };
       inp.onchange = () => App.settings.onChange(meta.key, inp.value.toUpperCase().padStart(6, '0'));
       ctrl.appendChild(inp);
+    } else if (meta.type === 'hex8') {
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.id = 'ctrl-' + meta.key;
+      inp.maxLength = 8;
+      inp.placeholder = '00000000';
+      inp.style.fontFamily = 'monospace';
+      inp.style.textTransform = 'uppercase';
+      inp.oninput = () => {
+        inp.value = inp.value.replace(/[^0-9a-fA-F]/g, '').toUpperCase();
+      };
+      inp.onchange = () => App.settings.onChange(meta.key, inp.value.toUpperCase().padStart(8, '0'));
+      ctrl.appendChild(inp);
     } else if (meta.type === 'hex2') {
       const inp = document.createElement('input');
       inp.type = 'text';
@@ -2634,6 +3929,26 @@ App.ui = {
       if (meta.maxlen) inp.maxLength = meta.maxlen;
       inp.onchange = () => App.settings.onChange(meta.key, inp.value);
       ctrl.appendChild(inp);
+    } else if (meta.type === 'bitfield') {
+      const wrap = document.createElement('div');
+      wrap.className = 'bitfield-wrap';
+      wrap.id = 'ctrl-' + meta.key;
+      meta.bits.forEach(b => {
+        const lbl = document.createElement('label');
+        lbl.className = 'bitfield-item';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.dataset.bit = b.bit;
+        cb.onchange = () => {
+          let val = 0;
+          wrap.querySelectorAll('input[type=checkbox]').forEach(c => { if (c.checked) val |= parseInt(c.dataset.bit); });
+          App.settings.onChange(meta.key, String(val));
+        };
+        lbl.appendChild(cb);
+        lbl.appendChild(document.createTextNode(b.l));
+        wrap.appendChild(lbl);
+      });
+      ctrl.appendChild(wrap);
     } else if (meta.type === 'button') {
       const btn = document.createElement('button');
       btn.id = 'ctrl-' + meta.key;
@@ -2656,15 +3971,37 @@ App.ui = {
 
     if (meta.type === 'toggle') {
       el.checked = (value === '1' || value === '01');
+    } else if (meta.type === 'bitfield') {
+      const num = parseInt(value, 10) || 0;
+      el.querySelectorAll('input[type=checkbox]').forEach(cb => {
+        cb.checked = !!(num & parseInt(cb.dataset.bit));
+      });
+      App.state.formValues[key] = String(num);
+      return;
+    } else if (meta.type === 'hex8') {
+      el.value = (value || '').toUpperCase().padStart(8, '0');
     } else if (meta.type === 'hex6') {
-      el.value = (value || '000000').toUpperCase();
+      el.value = (value || '').toUpperCase().padStart(6, '0');
     } else if (meta.type === 'hex2') {
-      el.value = (value || '00').toUpperCase();
+      el.value = (value || '').toUpperCase().padStart(2, '0');
     } else {
       el.value = value || '';
     }
-    // Also update formValues
-    App.state.formValues[key] = value;
+    // Store the displayed (normalised) value in formValues
+    App.state.formValues[key] = el.value;
+  },
+
+  applyShowIf() {
+    SETTINGS_META.forEach(s => {
+      if (!s.showIf) return;
+      const row = document.getElementById('row-' + s.key);
+      if (!row) return;
+      // If device never sent this key it's genuinely unsupported — keep hidden
+      if (row.classList.contains('missing')) return;
+      // Otherwise let showIf decide visibility
+      const show = s.showIf();
+      row.style.display = show ? '' : 'none';
+    });
   },
 
   updateSettingRowStyle(key) {
@@ -2766,6 +4103,20 @@ App.debug = function(msg) {
 document.addEventListener('DOMContentLoaded', () => {
   App.ui.init();
 
+  // Prevent pull-to-refresh: block downward swipe once the page is within
+  // 50px of the top, so normal scrolling still works but the gesture never
+  // travels far enough to trigger the browser's refresh threshold (~80-100px).
+  let touchStartY = 0;
+  document.body.addEventListener('touchstart', e => {
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+  document.body.addEventListener('touchmove', e => {
+    const dy = e.touches[0].clientY - touchStartY;
+    if (dy > 0 && window.scrollY < 50) {
+      e.preventDefault();
+    }
+  }, { passive: false });
+
   // Hide connect buttons for unsupported APIs
   if (!navigator.bluetooth) {
     document.getElementById('btnConnect').style.display = 'none';
@@ -2777,34 +4128,269 @@ document.addEventListener('DOMContentLoaded', () => {
     App.toast('This browser does not support Web Bluetooth or Web Serial. Use Chrome or Edge.', 'error');
   }
 
-  // Register Service Worker for offline support and PWA installation
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./service-worker.js').then(reg => {
-      console.log('[App] Service Worker registered:', reg.scope);
-      App.debug('[PWA] Service Worker registered for offline support');
-    }).catch(err => {
-      console.error('[App] Service Worker registration failed:', err);
-      App.debug('[PWA] Service Worker registration failed: ' + err.message);
-    });
-  }
+  // Show version from constant
+  const vspan = document.getElementById('appVersionSpan');
+  if (vspan) vspan.textContent = APP_VERSION;
 
-  // Handle install prompt (store for manual triggering if needed)
-  let deferredPrompt;
-  window.addEventListener('beforeinstallprompt', e => {
-    // Don't prevent default - let Chrome show the install banner automatically
-    deferredPrompt = e;
-    console.log('[App] Install prompt available');
-    App.debug('[PWA] App can be installed');
-  });
+  // ── PWA Module ─────────────────────────────────────────────────────────────
+  App.pwa = (() => {
+    let deferredPrompt = null;
+    let swRegistration = null;
+    const diag = {};
 
-  // Listen for successful installation
-  window.addEventListener('appinstalled', () => {
-    console.log('[App] PWA was installed');
-    App.debug('[PWA] App installed successfully!');
-    if (deferredPrompt) {
-      deferredPrompt = null;
+    // Detect browser/platform
+    function getBrowserInfo() {
+      const ua = navigator.userAgent;
+      let browser = 'Unknown';
+      if (/Samsung/i.test(ua))          browser = 'Samsung Internet';
+      else if (/EdgA|EdgiOS/i.test(ua)) browser = 'Edge (Mobile)';
+      else if (/Edge|Edg\//i.test(ua))  browser = 'Edge';
+      else if (/OPR|Opera/i.test(ua))   browser = 'Opera';
+      else if (/Firefox/i.test(ua))     browser = 'Firefox';
+      else if (/CriOS/i.test(ua))       browser = 'Chrome (iOS)';
+      else if (/FxiOS/i.test(ua))       browser = 'Firefox (iOS)';
+      else if (/Chrome/i.test(ua))      browser = 'Chrome';
+      else if (/Safari/i.test(ua))      browser = 'Safari';
+      const ios  = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+      const android = /Android/.test(ua);
+      return { browser, ios, android, ua };
     }
-  });
+
+    // Detect how the app was launched
+    function getLaunchMode() {
+      if (window.matchMedia('(display-mode: standalone)').matches) return 'standalone';
+      if (window.matchMedia('(display-mode: fullscreen)').matches) return 'fullscreen';
+      if (navigator.standalone === true) return 'standalone (iOS)';
+      return 'browser';
+    }
+
+    function updateDiagPanel() {
+      const el = document.getElementById('pwaDiagPanel');
+      if (!el) return;
+      const lines = [
+        `Browser:       ${diag.browser || '?'}`,
+        `Launch mode:   ${diag.launchMode || '?'}`,
+        `SW active:     ${diag.swActive ? 'yes' : 'no'}`,
+        `Manifest:      ${diag.manifestLinked ? 'linked' : 'missing'}`,
+        `Install prompt:${diag.promptFired ? ' available' : ' not fired'}`,
+        `Installed:     ${diag.installed ? 'yes' : 'no'}`,
+        `Online:        ${navigator.onLine ? 'yes' : 'no'}`,
+      ];
+      el.textContent = lines.join('\n');
+    }
+
+    // Register service worker
+    function registerSW() {
+      if (!('serviceWorker' in navigator)) {
+        diag.swActive = false;
+        console.warn('[PWA] Service Worker not supported');
+        updateDiagPanel();
+        return;
+      }
+      navigator.serviceWorker.register('./service-worker.js?v=' + APP_VERSION).then(reg => {
+        swRegistration = reg;
+        diag.swActive = true;
+        console.log('[PWA] Service Worker registered:', reg.scope);
+        App.debug('[PWA] Service Worker registered for offline support');
+        // Tell SW the current version so cache key stays in sync
+        if (navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({ type: 'SET_VERSION', version: APP_VERSION });
+        }
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          console.log('[PWA] New Service Worker activated — reloading');
+          window.location.reload();
+        });
+        updateDiagPanel();
+      }).catch(err => {
+        diag.swActive = false;
+        console.error('[PWA] Service Worker registration failed:', err);
+        App.debug('[PWA] SW registration failed: ' + err.message);
+        updateDiagPanel();
+      });
+    }
+
+    // Show/hide install button
+    function setInstallButtonVisible(visible) {
+      const btn = document.getElementById('btnInstall');
+      if (btn) btn.classList.toggle('visible', visible);
+    }
+
+    // Build browser-specific install instructions
+    function getInstallSteps(info) {
+      if (info.ios) {
+        return [
+          'Tap the <strong>Share</strong> button (square with arrow) in Safari',
+          'Scroll down and tap <strong>"Add to Home Screen"</strong>',
+          'Tap <strong>"Add"</strong> in the top-right corner'
+        ];
+      }
+      if (info.browser === 'Samsung Internet') {
+        return [
+          'Tap the menu icon (&#9776;) at the bottom',
+          'Tap <strong>"Add page to"</strong>',
+          'Select <strong>"Home screen"</strong>'
+        ];
+      }
+      if (info.browser === 'Firefox' || info.browser === 'Firefox (iOS)') {
+        return [
+          'Tap the menu icon (&#8942;) at the top-right',
+          'Tap <strong>"Install"</strong> or <strong>"Add to Home Screen"</strong>'
+        ];
+      }
+      if (info.browser.startsWith('Edge')) {
+        return [
+          'Tap the menu icon (&#8942;) at the bottom',
+          'Tap <strong>"Add to phone"</strong> or <strong>"Install App"</strong>',
+          'Tap <strong>"Install"</strong> to confirm'
+        ];
+      }
+      // Generic Android / Chrome fallback
+      return [
+        'Tap the browser menu (&#8942;) at the top-right',
+        'Tap <strong>"Add to Home Screen"</strong> or <strong>"Install App"</strong>',
+        'Tap <strong>"Add"</strong> or <strong>"Install"</strong> to confirm'
+      ];
+    }
+
+    function showInstallHelp() {
+      const info = getBrowserInfo();
+      const steps = getInstallSteps(info);
+      const ol = document.getElementById('installModalSteps');
+      const desc = document.getElementById('installModalDesc');
+      const brInfo = document.getElementById('installModalBrowser');
+      if (ol) {
+        ol.innerHTML = steps.map(s => `<li>${s}</li>`).join('');
+      }
+      if (desc) {
+        desc.textContent = deferredPrompt
+          ? 'Tap "Install" below or use your browser menu:'
+          : 'Your browser requires manual installation:';
+      }
+      if (brInfo) brInfo.textContent = `Detected: ${info.browser}${info.ios ? ' (iOS)' : info.android ? ' (Android)' : ''}`;
+      const overlay = document.getElementById('installModalOverlay');
+      if (overlay) overlay.classList.add('open');
+    }
+
+    function closeModal() {
+      const overlay = document.getElementById('installModalOverlay');
+      if (overlay) overlay.classList.remove('open');
+    }
+
+    async function triggerInstall() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log('[PWA] Install prompt outcome:', outcome);
+        if (outcome === 'accepted') {
+          diag.installed = true;
+          deferredPrompt = null;
+          setInstallButtonVisible(false);
+          updateDiagPanel();
+        }
+      } else {
+        showInstallHelp();
+      }
+    }
+
+    function init() {
+      const info = getBrowserInfo();
+      diag.browser = info.browser + (info.ios ? ' (iOS)' : info.android ? ' (Android)' : '');
+      diag.launchMode = getLaunchMode();
+      diag.manifestLinked = !!document.querySelector('link[rel="manifest"]');
+      diag.swActive = false;
+      diag.promptFired = false;
+      diag.installed = diag.launchMode !== 'browser';
+
+      console.log('[PWA] Browser:', diag.browser, '| Launch mode:', diag.launchMode);
+      updateDiagPanel();
+
+      // If already running as installed PWA, hide install button entirely
+      if (diag.installed) {
+        setInstallButtonVisible(false);
+        console.log('[PWA] Running as installed PWA');
+      }
+
+      registerSW();
+
+      // Standard Chromium install prompt
+      window.addEventListener('beforeinstallprompt', e => {
+        e.preventDefault(); // suppress automatic mini-infobar; we show our own button
+        deferredPrompt = e;
+        diag.promptFired = true;
+        console.log('[PWA] beforeinstallprompt fired');
+        App.debug('[PWA] App can be installed');
+        if (!diag.installed) setInstallButtonVisible(true);
+        updateDiagPanel();
+      });
+
+      // Fallback: show install button for browsers without beforeinstallprompt
+      // (Firefox Android, Samsung Internet, older Edge) after a short delay
+      setTimeout(() => {
+        if (!deferredPrompt && !diag.installed) {
+          if (!('BeforeInstallPromptEvent' in window)) {
+            console.log('[PWA] No BeforeInstallPromptEvent — showing manual install button');
+            setInstallButtonVisible(true);
+          }
+        }
+      }, 1500);
+
+      window.addEventListener('appinstalled', () => {
+        console.log('[PWA] App installed successfully');
+        App.debug('[PWA] App installed successfully!');
+        diag.installed = true;
+        deferredPrompt = null;
+        setInstallButtonVisible(false);
+        updateDiagPanel();
+      });
+
+      // Update diag on connectivity change
+      window.addEventListener('online',  updateDiagPanel);
+      window.addEventListener('offline', updateDiagPanel);
+    }
+
+    return { init, triggerInstall, showInstallHelp, closeModal, getDiag: () => diag };
+  })();
+
+  // ── E-ink Module ───────────────────────────────────────────────────────────
+  App.eink = (() => {
+    const LS_KEY = 'softrf-eink';
+
+    function apply(on) {
+      document.documentElement.classList.toggle('eink', on);
+      document.documentElement.classList.toggle('eink-off', !on);
+      const cb = document.getElementById('einkToggle');
+      if (cb) cb.checked = on;
+    }
+
+    function toggle(on) {
+      apply(on);
+      try { localStorage.setItem(LS_KEY, on ? '1' : '0'); } catch(e) {}
+    }
+
+    function init() {
+      // 1. Respect saved preference
+      let saved = null;
+      try { saved = localStorage.getItem(LS_KEY); } catch(e) {}
+      if (saved !== null) {
+        apply(saved === '1');
+        return;
+      }
+      // 2. No saved pref — mirror the media query if supported
+      if (window.matchMedia) {
+        const mq = window.matchMedia('(prefers-contrast: more)');
+        apply(mq.matches);
+        mq.addEventListener('change', e => {
+          // Only follow the media query if the user hasn't manually set a preference
+          try { if (localStorage.getItem(LS_KEY) === null) apply(e.matches); } catch(ex) {}
+        });
+      }
+    }
+
+    return { init, toggle };
+  })();
+
+  App.eink.init();
+  App.pwa.init();
 });
 </script>
 </body>
