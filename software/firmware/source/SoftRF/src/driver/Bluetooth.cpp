@@ -25,8 +25,9 @@ uint8_t fnf_airmode = 0;   /* 0=auto (default), 1=forced airborne */
 uint8_t fnf_rfmode = 15;   /* bit0:FANET_RX bit1:FANET_TX bit2:FLARM_RX bit3:FLARM_TX, default=15 (all on) */
 
 // XCsoar is confused by BLE "sensor" devices, so try and skip them
+// SeeYou also crashes on the Movement characteristic (f023) - disabled for T1000E (no barometer)
 // - uncomment this line to restore them:
-#define BLE_SENSORS
+// #define BLE_SENSORS
 
 #if defined(ESP32)
 #include "sdkconfig.h"
@@ -1385,11 +1386,9 @@ void startAdv(void)
     }
   }
 
-#if defined(BLE_SENSORS)
   // Secondary Scan Response packet (optional)
   // Since there is no room for 'Name' in Advertising packet
   Bluefruit.ScanResponse.addName();
-#endif
 
   /* Start Advertising
    * - Enable auto advertising if disconnected
