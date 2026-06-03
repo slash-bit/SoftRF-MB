@@ -342,6 +342,7 @@ uint32_t FILESYS_free_kb()
 {
   if (! FS_is_mounted)
       return 0;
+  if (SoC) SoC->WDT_fini();   // freeClusterCount() scans the FAT — can be very slow
   uint32_t free_kb = FILESYS.freeClusterCount();   // clusters
 Serial.print("FATFS freeClusterCount: ");
 Serial.println(free_kb);

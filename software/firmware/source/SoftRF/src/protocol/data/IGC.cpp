@@ -940,12 +940,14 @@ bool eraseOldestFlightLog()
     const char *logdir = "/";
     const char *logprefix = "/";
 #endif
+    SoC->WDT_fini();   // directory scan can be slow on internal flash — feed watchdog
     File root = FILESYS.open(logdir);
     if (! root)
         return false;
     File file = root.openNextFile();
     String file_name;
     while(file) {
+        SoC->WDT_fini();   // each openNextFile() may be slow
         file_name = file.name();
         Serial.println(file_name);
         if (file_name.endsWith(".IGC") || file_name.endsWith(".igc")
@@ -992,12 +994,14 @@ bool makeFlightLogSpace()
     uint32_t needed_kb = ((settings->compflash)? 100 : 400);
     needed_kb = 50 + (needed_kb / settings->loginterval);
     while (free_kb < needed_kb) {
+        SoC->WDT_fini();   // filesystem scan/delete can be slow — feed watchdog
         if (eraseOldestFlightLog() == false) {
             Serial.print("cannot free ");
             Serial.print(needed_kb);
             Serial.println(" kb for flight log");
             return false;
         }
+        free_kb = (IGCFS_is_mounted? IGCFS_free_kb() : 0);  // re-read after erase
     }
 #endif
     return true;   // if using SD card, assumes there is room
@@ -1034,6 +1038,9 @@ void openFlightLog()
 
     // get here if no PSRAMbuf or first use of PSRAMbuf
 
+#if defined(ARDUINO_ARCH_NRF52)
+    SoC->WDT_fini();   // makeFlightLogSpace() calls freeClusterCount() which is slow
+#endif
 #if defined(ESP32)
     bool have_space = true;
 #endif
@@ -1080,6 +1087,9 @@ void openFlightLog()
 
       } else {  // ESP32 and writing to SD, or NRF52 and not compressing
 
+#if defined(ARDUINO_ARCH_NRF52)
+        Serial.printf("DBG openFlightLog: opening %s millis=%lu\r\n", FlightLogPath, millis());
+#endif
         FlightLog = IGCFILESYS.open(FlightLogPath, FILE_WRITE);
         if (! FlightLog) {
             Serial.println("Failed to open flight log for writing");

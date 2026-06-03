@@ -65,13 +65,17 @@ void startlogs()
         AlarmLog = FILESYS.open(filename, (append? FILE_APPEND : FILE_WRITE));
 #else
         // the nRF52 FatFS does not have totalBytes() and usedBytes() nor FILE_APPEND
-        if (FILESYS.exists(filename)) {
-            if (FILESYS_free_kb() > 50)
-                append = true;
-            else
-                FILESYS.remove(filename);
-        }
+        // Avoid FILESYS_free_kb() here — freeClusterCount() is very slow on T1000E
+        // and can exceed the 12-second WDT timeout. alarmlog.txt is tiny; always append.
+        if (FILESYS.exists(filename))
+            append = true;
         AlarmLog = FILESYS.open(filename, (append? (O_WRITE | O_APPEND) : (O_WRITE | O_CREAT)));
+        if (!AlarmLog && append) {
+            // append failed — try creating fresh
+            FILESYS.remove(filename);
+            append = false;
+            AlarmLog = FILESYS.open(filename, (O_WRITE | O_CREAT));
+        }
 #endif
         if (AlarmLog) {
             AlarmLogOpen = true;
