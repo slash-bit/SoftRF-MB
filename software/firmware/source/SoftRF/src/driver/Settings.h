@@ -499,6 +499,7 @@ typedef union EEPROM_U {
 #define NMEA_S_BASIC (NMEA_S + 1)
 #define NMEA_S_LK8   (NMEA_S + 2)
 #define NMEA_S_AHRS  (NMEA_S + 4)
+#define NMEA_S_WIND  (NMEA_S + 8)
 #define NMEA_S_ALL   (NMEA_S + 0xFF)
 
 #define NMEA_E 0x300

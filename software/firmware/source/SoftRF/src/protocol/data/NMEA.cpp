@@ -379,8 +379,8 @@ void sendPFLAV(bool nowait)
     NMEAOutC(NMEA_T);
   }
   if (nowait || timebits == 0x60) {
-    snprintf_P(NMEABuffer, sizeof(NMEABuffer), PSTR("$PFLAV,A,2.4,7.24,%s-%s*"),
-                 SOFTRF_IDENT, SOFTRF_FIRMWARE_VERSION);  // our version in obstacle db text field
+    snprintf_P(NMEABuffer, sizeof(NMEABuffer), PSTR("$PFLAV,A,2.4,7.24,%s-%s-%s*"),
+                 SOFTRF_IDENT, SOFTRF_FIRMWARE_VERSION, SOFTRF_SUBVERSION);  // our version in obstacle db text field
     NMEAOutC(NMEA_T);
   }
 }

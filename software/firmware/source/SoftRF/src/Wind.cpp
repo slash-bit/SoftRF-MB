@@ -484,10 +484,19 @@ FlightLogComment(NMEABuffer);
       }
 #endif
 #endif
-      snprintf_P(NMEABuffer, sizeof(NMEABuffer),
-        PSTR("$PSWSD,%.1f,%.0f\r\n"),
-        wind_speed * (1.0 / _GPS_MPS_PER_KNOT), wind_direction);
-      NMEAOutD();
+      {
+        static uint32_t PSWSD_TimeMarker = 0;
+        uint32_t now = millis();
+        snprintf_P(NMEABuffer, sizeof(NMEABuffer),
+          PSTR("$PSWSD,%.1f,%.0f*"),
+          wind_speed * (1.0 / _GPS_MPS_PER_KNOT), wind_direction);
+        if ((settings->nmea_s | settings->nmea2_s) & NMEA_S_WIND) {
+          if (now - PSWSD_TimeMarker >= 123000UL || PSWSD_TimeMarker == 0) {
+            NMEAOutC(NMEA_S_WIND);
+            PSWSD_TimeMarker = now;
+          }
+        }
+      }
 #if defined(ESP32)
 #if defined(USE_SD_CARD)
       if (SD_is_mounted) {

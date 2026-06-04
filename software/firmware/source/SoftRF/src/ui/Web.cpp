@@ -1341,7 +1341,7 @@ void handleRoot() {
  <table width=100%%>\
   <tr><th align=left>Device ID</th><td align=right>%06X</td></tr>\
   <tr><th align=left>Transmitted ID</th><td align=right>%06X</td></tr>\
-  <tr><th align=left>Software Version</th><td align=right>%s&nbsp;&nbsp;%s</td></tr>"
+  <tr><th align=left>Software Version</th><td align=right>%s-%s&nbsp;&nbsp;%s</td></tr>"
 #if !defined(ENABLE_AHRS)
  "</table><table width=100%%>\
   <tr><td align=left><table><tr><th align=left>GNSS&nbsp;&nbsp;</th><td align=right>%s</td></tr></table></td>\
@@ -1421,7 +1421,7 @@ void handleRoot() {
 </body>\
 </html>"),
     page_message(),
-    (SoC->getChipId() & 0x00FFFFFF), ThisAircraft.addr, SOFTRF_FIRMWARE_VERSION,
+    (SoC->getChipId() & 0x00FFFFFF), ThisAircraft.addr, SOFTRF_FIRMWARE_VERSION, SOFTRF_SUBVERSION,
     (SoC == NULL ? "NONE" : SoC->name),
     GNSS_name[hw_info.gnss],
     (rf_chip   == NULL ? "NONE" : rf_chip->name),
