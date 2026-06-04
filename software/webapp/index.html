@@ -1683,6 +1683,10 @@ body {
         <span class="status-value" id="st-uptime">--</span>
       </div>
       <div class="status-row">
+        <span class="status-label">Firmware</span>
+        <span class="status-value" id="st-fwver">--</span>
+      </div>
+      <div class="status-row">
         <span class="status-label">Last Update</span>
         <span class="status-value" id="st-lastupd">--</span>
       </div>
@@ -1806,7 +1810,7 @@ body {
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const APP_VERSION = 'v1.7';
+const APP_VERSION = 'v1.7.1';
 
 /* ═══════════════════════════════════════════════════════════════
    App Namespace
@@ -1958,9 +1962,9 @@ const SETTINGS_META = [
       {v:'00',l:'Off'},{v:'01',l:'Basic'},{v:'03',l:'GSA'},{v:'0f',l:'All'}],
     desc:'Output GNSS sentence Types'},
   { key:'nmea_s', label:'Sensor Sentences', tab:'advanced', group:'NMEA Output 1',
-    type:'select', options:[
-      {v:'00',l:'Off'},{v:'01',l:'Basic'},{v:'03',l:'LK8EX1'}],
-    desc:'Barometric sensor sentences' },
+    type:'bitfield', bits:[
+      {bit:1, l:'Basic'}, {bit:2, l:'LK8EX1'}, {bit:8, l:'Wind ($PSWSD)'}],
+    desc:'Sensor sentence types (select all that apply)' },
   { key:'nmea_t', label:'Traffic Sentences', tab:'advanced', group:'NMEA Output 1',
     type:'bitfield', bits:[
       {bit:1, l:'PFLAU+PFLAA'}, {bit:2, l:'PFLAJ'}, {bit:4, l:'PFLAM'}, {bit:8, l:'FNNGB'}],
@@ -1983,9 +1987,9 @@ const SETTINGS_META = [
       {v:'00',l:'Off'},{v:'01',l:'Basic'},{v:'03',l:'GSA'},{v:'0f',l:'All'}],
     desc:'Output GNSS sentence Types'},
   { key:'nmea2_s', label:'Sensor Sentences', tab:'advanced', group:'NMEA Output 2',
-    type:'select', options:[
-      {v:'00',l:'Off'},{v:'01',l:'Basic'},{v:'03',l:'LK8EX1'}],
-    desc:'Barometric sensor sentences' },
+    type:'bitfield', bits:[
+      {bit:1, l:'Basic'}, {bit:2, l:'LK8EX1'}, {bit:8, l:'Wind ($PSWSD)'}],
+    desc:'Sensor sentence types (select all that apply)' },
   { key:'nmea2_t', label:'Traffic Sentences', tab:'advanced', group:'NMEA Output 2',
     type:'bitfield', bits:[
       {bit:1, l:'PFLAU+PFLAA'}, {bit:2, l:'PFLAJ'}, {bit:4, l:'PFLAM'}, {bit:8, l:'FNNGB'}],
@@ -2178,7 +2182,7 @@ App.nmea = {
 
     // If no $ at all, check if a known NMEA type appears mid-line (BLE ate the $)
     if (!line.startsWith('$')) {
-      const m = line.match(/(PSRFH|PSRFS|PFLAA|PFLAU|FNNGB|[A-Z]{2}GGA|[A-Z]{2}RMC),/);
+      const m = line.match(/(PSRFH|PSRFS|PFLAA|PFLAU|PFLAV|FNNGB|[A-Z]{2}GGA|[A-Z]{2}RMC),/);
       if (m) line = '$' + line.substring(m.index);
     }
 
@@ -2240,6 +2244,13 @@ App.nmea = {
             App.state.values[label] = value;
             App.ui.updateControl(label, value);
           }
+        }
+      } else if (type === 'PFLAV') {
+        // $PFLAV,A,2.4,7.24,SoftRF-MB177-VB008s  — field[4] is ident-version-subversion
+        if (fields.length >= 5) {
+          const ver = fields[4].replace(/\*.*$/, '');
+          const el = document.getElementById('st-fwver');
+          if (el && el.textContent === '--') el.textContent = ver;
         }
       } else if (type === 'PFLAA') {
         App.traffic.parsePFLAA(fields);
