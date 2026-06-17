@@ -2740,6 +2740,21 @@ void set_protocol_for_slot()
                 protocol_decode = altprotocol_decode;
             }
         }
+    } else if (settings->altprotocol == RF_PROTOCOL_ADSL
+            || settings->altprotocol == RF_PROTOCOL_LATEST) {
+        // Latest+ADSL or ADSL+Latest: ADSL and Latest/FLARM share the same
+        // frequencies (868.2 slot 0, 868.4 slot 1) so use flr_adsl dual-syncword
+        // RX in slot 0 to receive both protocols simultaneously at all times.
+        // TX in altprotocol once every 4 seconds (sec 3/7/11/15); otherwise TX main.
+        curr_rx_protocol_ptr = &flr_adsl_proto_desc;
+        protocol_decode = &flr_adsl_decode;   // <<< this gets re-done in receive()
+        if (sec_3_7_11_15) {
+            curr_tx_protocol_ptr = altprotocol_ptr;
+            protocol_encode = altprotocol_encode;
+        } else {
+            curr_tx_protocol_ptr = mainprotocol_ptr;
+            protocol_encode = mainprotocol_encode;
+        }
     } else if (sec_3_7_11_15 && settings->altprotocol != RF_PROTOCOL_NONE) {
         if (settings->altprotocol == RF_PROTOCOL_OGNTP) {
             if (sec_3_11 && settings->flr_adsl && settings->rf_protocol != RF_PROTOCOL_ADSL) {
@@ -2755,10 +2770,8 @@ void set_protocol_for_slot()
                 protocol_decode = mainprotocol_decode;
                 protocol_encode = mainprotocol_encode;
             }
-        } else {    // Latest+ADSL, or ADSL+Latest
-            if (settings->flr_adsl
-             && (settings->altprotocol == RF_PROTOCOL_LATEST
-              || settings->altprotocol == RF_PROTOCOL_ADSL)) {
+        } else {
+            if (settings->flr_adsl) {
                 curr_rx_protocol_ptr = &flr_adsl_proto_desc;
                 protocol_decode = &flr_adsl_decode;   // <<< this gets re-done in receive()
             } else {
@@ -2825,6 +2838,14 @@ void set_protocol_for_slot()
             protocol_decode = mainprotocol_decode;
             protocol_encode = &ogntp_encode;
         }
+    } else if (settings->altprotocol == RF_PROTOCOL_ADSL
+            || settings->altprotocol == RF_PROTOCOL_LATEST) {
+        // slot 1: same dual-syncword RX as slot 0 — catches both Latest and ADSL
+        // on 868.4 MHz. TX stays in main protocol.
+        curr_rx_protocol_ptr = &flr_adsl_proto_desc;
+        curr_tx_protocol_ptr = mainprotocol_ptr;
+        protocol_decode = &flr_adsl_decode;
+        protocol_encode = mainprotocol_encode;
     } else {
         curr_rx_protocol_ptr = mainprotocol_ptr;
         curr_tx_protocol_ptr = mainprotocol_ptr;
@@ -3018,7 +3039,7 @@ void RF_loop()
         TxTimeMarker = TxEndMarker;     // prevent transmission (relay bypasses this)
         relay_next = false;
     } else if (current_TX_protocol == RF_PROTOCOL_ADSL) {  // ADS-L slot starts at 450
-        TxTimeMarker = slot_base_ms + 455 + SoC->random(0, 335);
+        TxTimeMarker = slot_base_ms + 455 + SoC->random(0, 240);
     } else {
         TxTimeMarker = slot_base_ms + 405 + SoC->random(0, 385);
     }
@@ -3100,7 +3121,7 @@ void RF_loop()
 */
 if (settings->debug_flags & DEBUG_DEEPER) {
 Serial.printf("Prot %d/%d(%s), Slot %d set for sec %d at PPS+%d ms, PPS %d, tx ok %d - %d, gd to %d\r\n",
-current_RX_protocol, current_TX_protocol, ((curr_tx_protocol_ptr == &latest_proto_desc)? "T" : "?"),
+current_RX_protocol, current_TX_protocol, ((curr_tx_protocol_ptr == &latest_proto_desc)? "T" : (curr_tx_protocol_ptr == &adsl_proto_desc)? "A" : "?"),
    RF_current_slot, (RF_time & 0x0F), ms_since_pps, slot_base_ms,
    ((current_TX_protocol==RF_PROTOCOL_FANET || current_TX_protocol==RF_PROTOCOL_P3I)? TxTimeMarker2 : TxTimeMarker),
     TxEndMarker, RF_OK_until);
@@ -3218,7 +3239,7 @@ bool RF_Transmit(size_t size, bool wait)   // only called with no-wait for air-r
 
 if (settings->debug_flags & DEBUG_DEEPER) {
 Serial.printf("TX in protocol %d(%s) at %d ms, size=%d\r\n",
-    current_TX_protocol, ((curr_tx_protocol_ptr == &latest_proto_desc)? "T" : "?"),
+    current_TX_protocol, ((curr_tx_protocol_ptr == &latest_proto_desc)? "T" : (curr_tx_protocol_ptr == &adsl_proto_desc)? "A" : "?"),
     millis()-ref_time_ms, RF_tx_size);
 }
             RF_tx_size = 0;
@@ -3487,7 +3508,7 @@ static void lr11xx_channel(uint8_t channel)
 
     int state = lr11xx_radio->setFrequency((frequency + (fc * 1000)) / 1000000.0);
 
-#if 1
+#if 0
     if (state == RADIOLIB_ERR_INVALID_FREQUENCY) {
       Serial.println(F("[LR11XX] Selected frequency is invalid for this module!"));
       while (true) { delay(10); }
@@ -3866,7 +3887,9 @@ static void lr11xx_transmit()
 
   size_t PayloadLen = 0;
 
-  switch (curr_rx_protocol_ptr->crc_type)
+  const rf_proto_desc_t *tx_proto = curr_tx_protocol_ptr ? curr_tx_protocol_ptr : curr_rx_protocol_ptr;
+
+  switch (tx_proto->crc_type)
   {
   case RF_CHECKSUM_TYPE_GALLAGER:
   case RF_CHECKSUM_TYPE_CRC_MODES:
@@ -3885,7 +3908,7 @@ static void lr11xx_transmit()
     break;
   }
 
-  switch (curr_rx_protocol_ptr->type)
+  switch (tx_proto->type)
   {
   case RF_PROTOCOL_LEGACY:
   case RF_PROTOCOL_LATEST:
@@ -3896,15 +3919,15 @@ static void lr11xx_transmit()
     break;
   case RF_PROTOCOL_P3I:
     /* insert Net ID */
-    RL_txPacket.payload[PayloadLen++] = (u1_t) ((curr_rx_protocol_ptr->net_id >> 24) & 0x000000FF);
-    RL_txPacket.payload[PayloadLen++] = (u1_t) ((curr_rx_protocol_ptr->net_id >> 16) & 0x000000FF);
-    RL_txPacket.payload[PayloadLen++] = (u1_t) ((curr_rx_protocol_ptr->net_id >>  8) & 0x000000FF);
-    RL_txPacket.payload[PayloadLen++] = (u1_t) ((curr_rx_protocol_ptr->net_id >>  0) & 0x000000FF);
+    RL_txPacket.payload[PayloadLen++] = (u1_t) ((tx_proto->net_id >> 24) & 0x000000FF);
+    RL_txPacket.payload[PayloadLen++] = (u1_t) ((tx_proto->net_id >> 16) & 0x000000FF);
+    RL_txPacket.payload[PayloadLen++] = (u1_t) ((tx_proto->net_id >>  8) & 0x000000FF);
+    RL_txPacket.payload[PayloadLen++] = (u1_t) ((tx_proto->net_id >>  0) & 0x000000FF);
     /* insert byte with payload size */
-    RL_txPacket.payload[PayloadLen++] = curr_rx_protocol_ptr->payload_size;
+    RL_txPacket.payload[PayloadLen++] = tx_proto->payload_size;
 
     /* insert byte with CRC-8 seed value when necessary */
-    if (curr_rx_protocol_ptr->crc_type == RF_CHECKSUM_TYPE_CRC8_107) {
+    if (tx_proto->crc_type == RF_CHECKSUM_TYPE_CRC8_107) {
       RL_txPacket.payload[PayloadLen++] = crc8;
     }
 
@@ -3917,7 +3940,7 @@ static void lr11xx_transmit()
 
   for (i=0; i < RF_tx_size; i++) {
 
-    switch (curr_rx_protocol_ptr->whitening)
+    switch (tx_proto->whitening)
     {
     case RF_WHITENING_NICERF:
       RL_txPacket.payload[PayloadLen] = TxBuffer[i] ^ pgm_read_byte(&whitening_pattern[i]);
@@ -3933,7 +3956,7 @@ static void lr11xx_transmit()
       break;
     }
 
-    switch (curr_rx_protocol_ptr->crc_type)
+    switch (tx_proto->crc_type)
     {
     case RF_CHECKSUM_TYPE_GALLAGER:
     case RF_CHECKSUM_TYPE_CRC_MODES:
@@ -3945,7 +3968,7 @@ static void lr11xx_transmit()
     case RF_CHECKSUM_TYPE_CCITT_FFFF:
     case RF_CHECKSUM_TYPE_CCITT_0000:
     default:
-      if (curr_rx_protocol_ptr->whitening == RF_WHITENING_MANCHESTER) {
+      if (tx_proto->whitening == RF_WHITENING_MANCHESTER) {
         crc16 = update_crc_ccitt(crc16, (u1_t)(TxBuffer[i]));
       } else {
         crc16 = update_crc_ccitt(crc16, (u1_t)(RL_txPacket.payload[PayloadLen]));
@@ -3956,7 +3979,7 @@ static void lr11xx_transmit()
     PayloadLen++;
   }
 
-  switch (curr_rx_protocol_ptr->crc_type)
+  switch (tx_proto->crc_type)
   {
   case RF_CHECKSUM_TYPE_GALLAGER:
   case RF_CHECKSUM_TYPE_CRC_MODES:
@@ -3968,7 +3991,7 @@ static void lr11xx_transmit()
   case RF_CHECKSUM_TYPE_CCITT_FFFF:
   case RF_CHECKSUM_TYPE_CCITT_0000:
   default:
-    if (curr_rx_protocol_ptr->whitening == RF_WHITENING_MANCHESTER) {
+    if (tx_proto->whitening == RF_WHITENING_MANCHESTER) {
       RL_txPacket.payload[PayloadLen++] = pgm_read_byte(&ManchesterEncode[(((crc16 >>  8) & 0xFF) >> 4) & 0x0F]);
       RL_txPacket.payload[PayloadLen++] = pgm_read_byte(&ManchesterEncode[(((crc16 >>  8) & 0xFF)     ) & 0x0F]);
       RL_txPacket.payload[PayloadLen++] = pgm_read_byte(&ManchesterEncode[(((crc16      ) & 0xFF) >> 4) & 0x0F]);
@@ -3985,16 +4008,20 @@ static void lr11xx_transmit()
 
   // Serial.print("[LR1110] TX: RL_txPacket.len = ");
   // Serial.println(RL_txPacket.len);
-  // TX syncword: send full 8 bytes including leading 0x55
-  int sw_skip = curr_rx_protocol_ptr->syncword_skip;
+  // TX syncword: use tx_proto syncword (full, no skip)
+  int sw_skip = tx_proto->syncword_skip;
   int state = lr11xx_radio->setSyncWord(
-          (uint8_t *) &curr_rx_protocol_ptr->syncword[0],
-          (size_t)    (curr_rx_protocol_ptr->syncword_size));
+          (uint8_t *) &tx_proto->syncword[0],
+          (size_t)    (tx_proto->syncword_size));
   state = lr11xx_radio->transmit((uint8_t *) &RL_txPacket.payload, (size_t) RL_txPacket.len);
-  // Restore RX syncword (skip 2 bytes: 0x55, 0x99) so XC Tracer packets are still received
-  lr11xx_radio->setSyncWord(
-          (uint8_t *) &curr_rx_protocol_ptr->syncword[sw_skip],
-          (size_t)    (curr_rx_protocol_ptr->syncword_size - sw_skip));
+  // Restore RX syncword. For FLARM/Latest: skip 2 bytes so XC Tracer packets are received.
+  // For ADSL: use full syncword (no skip) — the LR1110 needs all 8 bytes for reliable detection.
+  {
+    int sw_skip = (curr_rx_protocol_ptr->type == RF_PROTOCOL_ADSL) ? 0 : curr_rx_protocol_ptr->syncword_skip;
+    lr11xx_radio->setSyncWord(
+            (uint8_t *) &curr_rx_protocol_ptr->syncword[sw_skip],
+            (size_t)    (curr_rx_protocol_ptr->syncword_size - sw_skip));
+  }
   // setSyncWord() clobbers fixedPacketLengthMode — must restore for RX
   size_t pkt_size = curr_rx_protocol_ptr->payload_offset + curr_rx_protocol_ptr->payload_size +
                     curr_rx_protocol_ptr->crc_size;
@@ -4203,23 +4230,27 @@ static void lr11xx_resetup()
     state = lr11xx_radio->setWhitening(false, 0x0001);
     // Serial.println("[LR11XX] → Set Whitening");
   
-    // Packet mode
-    state = lr11xx_radio->fixedPacketLengthMode(pkt_size);
     state = lr11xx_radio->disableAddressFiltering();
-    // Serial.println("[LR11XX] → Set Packet Mode");
     // Syncword — P3I only gets preamble padding to prevent premature detection.
     // flr_adsl {0x56,0x66} and others must be used as-is.
+    // NOTE: setSyncWord() internally calls setPacketParamsGFSK() with MAX length,
+    // clobbering fixedPacketLengthMode — so fixedPacketLengthMode must come AFTER.
     if (curr_rx_protocol_ptr->type == RF_PROTOCOL_P3I
         && curr_rx_protocol_ptr->syncword_size == 2) {
       uint8_t preamble = (curr_rx_protocol_ptr->preamble_type == RF_PREAMBLE_TYPE_AA) ? 0xAA : 0x55;
       uint8_t sword[4] = { preamble, preamble, curr_rx_protocol_ptr->syncword[0], curr_rx_protocol_ptr->syncword[1] };
       state = lr11xx_radio->setSyncWord(sword, 4);
     } else {
-      int sw_skip = curr_rx_protocol_ptr->syncword_skip;
+      /* For ADSL: use full 8-byte syncword (no skip). The syncword_skip=2 is a
+       * SX12xx workaround; on the LR1110 it causes mis-alignment and stale FIFO reads.
+       * For FLARM/Latest: keep the 2-byte skip so XC Tracer (SX1262) frames are received. */
+      int sw_skip = (curr_rx_protocol_ptr->type == RF_PROTOCOL_ADSL) ? 0 : curr_rx_protocol_ptr->syncword_skip;
       state = lr11xx_radio->setSyncWord(
           (uint8_t *) &curr_rx_protocol_ptr->syncword[sw_skip],
           (size_t)    (curr_rx_protocol_ptr->syncword_size - sw_skip));
     }
+    // Restore fixed packet length AFTER setSyncWord (which clobbers it to 255)
+    state = lr11xx_radio->fixedPacketLengthMode(pkt_size);
 
     break;
   }

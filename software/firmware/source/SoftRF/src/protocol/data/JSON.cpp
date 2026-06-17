@@ -974,8 +974,16 @@ void parseJSettings(JsonObject root)
   key = "altprotocol";
   if (root.containsKey(key)) {
     const char *s = root[key].as<const char*>();
-    if      (!strcmp(s,"FANET"))
+    if      (!strcmp(s,"OGNTP"))
+      settings->altprotocol = RF_PROTOCOL_OGNTP;
+    else if (!strcmp(s,"P3I"))
+      settings->altprotocol = RF_PROTOCOL_P3I;
+    else if (!strcmp(s,"FANET"))
       settings->altprotocol = RF_PROTOCOL_FANET;
+    else if (!strcmp(s,"FLARM") || !strcmp(s,"LATEST"))
+      settings->altprotocol = RF_PROTOCOL_LATEST;
+    else if (!strcmp(s,"ADS-L"))
+      settings->altprotocol = RF_PROTOCOL_ADSL;
     else if (!strcmp(s,"NONE") || !strcmp(s,"OFF"))
       settings->altprotocol = RF_PROTOCOL_NONE;
   }
@@ -1191,14 +1199,20 @@ bool writeJSettings(JsonObject obj)
   obj["class"]    = "SOFTRF";
 
   obj["protocol"] =
+    (settings->rf_protocol == RF_PROTOCOL_LATEST)    ? "FLARM"  :
     (settings->rf_protocol == RF_PROTOCOL_LEGACY)    ? "FLARM"  :
     (settings->rf_protocol == RF_PROTOCOL_OGNTP)     ? "OGNTP"  :
     (settings->rf_protocol == RF_PROTOCOL_P3I)       ? "P3I"    :
     (settings->rf_protocol == RF_PROTOCOL_FANET)     ? "FANET"  :
-    (settings->rf_protocol == RF_PROTOCOL_ADSL)  ? "ADS-L"  : "FLARM";
+    (settings->rf_protocol == RF_PROTOCOL_ADSL)      ? "ADS-L"  : "FLARM";
 
   obj["altprotocol"] =
-    (settings->altprotocol == RF_PROTOCOL_FANET)     ? "FANET"  : "NONE";
+    (settings->altprotocol == RF_PROTOCOL_OGNTP)     ? "OGNTP"  :
+    (settings->altprotocol == RF_PROTOCOL_P3I)       ? "P3I"    :
+    (settings->altprotocol == RF_PROTOCOL_FANET)     ? "FANET"  :
+    (settings->altprotocol == RF_PROTOCOL_LEGACY)    ? "FLARM"  :
+    (settings->altprotocol == RF_PROTOCOL_LATEST)    ? "FLARM"  :
+    (settings->altprotocol == RF_PROTOCOL_ADSL)      ? "ADS-L"  : "NONE";
 
   obj["band"] =
     (settings->band == RF_BAND_EU) ? "EU" :

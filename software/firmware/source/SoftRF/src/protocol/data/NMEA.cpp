@@ -1914,7 +1914,12 @@ void NMEA_Export()
 
         cip = &Container[i];
 
-        if (cip->addr == 0 || ((OurTime - cip->timestamp) > settings->expire))
+        /* ADS-L transmits only every 4 seconds; use a longer effective expiry
+         * so a single missed reception doesn't drop the target from the display. */
+        uint32_t eff_expire = (cip->protocol == RF_PROTOCOL_ADSL)
+                              ? max((uint32_t)settings->expire, (uint32_t)10)
+                              : (uint32_t)settings->expire;
+        if (cip->addr == 0 || ((OurTime - cip->timestamp) > eff_expire))
             continue;
 #if 0
           Serial.println(i);
@@ -2645,8 +2650,17 @@ void NMEA_Process_SRF_SKV_Sentences()
 
       } else if (strncmp(C_Version.value(), "LST", 3) == 0) {      // $PSRFC,LST — compact settings dump (no comments)
           /* Dump all visible settings without inline comments.
-           * Each line is "label,value\r\n" — fits in a 20-byte BLE MTU packet. */
+           * Each line is "label,value\r\n" — fits in a 20-byte BLE MTU packet.
+           * First line is "SoftRF,IDENT-VERSION-SUBVERSION" so the webapp can
+           * display firmware version without waiting for $PFLAV. */
           settings_dump_active = true;
+          snprintf_P(NMEABuffer, sizeof(NMEABuffer), PSTR("SoftRF,%s-%s-%s\r\n"),
+                     SOFTRF_IDENT, SOFTRF_FIRMWARE_VERSION, SOFTRF_SUBVERSION);
+          nmea_cfg_reply(false);
+#if defined(ARDUINO_ARCH_NRF52)
+          BT_NUS_flush();
+          yield();
+#endif
           uint8_t board_bit = board_visibility_bit();
           for (int i = STG_MODE; i < STG_END; i++) {
               if (!(stgdesc[i].visible & board_bit))
