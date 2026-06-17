@@ -178,8 +178,7 @@
 /* ── E-ink header buttons ── */
 /* Disconnected / idle: solid white pill */
 :root.eink .btn-connect.disconnected,
-:root.eink .btn-connect-usb.disconnected,
-:root.eink .btn-install {
+:root.eink .btn-connect-usb.disconnected {
   background: #ffffff !important;
   color: #000000 !important;
   border: 2px solid #ffffff !important;
@@ -223,8 +222,7 @@
 /* ── prefers-contrast: more mirrors ── */
 @media (prefers-contrast: more) {
   :root:not(.eink-off) .btn-connect.disconnected,
-  :root:not(.eink-off) .btn-connect-usb.disconnected,
-  :root:not(.eink-off) .btn-install {
+  :root:not(.eink-off) .btn-connect-usb.disconnected {
     background: #ffffff !important; color: #000000 !important; border: 2px solid #ffffff !important;
   }
   :root:not(.eink-off) .btn-connect.connected,
@@ -477,25 +475,30 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   PWA Install Button
+   PWA Install FAB  (bottom-right floating action button)
    ═══════════════════════════════════════════════════════════════ */
 .btn-install {
   display: none; /* shown by JS when install is available */
+  position: fixed;
+  bottom: 20px;
+  right: 16px;
+  z-index: 200;
   align-items: center;
-  gap: 5px;
-  padding: 7px 11px;
-  border: 1px solid rgba(255,255,255,0.25);
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
+  gap: 6px;
+  padding: 12px 18px;
+  border: none;
+  border-radius: 28px;
+  font-size: 14px;
+  font-weight: 700;
   cursor: pointer;
-  transition: all var(--transition);
   white-space: nowrap;
-  flex-shrink: 0;
-  background: rgba(255,255,255,0.08);
-  color: rgba(255,255,255,0.85);
+  background: var(--accent);
+  color: #ffffff;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+  transition: transform 0.15s, box-shadow 0.15s;
 }
-.btn-install:hover { background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.5); }
+.btn-install:hover  { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.4); }
+.btn-install:active { transform: translateY(0);    box-shadow: 0 3px 10px rgba(0,0,0,0.35); }
 .btn-install.visible { display: flex; }
 
 /* Manual install help modal */
@@ -966,6 +969,53 @@ body {
 .collapsible-body { display: none; }
 .collapsible-body.open { display: block; }
 
+.debug-flags-help {
+  margin: 10px 4px 6px;
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+}
+.debug-flags-title {
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  margin-bottom: 7px;
+}
+.debug-flags-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+.debug-flags-table th {
+  text-align: left;
+  padding: 2px 6px 4px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 11px;
+}
+.debug-flags-table td {
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+.debug-flags-table td:first-child {
+  font-family: monospace;
+  color: var(--primary);
+  white-space: nowrap;
+}
+.debug-flags-table tr:last-child td { border-bottom: none; }
+.debug-flags-combos {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
 /* ═══════════════════════════════════════════════════════════════
    Save Bar (floating bottom)
    ═══════════════════════════════════════════════════════════════ */
@@ -1276,6 +1326,48 @@ body {
   .traffic-sheet { background: #1a1a2e; border-top-color: #2d2d4a; }
 }
 
+/* ── Own-position info bar ── */
+.own-info-bar {
+  display: flex;
+  gap: 4px;
+  padding: 5px 6px;
+  background: none;
+  flex-shrink: 0;
+  z-index: 501;
+}
+.own-info-box {
+  flex: 1;
+  min-width: 0;
+  background: rgba(30, 30, 40, 0.25);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 2px 3px;
+}
+.own-info-val {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #4ade80;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  text-align: center;
+}
+.own-info-lbl {
+  font-size: 9px;
+  font-weight: 600;
+  color: #f8fcf7;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-top: 1px;
+  text-align: center;
+}
+
 /* drag handle */
 .sheet-handle {
   display: flex;
@@ -1568,7 +1660,7 @@ body {
   <div class="header-left">
     <div class="header-logo">SR</div>
     <div class="header-info">
-      <div class="header-title">SoftRF Settings Configurator <span id="appVersionSpan" style="font-size:10px;font-weight:normal;opacity:0.85;vertical-align:middle">v1.5</span></div>
+      <div class="header-title">SoftRF Settings Configurator <span id="appVersionSpan" style="font-size:10px;font-weight:normal;opacity:0.85;vertical-align:middle">v1.8.3</span></div>
       <div class="header-device" id="deviceName">Not connected</div>
     </div>
   </div>
@@ -1580,7 +1672,6 @@ body {
         <span class="eink-toggle-track"></span>
       </label>
     </div>
-    <button class="btn-install" id="btnInstall" onclick="App.pwa.triggerInstall()">&#10515; Install</button>
     <button class="btn-connect disconnected" id="btnConnect" onclick="App.transport.toggle()">
       <span class="status-dot"></span>
       <span id="btnConnectText">BLE</span>
@@ -1730,6 +1821,26 @@ body {
 
 <!-- ═══════════════════ Traffic Tab ═══════════════════ -->
 <div class="tab-content" id="tab-traffic">
+  <!-- Own-position info bar -->
+  <div class="own-info-bar">
+    <div class="own-info-box">
+      <div class="own-info-val" id="oi-alt">--</div>
+      <div class="own-info-lbl">GPS ALT ft</div>
+    </div>
+    <div class="own-info-box">
+      <div class="own-info-val" id="oi-course">--</div>
+      <div class="own-info-lbl">HEADING</div>
+    </div>
+    <div class="own-info-box">
+      <div class="own-info-val" id="oi-speed">--</div>
+      <div class="own-info-lbl">SPEED km/h</div>
+    </div>
+    <div class="own-info-box">
+      <div class="own-info-val" id="oi-wind">--</div>
+      <div class="own-info-lbl">WIND <span id="oi-wind-dir"></span>km/h</div>
+    </div>
+  </div>
+
   <div class="traffic-layout">
     <!-- Map fills everything above the sheet -->
     <div id="trafficMap" class="traffic-map"></div>
@@ -1810,7 +1921,7 @@ body {
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const APP_VERSION = 'v1.7.1';
+const APP_VERSION = 'v1.8.3';
 
 /* ═══════════════════════════════════════════════════════════════
    App Namespace
@@ -1828,7 +1939,7 @@ const App = {
     debugVisible: false,
     traffic: {},      // id -> aircraft object
     alarm: { level: 0, bearing: null, distance: null, closestId: null },
-    gps: { lat: null, lon: null, alt: null, speed: null, course: null, sats: null },
+    gps: { lat: null, lon: null, alt: null, speed: null, course: null, sats: null, windDir: null, windSpd: null },
     track: [],        // [{lat, lon}]
   }
 };
@@ -1837,13 +1948,13 @@ const App = {
    Protocol Name Lookups
    ═══════════════════════════════════════════════════════════════ */
 const PROTOCOL_NAMES = {
-  '0': 'Legacy', '1': 'OGNTP', '2': 'P3I', '3': '1090ES',
+  '0': 'None', '1': 'OGNTP', '2': 'P3I', '3': '1090ES',
   '4': 'UAT', '5': 'FANET', '6': 'Legacy', '7': 'Latest', '8': 'ADSL',
   '255': 'None'
 };
 
 const ALT_PROTOCOL_NAMES = {
-  '0': 'None', '1': 'OGNTP', '5': 'FANET', '6': 'Legacy', '8': 'ADSL'
+  '0': 'None', '1': 'OGNTP', '2': 'PAW', '5': 'FANET', '8': 'ADSL'
 };
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1858,11 +1969,11 @@ const SETTINGS_META = [
   { key:'protocol', label:'Protocol', tab:'basic', group:'Radio',
     type:'select', options:[
       {v:'7',l:'Latest'},{v:'1',l:'OGNTP'},{v:'2',l:'P3I'},{v:'5',l:'FANET'},
-      {v:'0',l:'Legacy'},{v:'8',l:'ADSL'}],
+      {v:'8',l:'ADSL'}],
     desc:'Primary radio protocol' },
   { key:'altprotocol', label:'Alt Protocol', tab:'basic', group:'Radio',
     type:'select', options:[
-      {v:'0',l:'None'},{v:'1',l:'OGNTP'},{v:'5',l:'FANET'},{v:'6',l:'Legacy'},{v:'8',l:'ADSL'}],
+      {v:'0',l:'None'},{v:'1',l:'OGNTP'},{v:'2',l:'PAW'},{v:'5',l:'FANET'},{v:'8',l:'ADSL'}],
     desc:'Secondary protocol' },
   { key:'band', label:'Region', tab:'basic', group:'Radio',
     type:'select', options:[
@@ -1898,7 +2009,7 @@ const SETTINGS_META = [
 
   // ── Basic: FANET ──
   { key:'fanet_name', label:'FANET Name', tab:'basic', group:'FANET',
-    type:'text', maxlen:19, desc:'Your name on FANET network' },
+    type:'text', maxlen:32, desc:'Your name on FANET network' },
   { key:'fanet_sos', label:'FANET Distress', tab:'basic', group:'FANET',
     type:'select', options:[
       {v:'0',l:'Off'},{v:'1',l:'Manual'},{v:'2',l:'Auto'}],
@@ -1939,24 +2050,21 @@ const SETTINGS_META = [
   { key:'follow_id', label:'Follow ID', tab:'advanced', group:'Identity',
     type:'hex6', desc:'Prioritise traffic from this ID' },
 
-  // ── Advanced: Serial Port ──
-  { key:'baud_rate', label:'Baud Rate', tab:'advanced', group:'Serial Port',
-    type:'select', options:[
-      {v:'0',l:'Default (38400)'},{v:'2',l:'9600'},{v:'3',l:'19200'},
-      {v:'4',l:'38400'},{v:'5',l:'57600'},{v:'6',l:'115200'}],
-    desc:'Serial / USB port baud rate (applies to any output set to Serial, USB or Serial 2)',
-    showIf: () => {
-      const v1 = String(App.state.formValues['nmea_out']  ?? App.state.values['nmea_out']  ?? '');
-      const v2 = String(App.state.formValues['nmea_out2'] ?? App.state.values['nmea_out2'] ?? '');
-      return v1==='1'||v1==='4'||v1==='6'||v2==='1'||v2==='4'||v2==='6';
-    } },
-
   // ── Advanced: NMEA Output 1 ──
   { key:'nmea_out', label:'Output Destination', tab:'advanced', group:'NMEA Output 1',
     type:'select', options:[
       {v:'0',l:'Off'},{v:'1',l:'Serial'},{v:'2',l:'UDP'},{v:'3',l:'TCP'},
       {v:'4',l:'USB'},{v:'5',l:'Bluetooth'},{v:'6',l:'Serial 2'}],
     desc:'Primary NMEA output destination' },
+  { key:'baud_rate', label:'Baud Rate', tab:'advanced', group:'NMEA Output 1',
+    type:'select', options:[
+      {v:'0',l:'Default (38400)'},{v:'2',l:'9600'},{v:'3',l:'19200'},
+      {v:'4',l:'38400'},{v:'5',l:'57600'},{v:'6',l:'115200'}],
+    desc:'Serial / USB baud rate',
+    showIf: () => {
+      const v1 = String(App.state.formValues['nmea_out']  ?? App.state.values['nmea_out']  ?? '');
+      return v1==='1'||v1==='4'||v1==='6';
+    } },
   { key:'nmea_g', label:'GNSS Sentences', tab:'advanced', group:'NMEA Output 1',
       type:'select', options:[
       {v:'00',l:'Off'},{v:'01',l:'Basic'},{v:'03',l:'GSA'},{v:'0f',l:'All'}],
@@ -1982,6 +2090,15 @@ const SETTINGS_META = [
       {v:'0',l:'Off'},{v:'1',l:'Serial'},{v:'2',l:'UDP'},{v:'3',l:'TCP'},
       {v:'4',l:'USB'},{v:'5',l:'Bluetooth'},{v:'6',l:'Serial 2'}],
     desc:'Secondary NMEA output destination' },
+  { key:'baud_rate', label:'Baud Rate', tab:'advanced', group:'NMEA Output 2',
+    type:'select', options:[
+      {v:'0',l:'Off'},{v:'2',l:'9600'},{v:'3',l:'19200'},
+      {v:'4',l:'38400'},{v:'5',l:'57600'},{v:'6',l:'115200'}],
+    desc:'Baud rate for Nmea 2 output',
+    showIf: () => {
+      const v2 = String(App.state.formValues['nmea_out2'] ?? App.state.values['nmea_out2'] ?? '');
+      return v2==='4'||v2==='6';
+    } },
   { key:'nmea2_g', label:'GNSS Sentences', tab:'advanced', group:'NMEA Output 2',
       type:'select', options:[
       {v:'00',l:'Off'},{v:'01',l:'Basic'},{v:'03',l:'GSA'},{v:'0f',l:'All'}],
@@ -2182,7 +2299,7 @@ App.nmea = {
 
     // If no $ at all, check if a known NMEA type appears mid-line (BLE ate the $)
     if (!line.startsWith('$')) {
-      const m = line.match(/(PSRFH|PSRFS|PFLAA|PFLAU|PFLAV|FNNGB|[A-Z]{2}GGA|[A-Z]{2}RMC),/);
+      const m = line.match(/(PSRFH|PSRFS|PFLAA|PFLAU|PFLAV|FNNGB|PSWSD|[A-Z]{2}GGA|[A-Z]{2}RMC),/);
       if (m) line = '$' + line.substring(m.index);
     }
 
@@ -2246,7 +2363,8 @@ App.nmea = {
           }
         }
       } else if (type === 'PFLAV') {
-        // $PFLAV,A,2.4,7.24,SoftRF-MB177-VB008s  — field[4] is ident-version-subversion
+        // $PFLAV,A,2.4,7.24,SoftRF-MB177-VB008s  — fallback version display
+        // (settings dump SoftRF, line is preferred; only use PFLAV if not yet set)
         if (fields.length >= 5) {
           const ver = fields[4].replace(/\*.*$/, '');
           const el = document.getElementById('st-fwver');
@@ -2258,6 +2376,8 @@ App.nmea = {
         App.traffic.parsePFLAU(fields);
       } else if (type === 'FNNGB') {
         App.traffic.parseFNNGB(fields);
+      } else if (type === 'PSWSD') {
+        App.gps.parsePSWSD(fields);
       } else if (type.endsWith('GGA')) {
         App.gps.parseGGA(fields);
       } else if (type.endsWith('RMC')) {
@@ -2278,8 +2398,12 @@ App.nmea = {
         // text fields may contain spaces; all others take the first token
         const value = (meta && meta.type === 'text') ? rawVal : rawVal.split(/\s/)[0];
         if (label === 'SoftRF') {
-          // Version line — start of settings dump
+          // First line of settings dump: "SoftRF,IDENT-VERSION-SUBVERSION"
           App.state._settingsCount = 0;
+          if (value) {
+            const el = document.getElementById('st-fwver');
+            if (el) el.textContent = value;
+          }
           return;
         }
         // Skip malformed lines: empty value or label containing spaces
@@ -3188,9 +3312,17 @@ App.map = {
 
     this.leaflet = L.map('trafficMap', { zoomControl: false }).setView([51.5, -1.0], 13);
     L.control.zoom({ position: 'bottomright' }).addTo(this.leaflet);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}', {
+      attribution: '&copy; Esri',
+      maxZoom: 16, tileSize: 256, opacity: 1.0
+    }).addTo(this.leaflet);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; OSM &copy; CARTO',
-      subdomains: 'abcd', maxZoom: 19
+      subdomains: 'abcd', maxZoom: 19, opacity: 0.55
+    }).addTo(this.leaflet);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OSM &copy; CARTO',
+      subdomains: 'abcd', maxZoom: 19, opacity: 0.50
     }).addTo(this.leaflet);
 
     // Bottom-sheet toggle
@@ -3430,6 +3562,20 @@ App.map = {
    GPS Parsing Module
    ═══════════════════════════════════════════════════════════════ */
 App.gps = {
+  updateInfoBar() {
+    const g = App.state.gps;
+    const elAlt     = document.getElementById('oi-alt');
+    const elCourse  = document.getElementById('oi-course');
+    const elSpeed   = document.getElementById('oi-speed');
+    const elWind    = document.getElementById('oi-wind');
+    const elWindDir = document.getElementById('oi-wind-dir');
+    if (elAlt)    elAlt.textContent    = g.alt    != null ? Math.round(g.alt * 3.28084) : '--';
+    if (elCourse) elCourse.textContent = g.course != null ? Math.round(g.course) + '°'  : '--';
+    if (elSpeed)  elSpeed.textContent  = g.speed  != null ? Math.round(g.speed)          : '--';
+    if (elWind)    elWind.textContent    = g.windSpd != null ? Math.round(g.windSpd) : '--';
+    if (elWindDir) elWindDir.textContent = g.windDir != null ? Math.round(g.windDir) + '° ' : '';
+  },
+
   parseCoord(raw, dir) {
     if (!raw || !dir) return null;
     // NMEA: DDMM.MMMM or DDDMM.MMMM
@@ -3457,6 +3603,7 @@ App.gps = {
       App.state.gps.sats = sats;
       if (!isNaN(alt)) App.state.gps.alt = alt;
       App.map.updateOwnPosition(lat, lon);
+      this.updateInfoBar();
     }
   },
 
@@ -3474,7 +3621,18 @@ App.gps = {
       if (!isNaN(speed)) App.state.gps.speed = speed * 1.852; // knots to km/h
       if (!isNaN(course)) App.state.gps.course = course;
       App.map.updateOwnPosition(lat, lon);
+      this.updateInfoBar();
     }
+  },
+
+  parsePSWSD(fields) {
+    // $PSWSD,speed_knots,direction*CRC
+    if (fields.length < 3) return;
+    const spd = parseFloat(fields[1]);
+    const dir = parseFloat(fields[2]);
+    if (!isNaN(spd)) App.state.gps.windSpd = spd * 1.852; // knots to km/h
+    if (!isNaN(dir)) App.state.gps.windDir = dir;
+    this.updateInfoBar();
   }
 };
 
@@ -3821,6 +3979,25 @@ App.ui = {
           var body = document.createElement('div');
           body.className = 'collapsible-body';
           settings.forEach(s => body.appendChild(this.createSettingRow(s)));
+          // Debug flags reference table
+          const dbgHelp = document.createElement('div');
+          dbgHelp.className = 'debug-flags-help';
+          dbgHelp.innerHTML = `
+<div class="debug-flags-title">debug_flags bit reference</div>
+<table class="debug-flags-table">
+<tr><th>Hex</th><th>Name</th><th>What it enables</th></tr>
+<tr><td>01</td><td>WIND</td><td>Wind calculation serial output</td></tr>
+<tr><td>02</td><td>PROJECTION</td><td>Wind projection / track extrapolation output</td></tr>
+<tr><td>04</td><td>ALARM</td><td>Alarm calculation detail (requires nmea_d=1)</td></tr>
+<tr><td>08</td><td>LEGACY</td><td>Raw FLARM/Latest packet hex dump on RX &amp; TX</td></tr>
+<tr><td>10</td><td>DEEPER</td><td>RF slot timing, RX/TX sizes, LR1110 packet detail</td></tr>
+<tr><td>20</td><td>DEEPER2</td><td>Traffic helper internals, GNS5892 ADS-B detail</td></tr>
+<tr><td>40</td><td>BLE_TX</td><td>Log every BLE NUS sentence sent (serial console)</td></tr>
+<tr><td>800</td><td>RELAY</td><td>Force relay of all traffic (ignores no_track flag)</td></tr>
+<tr><td>800000</td><td>SIMULATE</td><td>Replay SIM file instead of live GNSS</td></tr>
+</table>
+<div class="debug-flags-combos">Common combos: <b>000010</b> = RF timing &nbsp;|&nbsp; <b>000017</b> = RF+Legacy+Alarm+Wind &nbsp;|&nbsp; <b>000040</b> = BLE TX log &nbsp;|&nbsp; <b>000050</b> = BLE TX + RF timing</div>`;
+          body.appendChild(dbgHelp);
           container.appendChild(body);
         } else {
           const groupDiv = document.createElement('div');
@@ -4404,5 +4581,8 @@ document.addEventListener('DOMContentLoaded', () => {
   App.pwa.init();
 });
 </script>
+
+<!-- ═══════════════════ PWA Install FAB ═══════════════════ -->
+<button class="btn-install" id="btnInstall" onclick="App.pwa.triggerInstall()">&#10515; Install</button>
 </body>
 </html>
