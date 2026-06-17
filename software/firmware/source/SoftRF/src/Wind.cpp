@@ -589,6 +589,12 @@ void this_airborne(bool validfix)
 //#if defined(ESP32)
       startlogs();      // restart alarm log (and flight log) on first takeoff after boot
 //#endif
+      if (settings->alarm == TRAFFIC_ALARM_PG_HILL) {
+          takeoff_lat = ThisAircraft.latitude;
+          takeoff_lon = ThisAircraft.longitude;
+          takeoff_alt = ThisAircraft.altitude;
+          hill_soar   = true;
+      }
     } else if (ThisAircraft.airborne==1 && airborne<=0) {
       airborne_changed = true;
       // AirborneTime = 0;
