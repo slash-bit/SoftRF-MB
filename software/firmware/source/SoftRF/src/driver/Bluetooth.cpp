@@ -27,7 +27,6 @@ uint8_t fnf_rfmode = 15;   /* bit0:FANET_RX bit1:FANET_TX bit2:FLARM_RX bit3:FLA
 // XCsoar is confused by BLE "sensor" devices, so try and skip them
 // SeeYou also crashes on the Movement characteristic (f023) - disabled for T1000E (no barometer)
 // - uncomment this line to restore them:
-// #define BLE_SENSORS
 
 #if defined(ESP32)
 #include "sdkconfig.h"
@@ -1405,23 +1404,10 @@ void startAdv(void)
   Bluefruit.Advertising.start(0);                // 0 = Don't stop advertising after n seconds
 }
 
-static uint16_t ble_client_requested_mtu = 0;
-
-// BLE event callback — capture client's requested MTU before negotiation
-void ble_evt_callback(ble_evt_t* evt)
-{
-  if (evt->header.evt_id == BLE_GATTS_EVT_EXCHANGE_MTU_REQUEST) {
-    ble_client_requested_mtu = evt->evt.gatts_evt.params.exchange_mtu_request.client_rx_mtu;
-    Serial.print("BLE client requested MTU=");
-    Serial.println(ble_client_requested_mtu);
-  }
-}
-
 // callback invoked when central connects
 void connect_callback(uint16_t conn_handle)
 {
   BLEConnection* connection = Bluefruit.Connection(conn_handle);
-  ble_client_requested_mtu = 0;  /* reset for new connection */
 
 #if DEBUG_BLE
   char central_name[32] = { 0 };
@@ -1493,7 +1479,6 @@ void nRF52_Bluetooth_setup()
   Bluefruit.setName((BT_name+"-LE").c_str());
   Bluefruit.Periph.setConnectCallback(connect_callback);
   Bluefruit.Periph.setDisconnectCallback(disconnect_callback);
-  Bluefruit.setEventCallback(ble_evt_callback);
 
   // To be consistent OTA DFU should be added first if it exists
   bledfu.begin();
