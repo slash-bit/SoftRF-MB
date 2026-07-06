@@ -249,7 +249,7 @@ static void init_stgdesc()
   stgcomment[STG_BAND]       = "1=EU 2=US ...";
   stgcomment[STG_ACFT_TYPE]  = "1=GL 2=TOWPL 6=HG 7=PG 0=landed out";
   stgcomment[STG_ID_METHOD]  = "1=ICAO 2=device";
-  stgcomment[STG_ALARM]      = "4=PG-Hill 3=Latest 2=Vector 1=Dist";
+  stgcomment[STG_ALARM]      = "5=PG-None 4=PG-Hill 3=Latest 2=Vector 1=Dist";
   stgcomment[STG_HRANGE]     = "km";
   stgcomment[STG_VRANGE]     = "x100m";
   stgcomment[STG_TXPOWER]    = "0=off 1=low 2=full";

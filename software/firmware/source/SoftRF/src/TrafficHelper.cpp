@@ -141,10 +141,7 @@ bool alt_relay_next = false;
 
 float average_baro_alt_diff = 0;
 
-bool hill_soar = false;              /* true while within takeoff proximity (PG-hill-filter) */
-float takeoff_lat = 0;               /* latitude at moment of takeoff */
-float takeoff_lon = 0;               /* longitude at moment of takeoff */
-float takeoff_alt = 0;               /* altitude (m) at moment of takeoff */
+bool no_pg_alarm = false;            /* true while PG alarm suppression is active */
 
 static int8_t (*Alarm_Level)(container_t *, container_t *);
 
@@ -984,18 +981,19 @@ void Traffic_Update(container_t *fop)
 
   if (Alarm_Level) {  // if a collision prediction algorithm selected
 
-      /* PG-hill-filter: check if we've left the launch area yet */
-      if (hill_soar) {
-          float dlat = ThisAircraft.latitude  - takeoff_lat;
-          float dlon = ThisAircraft.longitude - takeoff_lon;
-          float hdist = sqrtf(dlat*dlat + dlon*dlon) * 111319.0f; /* approx metres */
-          float vdist = fabsf(ThisAircraft.altitude - takeoff_alt);
-          if (hdist > 2000.0f || vdist > 1000.0f)
-              hill_soar = false;
-      }
-
       uint8_t old_alarm_level = fop->alarm_level;
-      fop->alarm_level = hill_soar ? ALARM_LEVEL_NONE : (*Alarm_Level)(&ThisAircraft, fop);
+      bool suppress = false;
+      if (no_pg_alarm) {
+          if (settings->alarm == TRAFFIC_ALARM_PG_NONE) {
+              /* suppress only if the other aircraft is also PG or HG */
+              suppress = (fop->aircraft_type == AIRCRAFT_TYPE_PARAGLIDER
+                       || fop->aircraft_type == AIRCRAFT_TYPE_HANGGLIDER);
+          } else {
+              /* PG_HILL: suppress all traffic near launch hill */
+              suppress = true;
+          }
+      }
+      fop->alarm_level = suppress ? ALARM_LEVEL_NONE : (*Alarm_Level)(&ThisAircraft, fop);
 
       /* Sound an alarm if new alert, or got closer than previous alert,     */
       /* or (hysteresis) got two levels farther, and then closer.            */
@@ -1709,7 +1707,10 @@ void Traffic_setup()
     Alarm_Level = &Alarm_Latest;
     break;
   case TRAFFIC_ALARM_PG_HILL:
-    Alarm_Level = &Alarm_Distance;  /* same algorithm, suppressed near launch */
+    Alarm_Level = &Alarm_Distance;  /* same algorithm, suppressed near launch hill */
+    break;
+  case TRAFFIC_ALARM_PG_NONE:
+    Alarm_Level = &Alarm_Distance;  /* same algorithm, other PG/HG suppressed */
     break;
   case TRAFFIC_ALARM_DISTANCE:
   default:

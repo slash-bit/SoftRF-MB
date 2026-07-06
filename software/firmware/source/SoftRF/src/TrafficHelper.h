@@ -63,13 +63,11 @@ enum
 	TRAFFIC_ALARM_DISTANCE,
 	TRAFFIC_ALARM_VECTOR,
 	TRAFFIC_ALARM_LATEST,
-	TRAFFIC_ALARM_PG_HILL   /* Distance alarm with hill-soaring suppression for PG/HG */
+	TRAFFIC_ALARM_PG_HILL,  /* Distance alarm with hill-soaring suppression for PG/HG */
+	TRAFFIC_ALARM_PG_NONE   /* No alerts from other PG/HG when own type is PG/HG */
 };
 
-extern bool hill_soar;       /* true while within takeoff proximity (suppression active) */
-extern float takeoff_lat;
-extern float takeoff_lon;
-extern float takeoff_alt;
+extern bool no_pg_alarm;     /* true while PG alarm suppression is active */
 
 enum
 {

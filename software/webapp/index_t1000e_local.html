@@ -410,6 +410,12 @@ body {
   min-width: 0;
 }
 
+.setting-label-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .setting-label {
   font-size: 14px;
   font-weight: 600;
@@ -421,6 +427,42 @@ body {
   color: var(--text-secondary);
   margin-top: 1px;
 }
+
+.info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  font-style: normal;
+  cursor: pointer;
+  margin-left: 5px;
+  vertical-align: middle;
+  flex-shrink: 0;
+  user-select: none;
+  line-height: 1;
+}
+.info-icon:hover { background: var(--primary-hover); }
+
+.info-panel {
+  display: none;
+  margin-top: 6px;
+  padding: 10px 12px;
+  background: var(--info-bg);
+  border: 1px solid var(--info);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.5;
+}
+.info-panel.open { display: block; }
+.info-panel ul { margin: 4px 0 0 0; padding-left: 16px; }
+.info-panel li { margin-bottom: 4px; }
 
 .setting-key {
   font-size: 10px;
@@ -1187,8 +1229,19 @@ const SETTINGS_META = [
     desc:'Your aircraft type' },
   { key:'alarm', label:'Alarm Algorithm', tab:'basic', group:'Radio',
     type:'select', options:[
-      {v:'0',l:'None'},{v:'1',l:'Distance'},{v:'2',l:'Vector'},{v:'3',l:'Latest'}],
-    desc:'Collision alarm algorithm' },
+      {v:'0',l:'None'},{v:'1',l:'Distance'},{v:'2',l:'Vector'},{v:'3',l:'Latest'},{v:'4',l:'PG-hill-filter'},{v:'5',l:'PG-filter'}],
+    desc:'Collision alarm algorithm',
+    info:'<ul>' +
+      '<li><b>None</b> — No collision alerts. Rely on your flight management software.</li>' +
+      '<li><b>Distance</b> — Alerts based on horizontal distance to the other aircraft.</li>' +
+      '<li><b>Vector</b> — Distance plus direction of travel; predicts straight-line collision risk.</li>' +
+      '<li><b>Latest</b> — As Vector, but also accounts for turning rate and wind to predict curved paths.</li>' +
+      '<li><b>PG-Hill-Filter</b> — As Latest, but suppresses alerts during the hill-soaring phase after take-off. ' +
+      'Suppression lifts once you are more than 2 km horizontally or 1000 m (3000 ft) above the launch point. ' +
+      'Only applies to paragliders and hang gliders &mdash; other aircraft types will always trigger alerts.</li>' +
+      '<li><b>PG-Filter</b> — As Distance, but never alerts on other paragliders or hang gliders when your own ' +
+      'aircraft type is set to paraglider or hang glider. Non-PG aircraft still generate full alerts.</li>' +
+      '</ul>' },
   { key:'alarm_demo', label:'Alarm Demo', tab:'basic', group:'Radio',
     type:'button', buttonLabel:'Start Demo', desc:'Test buzzer alarm sounds',
     action: async () => { await App.ble.sendNmea('PSRFC,DEM'); } },
@@ -2262,9 +2315,21 @@ App.ui = {
 
     const info = document.createElement('div');
     info.className = 'setting-info';
-    info.innerHTML = `<div class="setting-label">${meta.label}</div>` +
+    const labelHtml = `<span class="setting-label">${meta.label}</span>` +
+      (meta.info ? `<span class="info-icon" title="More info">i</span>` : '');
+    info.innerHTML = `<div class="setting-label-row">${labelHtml}</div>` +
       (meta.desc ? `<div class="setting-desc">${meta.desc}</div>` : '') +
       `<div class="setting-key">${meta.key}</div>`;
+    if (meta.info) {
+      const panel = document.createElement('div');
+      panel.className = 'info-panel';
+      panel.innerHTML = meta.info;
+      info.appendChild(panel);
+      info.querySelector('.info-icon').addEventListener('click', e => {
+        e.stopPropagation();
+        panel.classList.toggle('open');
+      });
+    }
 
     const ctrl = document.createElement('div');
     ctrl.className = 'setting-control';

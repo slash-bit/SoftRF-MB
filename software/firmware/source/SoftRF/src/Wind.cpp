@@ -531,12 +531,21 @@ FlightLogComment(NMEABuffer);
 void this_airborne(bool validfix)
 {
     static int airborne = -4;
+    static float initial_latitude  = 0;
+    static float initial_longitude = 0;
+    static float initial_altitude  = 0;
 
     /* XCGuide forced air mode: skip auto-detection, stay airborne */
     if (fnf_airmode) {
         airborne = 60;
         ThisAircraft.airborne = 1;
         return;
+    }
+
+    if (initial_latitude == 0 && ThisAircraft.latitude != 0) {
+        initial_latitude  = ThisAircraft.latitude;
+        initial_longitude = ThisAircraft.longitude;
+        initial_altitude  = ThisAircraft.altitude;
     }
 
     int was_airborne = airborne;
@@ -589,11 +598,14 @@ void this_airborne(bool validfix)
 //#if defined(ESP32)
       startlogs();      // restart alarm log (and flight log) on first takeoff after boot
 //#endif
-      if (settings->alarm == TRAFFIC_ALARM_PG_HILL) {
-          takeoff_lat = ThisAircraft.latitude;
-          takeoff_lon = ThisAircraft.longitude;
-          takeoff_alt = ThisAircraft.altitude;
-          hill_soar   = true;
+      if (settings->alarm == TRAFFIC_ALARM_PG_HILL || settings->alarm == TRAFFIC_ALARM_PG_NONE) {
+          if (ThisAircraft.aircraft_type == AIRCRAFT_TYPE_PARAGLIDER
+          ||  ThisAircraft.aircraft_type == AIRCRAFT_TYPE_HANGGLIDER) {
+              initial_latitude  = ThisAircraft.latitude;
+              initial_longitude = ThisAircraft.longitude;
+              initial_altitude  = ThisAircraft.altitude;
+              no_pg_alarm = true;
+          }
       }
     } else if (ThisAircraft.airborne==1 && airborne<=0) {
       airborne_changed = true;
@@ -608,6 +620,15 @@ void this_airborne(bool validfix)
     }
 
     ThisAircraft.airborne = (airborne > 0)? 1 : 0;
+
+    /* PG-hill-filter: once airborne, check if we've left the launch area */
+    if (no_pg_alarm && settings->alarm == TRAFFIC_ALARM_PG_HILL) {
+        float dlat = ThisAircraft.latitude  - initial_latitude;
+        float dlon = (ThisAircraft.longitude - initial_longitude) * CosLat();
+        float vdist = fabsf(ThisAircraft.altitude - initial_altitude);
+        if ((dlat*dlat + dlon*dlon) > (2000.0f / 111319.0f) * (2000.0f / 111319.0f) || vdist > 1000.0f)
+            no_pg_alarm = false;
+    }
 
     if (airborne_changed) {
       if (settings->nmea_t || settings->nmea2_t)

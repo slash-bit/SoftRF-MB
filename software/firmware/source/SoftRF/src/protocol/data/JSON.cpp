@@ -1056,6 +1056,7 @@ void parseJSettings(JsonObject root)
     else if (!strcmp(s,"VECTOR"))   settings->alarm = TRAFFIC_ALARM_VECTOR;
     else if (!strcmp(s,"LATEST"))   settings->alarm = TRAFFIC_ALARM_LATEST;
     else if (!strcmp(s,"PG_HILL"))  settings->alarm = TRAFFIC_ALARM_PG_HILL;
+    else if (!strcmp(s,"PG_NONE"))  settings->alarm = TRAFFIC_ALARM_PG_NONE;
   }
 
   key = "alarm_filter";
@@ -1262,7 +1263,8 @@ bool writeJSettings(JsonObject obj)
     (settings->alarm == TRAFFIC_ALARM_DISTANCE) ? "DISTANCE" :
     (settings->alarm == TRAFFIC_ALARM_VECTOR)   ? "VECTOR"   :
     (settings->alarm == TRAFFIC_ALARM_LATEST)   ? "LATEST"   :
-    (settings->alarm == TRAFFIC_ALARM_PG_HILL)  ? "PG_HILL"  : "LATEST";
+    (settings->alarm == TRAFFIC_ALARM_PG_HILL)  ? "PG_HILL"  :
+    (settings->alarm == TRAFFIC_ALARM_PG_NONE)  ? "PG_NONE"  : "LATEST";
 
   obj["alarm_filter"] = "NONE";   /* not yet implemented in Moshe settings_t */
 
