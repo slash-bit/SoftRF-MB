@@ -1059,11 +1059,6 @@ void parseJSettings(JsonObject root)
     else if (!strcmp(s,"PG_NONE"))  settings->alarm = TRAFFIC_ALARM_PG_NONE;
   }
 
-  key = "alarm_filter";
-  if (root.containsKey(key)) {
-    /* alarm_filter is not in Moshe settings_t yet; silently ignore */
-  }
-
   key = "txpower";
   if (root.containsKey(key)) {
     const char *s = root[key].as<const char*>();
@@ -1265,8 +1260,6 @@ bool writeJSettings(JsonObject obj)
     (settings->alarm == TRAFFIC_ALARM_LATEST)   ? "LATEST"   :
     (settings->alarm == TRAFFIC_ALARM_PG_HILL)  ? "PG_HILL"  :
     (settings->alarm == TRAFFIC_ALARM_PG_NONE)  ? "PG_NONE"  : "LATEST";
-
-  obj["alarm_filter"] = "NONE";   /* not yet implemented in Moshe settings_t */
 
   obj["txpower"] =
     (settings->txpower == RF_TX_POWER_FULL) ? "FULL" :
