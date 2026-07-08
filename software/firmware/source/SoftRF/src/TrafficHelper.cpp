@@ -982,18 +982,18 @@ void Traffic_Update(container_t *fop)
   if (Alarm_Level) {  // if a collision prediction algorithm selected
 
       uint8_t old_alarm_level = fop->alarm_level;
-      bool suppress = false;
-      if (no_pg_alarm) {
-          if (settings->alarm == TRAFFIC_ALARM_PG_NONE) {
-              /* suppress only if the other aircraft is also PG or HG */
-              suppress = (fop->aircraft_type == AIRCRAFT_TYPE_PARAGLIDER
-                       || fop->aircraft_type == AIRCRAFT_TYPE_HANGGLIDER);
-          } else {
-              /* PG_HILL: suppress all traffic near launch hill */
-              suppress = true;
-          }
+      bool fop_is_pg = (fop->aircraft_type == AIRCRAFT_TYPE_PARAGLIDER);
+      if (no_pg_alarm && settings->alarm == TRAFFIC_ALARM_PG_HILL) {
+          /* still near launch hill — suppress everything */
+          fop->alarm_level = ALARM_LEVEL_NONE;
+      } else if ((settings->alarm == TRAFFIC_ALARM_PG_HILL
+               || settings->alarm == TRAFFIC_ALARM_PG_NONE) && fop_is_pg) {
+          /* PG target: Distance only (avoid false alarms from nearby thermalling) */
+          fop->alarm_level = Alarm_Distance(&ThisAircraft, fop);
+      } else {
+          /* HG, non-PG, or non-PG mode: full Latest prediction */
+          fop->alarm_level = (*Alarm_Level)(&ThisAircraft, fop);
       }
-      fop->alarm_level = suppress ? ALARM_LEVEL_NONE : (*Alarm_Level)(&ThisAircraft, fop);
 
       /* Sound an alarm if new alert, or got closer than previous alert,     */
       /* or (hysteresis) got two levels farther, and then closer.            */
@@ -1707,10 +1707,10 @@ void Traffic_setup()
     Alarm_Level = &Alarm_Latest;
     break;
   case TRAFFIC_ALARM_PG_HILL:
-    Alarm_Level = &Alarm_Distance;  /* same algorithm, suppressed near launch hill */
+    Alarm_Level = &Alarm_Latest;    /* Latest for non-PG; Distance for PG; suppressed near hill */
     break;
   case TRAFFIC_ALARM_PG_NONE:
-    Alarm_Level = &Alarm_Distance;  /* same algorithm, other PG/HG suppressed */
+    Alarm_Level = &Alarm_Latest;    /* Latest for non-PG; PG-to-PG suppressed */
     break;
   case TRAFFIC_ALARM_DISTANCE:
   default:

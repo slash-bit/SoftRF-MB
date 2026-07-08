@@ -1236,11 +1236,12 @@ const SETTINGS_META = [
       '<li><b>Distance</b> — Alerts based on horizontal distance to the other aircraft.</li>' +
       '<li><b>Vector</b> — Distance plus direction of travel; predicts straight-line collision risk.</li>' +
       '<li><b>Latest</b> — As Vector, but also accounts for turning rate and wind to predict curved paths.</li>' +
-      '<li><b>PG-Hill-Filter</b> — As Latest, but suppresses alerts during the hill-soaring phase after take-off. ' +
-      'Suppression lifts once you are more than 2 km horizontally or 1000 m (3000 ft) above the launch point. ' +
-      'Only applies to paragliders and hang gliders &mdash; other aircraft types will always trigger alerts.</li>' +
-      '<li><b>PG-Filter</b> — As Distance, but never alerts on other paragliders or hang gliders when your own ' +
-      'aircraft type is set to paraglider or hang glider. Non-PG aircraft still generate full alerts.</li>' +
+      '<li><b>PG-Hill-Filter</b> — Uses Latest prediction for all aircraft. While within 2 km horizontally and ' +
+      '1000 m (3000 ft) vertically of the launch point, all alerts are suppressed (hill-soaring phase). ' +
+      'Once clear of the launch area, Latest applies to hang gliders and all other traffic; Distance applies ' +
+      'to other paragliders only (slower thermalling traffic). Activates when own aircraft type is PG or HG.</li>' +
+      '<li><b>PG-Filter</b> — Uses Latest prediction for all aircraft except other paragliders, which use Distance. ' +
+      'Hang gliders and all other types always produce full Latest alerts.</li>' +
       '</ul>' },
   { key:'alarm_demo', label:'Alarm Demo', tab:'basic', group:'Radio',
     type:'button', buttonLabel:'Start Demo', desc:'Test buzzer alarm sounds',
