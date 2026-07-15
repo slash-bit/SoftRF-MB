@@ -27,7 +27,7 @@ uint8_t fnf_rfmode = 15;   /* bit0:FANET_RX bit1:FANET_TX bit2:FLARM_RX bit3:FLA
 // XCsoar is confused by BLE "sensor" devices, so try and skip them
 // SeeYou also crashes on the Movement characteristic (f023) - disabled for T1000E (no barometer)
 // - uncomment this line to restore them:
-
+// #define BLE_SENSORS
 #if defined(ESP32)
 #include "sdkconfig.h"
 #endif
