@@ -2928,10 +2928,22 @@ void NMEA_Process_SRF_SKV_Sentences()
   }
 
   // $PSRFT,0*5F  or  $PSRFT,1*5E  to set test_mode to 0 or 1, or $PSRFT,?*50 to query
+  // $PSRFT,FMT  — format SPI flash filesystem
   // Also reports the chip ID, which is not settable, transmitted if ID type is "device"
   if (T_testmode.isUpdated()) {
 
-      char tval = T_testmode.value()[0];
+      const char *tstr = T_testmode.value();
+      char tval = tstr[0];
+
+#if defined(ARDUINO_ARCH_NRF52)
+      if (strncmp(tstr, "FMT", 3) == 0) {
+          Serial.println(F("PSRFT FMT: formatting SPI flash..."));
+          bool ok = nRF52_format_spiflash();
+          snprintf_P(NMEABuffer, sizeof(NMEABuffer),
+              PSTR("$PSRFT,FMT,%s*"), ok ? "OK" : "FAIL");
+          nmea_cfg_reply();
+      } else
+#endif /* ARDUINO_ARCH_NRF52 */
       if (tval == '?') {
           snprintf_P(NMEABuffer, sizeof(NMEABuffer), PSTR("$PSRFT,%d,%06X*"),
                 test_mode, (SoC->getChipId() & 0x00FFFFFF));

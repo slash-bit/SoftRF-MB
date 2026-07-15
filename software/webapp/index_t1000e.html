@@ -1199,6 +1199,7 @@ body {
       </div>
       <div class="status-actions mt-8">
         <button class="btn-action" onclick="App.commands.refreshSettings()">Reload Settings</button>
+        <button class="btn-action danger" onclick="App.commands.formatFlash()">Format Flash</button>
       </div>
     </div>
     <div class="status-card">
@@ -2574,6 +2575,18 @@ App.commands = {
         App.modal.hide();
         await App.transport.sendNmea('PSRFC,OFF');
         App.toast('Shutdown command sent', 'info');
+      }}
+    ]);
+  },
+
+  formatFlash() {
+    App.modal.show('Format Flash Filesystem', 'All files on the flash (logs, waypoints, etc.) will be permanently deleted. Are you sure?', [
+      { text: 'Cancel', cls: 'btn-ghost', action: () => App.modal.hide() },
+      { text: 'Format', cls: 'btn-primary', action: async () => {
+        App.modal.hide();
+        App.ui.showLoading('Formatting flash...', 'This may take a few seconds');
+        await App.transport.sendNmea('PSRFT,FMT');
+        setTimeout(() => App.ui.hideLoading(), 6000);
       }}
     ]);
   }

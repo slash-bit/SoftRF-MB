@@ -316,6 +316,7 @@ typedef void EPD_Task_t;
 
 extern FatFileSystem fatfs;
 extern bool FATFS_is_mounted;
+extern bool nRF52_format_spiflash();
 
 #define POWER_SAVING_BLE_TIMEOUT 600000UL /* 10 minutes */
 

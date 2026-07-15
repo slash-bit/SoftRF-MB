@@ -463,7 +463,7 @@ DRESULT disk_ioctl(BYTE pdrv, BYTE cmd, void *buff)
 
 // Format the SPI flash with FAT16, 4096-byte clusters (8 sectors), label "SOFTRF".
 // Returns true if formatting and remount succeeded.
-static bool nRF52_format_spiflash()
+bool nRF52_format_spiflash()
 {
   Serial.println(F("[SETUP] Formatting SPI flash with FAT16 (4096-byte clusters)..."));
 
