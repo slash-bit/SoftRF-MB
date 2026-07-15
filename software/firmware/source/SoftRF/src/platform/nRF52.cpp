@@ -55,6 +55,8 @@
 #include "../system/Time.h"
 
 #include "uCDB.hpp"
+#include "fat_format/ff.h"
+#include "fat_format/diskio.h"
 
 #if defined(USE_BLE_MIDI)
 #include <bluefruit.h>
@@ -416,6 +418,78 @@ static void nRF52_system_off()
 
 /* Forward declaration for SPI initialization */
 static void nRF52_SPI_begin();
+
+// ---------- FatFs diskio callbacks for f_mkfs (auto-format) ----------
+
+extern "C" {
+
+DSTATUS disk_status(BYTE pdrv) { (void)pdrv; return 0; }
+DSTATUS disk_initialize(BYTE pdrv) { (void)pdrv; return 0; }
+
+DRESULT disk_read(BYTE pdrv, BYTE *buff, DWORD sector, UINT count)
+{
+  (void)pdrv;
+  return SPIFlash->readBlocks(sector, buff, count) ? RES_OK : RES_ERROR;
+}
+
+DRESULT disk_write(BYTE pdrv, const BYTE *buff, DWORD sector, UINT count)
+{
+  (void)pdrv;
+  return SPIFlash->writeBlocks(sector, (const uint8_t *)buff, count) ? RES_OK : RES_ERROR;
+}
+
+DRESULT disk_ioctl(BYTE pdrv, BYTE cmd, void *buff)
+{
+  (void)pdrv;
+  switch (cmd) {
+    case CTRL_SYNC:
+      SPIFlash->syncBlocks();
+      return RES_OK;
+    case GET_SECTOR_COUNT:
+      *((DWORD *)buff) = SPIFlash->size() / 512;
+      return RES_OK;
+    case GET_SECTOR_SIZE:
+      *((WORD *)buff) = 512;
+      return RES_OK;
+    case GET_BLOCK_SIZE:
+      *((DWORD *)buff) = 8;
+      return RES_OK;
+    default:
+      return RES_PARERR;
+  }
+}
+
+} // extern "C"
+
+// Format the SPI flash with FAT16, 4096-byte clusters (8 sectors), label "SOFTRF".
+// Returns true if formatting and remount succeeded.
+static bool nRF52_format_spiflash()
+{
+  Serial.println(F("[SETUP] Formatting SPI flash with FAT16 (4096-byte clusters)..."));
+
+  static uint8_t workbuf[4096];
+  // FM_FAT | FM_SFD: FAT12/16, super-floppy (no MBR partition table)
+  // au=4096: allocation unit = 4096 bytes (8 × 512-byte sectors) → LFN enabled on all OSes
+  FRESULT r = f_mkfs("", FM_FAT | FM_SFD, 4096, workbuf, sizeof(workbuf));
+  if (r != FR_OK) {
+    Serial.print(F("[SETUP] f_mkfs failed: ")); Serial.println((int)r);
+    return false;
+  }
+
+  // Mount via Elm ChaN's fatfs to set the volume label
+  FATFS elmfs;
+  r = f_mount(&elmfs, "0:", 1);
+  if (r == FR_OK) {
+    f_setlabel("SOFTRF");
+    f_unmount("0:");
+  }
+
+  SPIFlash->syncBlocks();
+  Serial.println(F("[SETUP] SPI flash formatted successfully."));
+
+  // Remount with Arduino SdFat layer
+  return fatfs.begin(SPIFlash);
+}
 
 static void nRF52_setup()
 {
@@ -861,6 +935,19 @@ static void nRF52_setup()
     usb_msc.begin();
 
     FATFS_is_mounted = fatfs.begin(SPIFlash);
+
+    if (FATFS_is_mounted && fatfs.blocksPerCluster() < 8) {
+      // Cluster size < 4096 bytes — macOS enforces 8.3 SFN, settings.json becomes SETTI~.JSO
+      Serial.print(F("[SETUP] FAT cluster size too small ("));
+      Serial.print((uint32_t)fatfs.blocksPerCluster() * 512);
+      Serial.println(F(" bytes) — reformatting with 4096-byte clusters..."));
+      FATFS_is_mounted = false;
+      FATFS_is_mounted = nRF52_format_spiflash();
+    } else if (!FATFS_is_mounted) {
+      // Unformatted or unrecognised filesystem — format it
+      Serial.println(F("[SETUP] FAT mount failed — formatting SPI flash..."));
+      FATFS_is_mounted = nRF52_format_spiflash();
+    }
   }
 
 #if defined(USE_USB_MIDI)
