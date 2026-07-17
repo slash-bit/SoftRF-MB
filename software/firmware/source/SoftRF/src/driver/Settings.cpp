@@ -1002,7 +1002,7 @@ void Settings_defaults(bool keepsome)
   strcpy(settings->igc_type,  "ASW20");
   strcpy(settings->igc_reg,   "N1234");
   strcpy(settings->igc_cs,    "XXX");
-  strcpy(settings->fanet_name, " ");  // keep non-empty so Configurator webapp shows/edits the field
+  strcpy(settings->fanet_name, "Chuck");  // keep non-empty so Configurator webapp shows/edits the field
 }
 
 void EEPROM_store()
