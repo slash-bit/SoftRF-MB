@@ -369,6 +369,31 @@ void alarmlogfile()
     }
 }
 
+void settingsreboot(int status, const char *msg)
+{
+  close_logs();
+  char buf[440];
+  snprintf_P ( buf, 440,
+      PSTR("<html>\
+<head>\
+<meta http-equiv='refresh' content='30; url=/'>\
+<meta name='viewport' content='width=device-width, initial-scale=1'>\
+<title>Restarting...</title>\
+</head>\
+<body>\
+<p align=center><h3 align=center>%s</h3></p>\
+<p align=center><h3 align=center>Restart is in progress, please wait...</h3></p>\
+</body>\
+</html>"), msg);
+  server.send(status, texthtml, buf);
+  SoC->WDT_fini();
+  if (SoC->Bluetooth_ops) { SoC->Bluetooth_ops->fini(); }
+  //EEPROM_store();
+  delay(2000);
+  reboot();
+}
+
+#if !defined(USE_JSETTINGS)
 void settingsdownload()
 {
     if (! SPIFFS.exists("/settings.txt")) {
@@ -378,19 +403,6 @@ void settingsdownload()
     File file = SPIFFS.open("/settings.txt", FILE_READ);
     if (file) {
         serve_file(file, "settings.txt");
-        file.close();
-    }
-}
-
-void batvcaldownload()
-{
-    if (! SPIFFS.exists("/batvcal.txt")) {
-        server.send(404, textplain, "Battery calibration file does not exist");
-        return;
-    }
-    File file = SPIFFS.open("/batvcal.txt", FILE_READ);
-    if (file) {
-        serve_file(file, "batvcal.txt");
         file.close();
     }
 }
@@ -421,30 +433,6 @@ void settingsbackup()
       PSTR("<html><p align=center><h3 align=center>Copied settings.txt to settingb.txt</h3></p></html>"));
 }
 
-void settingsreboot(int status, const char *msg)
-{
-  close_logs();
-  char buf[440];
-  snprintf_P ( buf, 440,
-      PSTR("<html>\
-<head>\
-<meta http-equiv='refresh' content='30; url=/'>\
-<meta name='viewport' content='width=device-width, initial-scale=1'>\
-<title>Restarting...</title>\
-</head>\
-<body>\
-<p align=center><h3 align=center>%s</h3></p>\
-<p align=center><h3 align=center>Restart is in progress, please wait...</h3></p>\
-</body>\
-</html>"), msg);
-  server.send(status, texthtml, buf);
-  SoC->WDT_fini();
-  if (SoC->Bluetooth_ops) { SoC->Bluetooth_ops->fini(); }
-  //EEPROM_store();
-  delay(2000);
-  reboot();
-}
-
 void settingsswap()
 {
     if (! SPIFFS.exists("/settingb.txt")) {
@@ -470,6 +458,7 @@ void settingsswap()
         settingsreboot(500, "invalid settingb.txt, restored settings.txt");
     }
 }
+#endif /* USE_JSETTINGS */
 
 void delPSRAMlog()
 {
@@ -1395,6 +1384,7 @@ void handleRoot() {
    <td align=right><input type=button onClick=\"location.href='/firmware'\" value='Firmware update'></td>\
   </tr>\
  </table>\
+#if !defined(USE_JSETTINGS)
  <hr>\
  <b>Settings file:</b>\
  <table width=100%%>\
@@ -1405,6 +1395,7 @@ void handleRoot() {
    <td><input type=button onClick=\"location.href='/settingsswap'\" value='Restore/Swap'></td>\
   </tr>\
  </table>\
+#endif /* USE_JSETTINGS */
  <hr>\
  <b>Flight Log:</b>&nbsp;&nbsp;%s\
  <table width=100%%>\
@@ -1542,6 +1533,13 @@ void handleInput() {
   // make some adjustments to settings
   Adjust_Settings();
 
+#if defined(USE_JSETTINGS)
+  save_settings_to_json();   // this also shows the new settings
+  if (! SPIFFS.exists("/settings.json")) {   // saving the file failed
+      server.send(500, textplain, "cannot save the new settings file");
+      return;
+  }
+#else
   if (SPIFFS.exists("/settingb.txt"))
       SPIFFS.remove("/settingb.txt");
   SPIFFS.rename("/settings.txt","/settingb.txt");
@@ -1551,6 +1549,7 @@ void handleInput() {
       server.send(500, textplain, "cannot save the new settings file");
       return;
   }
+#endif /* USE_JSETTINGS */
   settingsreboot(200, "New settings saved.");
 }
 
@@ -2379,6 +2378,7 @@ void Web_setup()
   );
 #endif
 
+#if !defined(USE_JSETTINGS)
   server.on ( "/settingsupload", []() {
     char buf[320];
     set_upload(buf, "settings.txt", "/dostgupld");
@@ -2392,12 +2392,7 @@ void Web_setup()
   server.on ( "/settingsdownload", settingsdownload );
   server.on ( "/settingsbackup",   settingsbackup );
   server.on ( "/settingsswap",     settingsswap );
-
-  server.on ( "/batvcal", batvcaldownload );
-  server.on ( "/clrbatvcal", []() {
-    BatVCal_reset();
-    server.send(200, textplain, "Battery calibration data cleared");
-  } );
+#endif /* USE_JSETTINGS */
 
   server.on ( "/alarmlog", alarmlogfile );
   server.on ( "/clralrmlog", confdelalarmlog );

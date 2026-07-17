@@ -1102,6 +1102,19 @@ body {
 }
 .btn-primary { background: var(--primary); color: #fff; }
 .btn-primary:hover { background: var(--primary-hover); }
+
+/* ── Long-press progress fill (Save & Reboot alternative to the confirm pop-up) ── */
+.btn-longpress { position: relative; overflow: hidden; }
+.btn-longpress .btn-longpress-fill {
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 0%;
+  background: rgba(255,255,255,0.35);
+  pointer-events: none;
+  z-index: 0;
+}
+.btn-longpress .btn-longpress-label { position: relative; z-index: 1; }
+:root.eink .btn-longpress .btn-longpress-fill { background: rgba(0,0,0,0.35); transition: none !important; }
 .btn-ghost {
   background: transparent;
   color: var(--text-secondary);
@@ -1702,7 +1715,7 @@ body {
   <div class="header-left">
     <div class="header-logo">SR</div>
     <div class="header-info">
-      <div class="header-title">SoftRF Settings Configurator <span id="appVersionSpan" style="font-size:10px;font-weight:normal;opacity:0.85;vertical-align:middle">v1.8.5</span></div>
+      <div class="header-title">SoftRF Settings Configurator <span id="appVersionSpan" style="font-size:10px;font-weight:normal;opacity:0.85;vertical-align:middle">v1.8.6</span></div>
       <div class="header-device" id="deviceName">Not connected</div>
     </div>
   </div>
@@ -1936,7 +1949,10 @@ body {
   <div class="save-bar-info" id="saveBarInfo">0 changes</div>
   <div class="save-bar-actions">
     <button class="btn btn-ghost" onclick="App.settings.discard()">Discard</button>
-    <button class="btn btn-primary" onclick="App.settings.save()">Save &amp; Reboot</button>
+    <button class="btn btn-primary btn-longpress" id="btnSaveReboot" onclick="App.settings.save()" title="Tap for confirmation, or press and hold 5s to save &amp; reboot without the pop-up">
+      <span class="btn-longpress-fill" id="btnSaveRebootFill"></span>
+      <span class="btn-longpress-label">Save &amp; Reboot</span>
+    </button>
   </div>
 </div>
 
@@ -1964,7 +1980,7 @@ body {
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const APP_VERSION = 'v1.8.5';
+const APP_VERSION = 'v1.8.6';
 
 /* ═══════════════════════════════════════════════════════════════
    App Namespace
@@ -2448,10 +2464,10 @@ App.nmea = {
       const commaIdx = settingsLine.indexOf(',');
       if (commaIdx > 0) {
         const label = settingsLine.substring(0, commaIdx).trim();
-        const rawVal = settingsLine.substring(commaIdx + 1).trim();
+        const rawVal = settingsLine.substring(commaIdx + 1);
         const meta = SETTINGS_MAP[label];
-        // text fields may contain spaces; all others take the first token
-        const value = (meta && meta.type === 'text') ? rawVal : rawVal.split(/\s/)[0];
+        // text fields may contain (or be entirely) spaces; all others take the first token, trimmed
+        const value = (meta && meta.type === 'text') ? rawVal : rawVal.trim().split(/\s/)[0];
         if (label === 'SoftRF') {
           // First line of settings dump: "SoftRF,IDENT-VERSION-SUBVERSION"
           App.state._settingsCount = 0;
@@ -3920,6 +3936,66 @@ App.settings = {
     );
   },
 
+  // Press-and-hold alternative to the confirm pop-up (some e-ink browsers,
+  // e.g. Onyx Boox, fail to render the modal overlay). Holding the
+  // Save & Reboot button for 5s saves and reboots directly, skipping the
+  // modal entirely. Plain taps/clicks still show the normal confirmation.
+  _longPressMs: 5000,
+  _longPressTimer: null,
+  _longPressStart: 0,
+  _longPressRAF: null,
+  _longPressFired: false,
+
+  bindLongPressSave() {
+    const btn = document.getElementById('btnSaveReboot');
+    const fill = document.getElementById('btnSaveRebootFill');
+    if (!btn || !fill) return;
+
+    const cancel = () => {
+      clearTimeout(this._longPressTimer);
+      cancelAnimationFrame(this._longPressRAF);
+      this._longPressTimer = null;
+      fill.style.width = '0%';
+    };
+
+    const tick = () => {
+      const elapsed = Date.now() - this._longPressStart;
+      fill.style.width = Math.min(100, (elapsed / this._longPressMs) * 100) + '%';
+      if (elapsed < this._longPressMs) {
+        this._longPressRAF = requestAnimationFrame(tick);
+      }
+    };
+
+    const start = () => {
+      if (App.state.dirty.size === 0) return;
+      this._longPressStart = Date.now();
+      this._longPressRAF = requestAnimationFrame(tick);
+      this._longPressTimer = setTimeout(() => {
+        cancel();
+        this._longPressFired = true;
+        if (App.state.dirty.size === 0) return;
+        App.modal.hide();
+        if (navigator.vibrate) navigator.vibrate(100);
+        App.toast('Held 5s — saving & rebooting', 'info');
+        App.settings._doSave();
+      }, this._longPressMs);
+    };
+
+    btn.addEventListener('pointerdown', start);
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(evt =>
+      btn.addEventListener(evt, cancel)
+    );
+    // Suppress the click that follows a completed long-press so the
+    // confirm modal doesn't pop back up right after we already saved.
+    btn.addEventListener('click', (e) => {
+      if (this._longPressFired) {
+        this._longPressFired = false;
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }, true);
+  },
+
   async _doSave() {
     App.ui.showLoading('Saving settings...', 'Sending changes to device');
     const keys = [...App.state.dirty];
@@ -4369,6 +4445,7 @@ App.debug = function(msg) {
    ═══════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
   App.ui.init();
+  App.settings.bindLongPressSave();
 
   // Prevent pull-to-refresh: block downward swipe once the page is within
   // 50px of the top, so normal scrolling still works but the gesture never

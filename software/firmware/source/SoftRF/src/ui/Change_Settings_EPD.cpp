@@ -268,7 +268,11 @@ void EPD_chgconf_save()
     SoC->WDT_fini();
     if (SoC->Bluetooth_ops) { SoC->Bluetooth_ops->fini(); }
     //EEPROM_store();
+#if defined(USE_JSETTINGS)
+    save_settings_to_json();
+#else
     save_settings_to_file();
+#endif
 }
 
 /*

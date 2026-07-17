@@ -1642,7 +1642,11 @@ uint8_t leap_seconds_valid()
                         leap_seconds_correction = 0;    // no correction needed
                         if (settings->leapsecs != leap_seconds_from_gnss) {
                             settings->leapsecs = leap_seconds_from_gnss;
+#if defined(USE_JSETTINGS)
+                            save_settings_to_json();
+#else
                             save_settings_to_file();
+#endif
                             // this will only happen once in a few years!
                         }
                     }

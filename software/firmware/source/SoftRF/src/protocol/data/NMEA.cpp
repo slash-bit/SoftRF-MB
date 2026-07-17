@@ -2490,9 +2490,10 @@ static void nmea_cfg_restart(bool save_settings)
 {
   if (save_settings) {
       //EEPROM_store();
-      save_settings_to_file();   // this also shows the new settings
 #if defined(USE_JSETTINGS)
       save_settings_to_json();   // T1000E loads from settings.json on boot
+#else
+      save_settings_to_file();   // this also shows the new settings
 #endif
   }
   Serial.println();
@@ -2632,13 +2633,6 @@ void NMEA_Process_SRF_SKV_Sentences()
 #if defined(USE_OLED)
           OLED_msg("ALARM", " DEMO");
 #endif
-
-      } else if (strncmp(C_Version.value(), "BCL", 3) == 0) {      // $PSRFC,BCL — battery calibration start
-          Serial.println(F("PSRFC Battery Cal start"));
-#if defined(FILESYS)
-          BatVCal_reset();
-#endif
-          nmea_cfg_restart(false);
 
       } else if (strncmp(C_Version.value(), "TX0", 3) == 0) {      // $PSRFC,TX0*44
           Serial.println(F("PSRFC TX Off"));
