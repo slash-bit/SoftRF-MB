@@ -938,11 +938,13 @@ static void nRF52_setup()
 
     if (FATFS_is_mounted && fatfs.blocksPerCluster() < 8) {
       // Cluster size < 4096 bytes — macOS enforces 8.3 SFN, settings.json becomes SETTI~.JSO
-      Serial.print(F("[SETUP] FAT cluster size too small ("));
+      // Do NOT auto-reformat here: the filesystem mounted fine and may already contain
+      // the user's files (e.g. from an older firmware or a host OS format). Reformatting
+      // unconditionally on every boot with a small cluster size silently destroyed
+      // existing files for users who upgraded firmware on an already-populated card.
+      Serial.print(F("[SETUP] Warning: FAT cluster size is only "));
       Serial.print((uint32_t)fatfs.blocksPerCluster() * 512);
-      Serial.println(F(" bytes) — reformatting with 4096-byte clusters..."));
-      FATFS_is_mounted = false;
-      FATFS_is_mounted = nRF52_format_spiflash();
+      Serial.println(F(" bytes; some filenames may be shortened to 8.3 on macOS."));
     } else if (!FATFS_is_mounted) {
       // Unformatted or unrecognised filesystem — format it
       Serial.println(F("[SETUP] FAT mount failed — formatting SPI flash..."));
