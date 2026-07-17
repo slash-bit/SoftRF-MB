@@ -983,12 +983,13 @@ void Traffic_Update(container_t *fop)
 
       uint8_t old_alarm_level = fop->alarm_level;
       bool fop_is_pg = (fop->aircraft_type == AIRCRAFT_TYPE_PARAGLIDER);
+      bool this_is_pg = (ThisAircraft.aircraft_type == AIRCRAFT_TYPE_PARAGLIDER);
       if (no_pg_alarm && settings->alarm == TRAFFIC_ALARM_PG_HILL) {
           /* still near launch hill — suppress everything */
           fop->alarm_level = ALARM_LEVEL_NONE;
       } else if ((settings->alarm == TRAFFIC_ALARM_PG_HILL
-               || settings->alarm == TRAFFIC_ALARM_PG_NONE) && fop_is_pg) {
-          /* PG target: Distance only (avoid false alarms from nearby thermalling) */
+               || settings->alarm == TRAFFIC_ALARM_PG_NONE) && fop_is_pg && this_is_pg) {
+          /* PG-vs-PG: Distance only (avoid false alarms from nearby thermalling) */
           fop->alarm_level = Alarm_Distance(&ThisAircraft, fop);
       } else {
           /* HG, non-PG, or non-PG mode: full Latest prediction */

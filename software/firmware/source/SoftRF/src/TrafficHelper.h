@@ -63,8 +63,8 @@ enum
 	TRAFFIC_ALARM_DISTANCE,
 	TRAFFIC_ALARM_VECTOR,
 	TRAFFIC_ALARM_LATEST,
-	TRAFFIC_ALARM_PG_HILL,  /* Distance alarm with hill-soaring suppression for PG/HG */
-	TRAFFIC_ALARM_PG_NONE   /* No alerts from other PG/HG when own type is PG/HG */
+	TRAFFIC_ALARM_PG_HILL,  /* Distance alarm with hill-soaring suppression for PG */
+	TRAFFIC_ALARM_PG_NONE   /* No alerts from other PG when own type is PG */
 };
 
 extern bool no_pg_alarm;     /* true while PG alarm suppression is active */
