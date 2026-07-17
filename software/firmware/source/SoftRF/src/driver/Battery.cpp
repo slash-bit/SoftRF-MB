@@ -119,52 +119,12 @@ void Battery_loop()
     Battery_voltage_cache = voltage;
     Battery_TimeMarker = millis();
   }
-
-#if defined(FILESYS)
-  BatVCal_loop();
-#endif
 }
 
 /* ---- Battery log ---- */
 #if defined(FILESYS)
 #define BATTERYLOG_FILE    "/batterylog.txt"
 #define BATTERYLOG_MAXLINES 20
-
-/* ---- Battery voltage calibration log (one-off discharge curve) ---- */
-#define BATVCAL_FILE       "/batvcal.txt"
-#define BATVCAL_INTERVAL   (15UL * 60UL * 1000UL)  /* 15 minutes in ms */
-
-static unsigned long BatVCal_TimeMarker = 0;
-
-void BatVCal_loop()
-{
-    if (!FS_is_mounted) return;
-    if (GNSSTimeMarker == 0) return;           /* need valid GPS time */
-    if (millis() - BatVCal_TimeMarker < BATVCAL_INTERVAL) return;
-    BatVCal_TimeMarker = millis();
-
-    char line[56];
-    snprintf(line, sizeof(line), "%04d-%02d-%02d %02d:%02d:%02d,%d,%.2f\r\n",
-        gnss.date.year(), gnss.date.month(), gnss.date.day(),
-        gnss.time.hour(), gnss.time.minute(), gnss.time.second(),
-        (int)Battery_charge(), Battery_voltage());
-
-    File f = FILESYS.open(BATVCAL_FILE, (O_WRITE | O_CREAT | O_APPEND));
-    if (f) {
-        f.write((const uint8_t *)line, strlen(line));
-        f.close();
-        Serial.print(F("BatVCal: "));
-        Serial.print(line);
-    }
-}
-
-void BatVCal_reset()
-{
-    if (!FS_is_mounted) return;
-    FILESYS.remove(BATVCAL_FILE);
-    BatVCal_TimeMarker = 0;
-    Serial.println(F("BatVCal: log cleared"));
-}
 
 static bool BatteryLog_PowerOn_done = false;
 
