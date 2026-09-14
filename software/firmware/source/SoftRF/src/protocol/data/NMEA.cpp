@@ -999,6 +999,27 @@ static void FN_process_FNT(const char *args)
 
     /* Parse hex payload */
     const char *hex = args + consumed;
+    size_t hex_len = strlen(hex);
+
+    /* The declared length must match the actual hex payload present -
+     * otherwise a truncated line (e.g. app/BLE bug) would silently
+     * transmit a short or garbage frame instead of being rejected. */
+    if (hex_len != (size_t)plen * 2) {
+        char buf[64];
+        int len = snprintf(buf, sizeof(buf),
+                            "#FNR ERR,23,Length mismatch %u!=%u\n",
+                            (unsigned)hex_len, (unsigned)(plen * 2));
+        NMEA_Out(DEST_BLUETOOTH, buf, len, false);
+        Serial.print("FNT: length mismatch, declared plen=");
+        Serial.print(plen);
+        Serial.print(" (");
+        Serial.print(plen * 2);
+        Serial.print(" hex chars) but got ");
+        Serial.print(hex_len);
+        Serial.println(" hex chars - rejecting");
+        return;
+    }
+
     uint8_t frame[MAX_PKT_SIZE];
 
     /* Build FANET header */
