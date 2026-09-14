@@ -466,7 +466,6 @@ bool latest_decode(void* buffer, container_t* this_aircraft, ufo_t* fop)
     //int32_t unk8 = pkt->unk8;
 //Serial.printf("unk8: %d  %x\n", unk8, unk8);
 
-#if 0
     /* send received radio packet data out via NMEA for debugging */
     if (settings->nmea_d || settings->nmea2_d) {
       if (settings->debug_flags & DEBUG_LEGACY) {
@@ -493,7 +492,6 @@ bool latest_decode(void* buffer, container_t* this_aircraft, ufo_t* fop)
         }
       }
     }
-#endif
 
     // do some sanity checks on the data
     if (fabs(fop->latitude - this_aircraft->latitude) > 1.0
