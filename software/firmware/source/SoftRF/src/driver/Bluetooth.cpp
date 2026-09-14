@@ -1502,11 +1502,11 @@ void nRF52_Bluetooth_setup()
   bleuart_NUS.setRxOverflowCallback(ble_rx_overflow_cb);
 #endif /* EXCLUDE_NUS */
 
-#if defined(BLE_SENSORS)
   // Start BLE Battery Service
   blebas.begin();
   blebas.write(100);
 
+#if defined(BLE_SENSORS)
   // Start SensBox Service
   blesens.begin();
 #endif
@@ -1548,11 +1548,11 @@ static void nRF52_Bluetooth_loop()
 
   /* XCGuide detection is now via #SYC VER? handshake, not MTU-based */
 
-#if defined(BLE_SENSORS)
   if (isTimeToBattery()) {
     blebas.write(Battery_charge());
   }
 
+#if defined(BLE_SENSORS)
   if (Bluefruit.connected() && isTimeToSensBox()) {
     uint8_t sens_status = isValidFix() ? GNSS_STATUS_3D_MOVING : GNSS_STATUS_NONE;
     blesens.notify_nav (sens_status);
