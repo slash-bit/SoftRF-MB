@@ -2109,7 +2109,10 @@ void NMEA_Export()
              float speed  = fop->speed * _GPS_MPS_PER_KNOT;
              if (fop->airborne && speed == 0)
                  speed = 0.1;
-             if (! fop->airborne && speed != 0)
+             bool trust_reported_speed = (fop->protocol == RF_PROTOCOL_LATEST
+                                        || fop->protocol == RF_PROTOCOL_ADSL
+                                        || fop->protocol == RF_PROTOCOL_P3I);
+             if (! fop->airborne && speed != 0 && ! trust_reported_speed)
                  speed = 0.0;
              dtostrf(
                constrain(speed, 0.0, 999.0),
