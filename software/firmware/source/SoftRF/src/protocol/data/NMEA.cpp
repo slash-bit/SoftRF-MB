@@ -1070,6 +1070,22 @@ static void FN_process_FNT(const char *args)
     }
     Serial.print(" ack=");
     Serial.println(ack);
+
+    /* Log the payload as received from the app (hex + printable ASCII),
+     * as handed to us, before any radio TX - so a report of a truncated
+     * or garbled message can be checked against what the app actually
+     * sent, without needing to enable DEBUG_BLE_TX and decode by hand. */
+    Serial.print("FNT: payload[");
+    Serial.print(plen);
+    Serial.print("]=");
+    Serial.write((const uint8_t *)hex, hex_len);
+    Serial.print(" \"");
+    for (unsigned int i = 0; i < plen; i++) {
+        uint8_t b = frame[pos + i];
+        Serial.write((b >= 0x20 && b < 0x7F) ? (char)b : '.');
+    }
+    Serial.println("\"");
+
     /* Queue for transmission in next available FANET TX slot */
     memcpy(fn_tx_pending_buf, frame, frame_len);
     fn_tx_pending_len = frame_len;
