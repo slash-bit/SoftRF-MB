@@ -2376,11 +2376,9 @@ byte RF_setup(void)
 #endif /* USE_OGN_RF_DRIVER */
   }
 
-  /* "AUTO" and "UK" freqs now mapped to EU */
-  if (settings->band == RF_BAND_AUTO)
-      settings->band == RF_BAND_EU;
+  /* "UK" freq now mapped to EU */
   if (settings->band == RF_BAND_UK)
-      settings->band == RF_BAND_EU;
+      settings->band = RF_BAND_EU;
   /* Supersede EU plan with UK when PAW is selected */
     if (rf_chip                &&
 #if !defined(EXCLUDE_NRF905)
@@ -2388,7 +2386,7 @@ byte RF_setup(void)
 #endif
         settings->band == RF_BAND_EU
             && (settings->rf_protocol == RF_PROTOCOL_P3I || settings->altprotocol == RF_PROTOCOL_P3I))
-      settings->band == RF_BAND_UK;
+      settings->band = RF_BAND_UK;
 
   if (settings->altprotocol == settings->rf_protocol
         //|| ! in_family(settings->rf_protocol)
