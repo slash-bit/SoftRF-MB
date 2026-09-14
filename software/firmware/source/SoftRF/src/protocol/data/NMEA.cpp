@@ -833,6 +833,27 @@ void NMEA_FNF_Out(const uint8_t *raw, size_t raw_len)
         if (unicast)
             payload_offset += 3;                  /* +3 dest addr bytes */
     }
+
+    /* Drop unicast messages not addressed to us — only broadcast (dst 000000)
+     * or unicast-to-our-address frames should be forwarded to the app. */
+    if (unicast && raw_len >= 8) {
+        uint8_t dest_mfr = raw[5];
+        uint16_t dest_id = raw[6] | ((uint16_t)raw[7] << 8);
+        uint32_t our_addr = ThisAircraft.addr;
+        uint8_t our_mfr = (our_addr >> 16) & 0xFF;
+        uint16_t our_id = our_addr & 0xFFFF;
+        if (dest_mfr != our_mfr || dest_id != our_id) {
+            Serial.print("FNF: skip unicast Type ");
+            Serial.print(type);
+            Serial.print(" to ");
+            Serial.print(dest_mfr, HEX);
+            Serial.print(",");
+            Serial.print(dest_id, HEX);
+            Serial.println(" (not us)");
+            return;
+        }
+    }
+
     size_t payload_len = (raw_len > payload_offset) ? raw_len - payload_offset : 0;
 
     if (type >= 2 && type <= 4) {
@@ -933,6 +954,14 @@ static uint16_t fnf_ack_pending_id  = 0;
 static uint32_t fnf_ack_pending_ms  = 0;
 #define FNF_ACK_TIMEOUT_MS  5000
 
+/* Retransmission of unicast ACK-required frames when no ACK arrives in time.
+ * Original frame is kept so it can be re-queued unchanged (same payload,
+ * so the recipient's dedup logic still recognizes it as the same message). */
+#define FNF_ACK_MAX_RESENDS   2   /* additional attempts beyond the original TX */
+static uint8_t  fnf_ack_pending_frame[MAX_PKT_SIZE];
+static size_t   fnf_ack_pending_frame_len = 0;
+static uint8_t  fnf_ack_resends_left = 0;
+
 /*
  * Parse #FNT command: transmit a FANET frame
  * Format: #FNT type,dest_manufacturer,dest_id,forward,ack_required,length,payload[,signature]\r\n
@@ -1024,11 +1053,15 @@ static void FN_process_FNT(const char *args)
     memcpy(fn_tx_pending_buf, frame, frame_len);
     fn_tx_pending_len = frame_len;
 
-    /* If ACK requested for unicast, track it so we can match incoming Type 0 */
+    /* If ACK requested for unicast, track it so we can match incoming Type 0,
+     * and keep a copy of the frame so we can resend it on timeout. */
     if (ack && unicast) {
         fnf_ack_pending_mfr = (uint8_t)dest_mfr;
         fnf_ack_pending_id  = (uint16_t)dest_id;
         fnf_ack_pending_ms  = millis();
+        memcpy(fnf_ack_pending_frame, frame, frame_len);
+        fnf_ack_pending_frame_len = frame_len;
+        fnf_ack_resends_left = FNF_ACK_MAX_RESENDS;
     }
 
     NMEA_Out(DEST_BLUETOOTH, "#FNR OK\n", 8, false);
@@ -1132,6 +1165,7 @@ void FN_check_ack(const uint8_t *raw, size_t raw_len)
                            (unsigned)src_mfr, (unsigned)src_id);
         NMEA_Out(DEST_BLUETOOTH, buf, len, false);
         fnf_ack_pending_ms = 0;
+        fnf_ack_pending_frame_len = 0;
     } else {
         Serial.print("  unsolicited ACK from ");
         Serial.print(src_mfr, HEX);
@@ -1143,8 +1177,11 @@ void FN_check_ack(const uint8_t *raw, size_t raw_len)
 
 /*
  * Check for ACK timeout — called periodically from NMEA_Export().
- * If we've been waiting for an ACK longer than FNF_ACK_TIMEOUT_MS,
- * send #FNR NACK to XCGuide.
+ * If we've been waiting for an ACK longer than FNF_ACK_TIMEOUT_MS:
+ *   - if resend attempts remain, re-queue the original frame for TX and
+ *     restart the timeout (up to FNF_ACK_MAX_RESENDS extra attempts, every
+ *     FNF_ACK_TIMEOUT_MS);
+ *   - otherwise give up and send #FNR NACK to XCGuide.
  */
 void FN_check_ack_timeout()
 {
@@ -1152,11 +1189,22 @@ void FN_check_ack_timeout()
         return;
 
     if ((millis() - fnf_ack_pending_ms) >= FNF_ACK_TIMEOUT_MS) {
-        char buf[32];
-        int len = snprintf(buf, sizeof(buf), "#FNR NACK,%X,%X\n",
-                           (unsigned)fnf_ack_pending_mfr, (unsigned)fnf_ack_pending_id);
-        NMEA_Out(DEST_BLUETOOTH, buf, len, false);
-        fnf_ack_pending_ms = 0;
+        if (fnf_ack_resends_left > 0 && fnf_ack_pending_frame_len > 0) {
+            fnf_ack_resends_left--;
+            Serial.print("FN_check_ack_timeout: no ACK, resending (");
+            Serial.print(fnf_ack_resends_left);
+            Serial.println(" attempt(s) left)");
+            memcpy(fn_tx_pending_buf, fnf_ack_pending_frame, fnf_ack_pending_frame_len);
+            fn_tx_pending_len = fnf_ack_pending_frame_len;
+            fnf_ack_pending_ms = millis();   /* restart timeout window */
+        } else {
+            char buf[32];
+            int len = snprintf(buf, sizeof(buf), "#FNR NACK,%X,%X\n",
+                               (unsigned)fnf_ack_pending_mfr, (unsigned)fnf_ack_pending_id);
+            NMEA_Out(DEST_BLUETOOTH, buf, len, false);
+            fnf_ack_pending_ms = 0;
+            fnf_ack_pending_frame_len = 0;
+        }
     }
 }
 
