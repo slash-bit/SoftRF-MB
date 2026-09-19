@@ -2702,7 +2702,11 @@ void NMEA_Process_SRF_SKV_Sentences()
 #if defined(ARDUINO_ARCH_NRF52)
       } else if (strncmp(C_Version.value(), "DFU", 3) == 0) {      // $PSRFC,DFU*3E
           Serial.println(F("PSRFC Enter DFU..."));
-          enterUf2Dfu(); // opens USB mass storage drive; use enterOTADfu() for BLE DFU
+          enterUf2Dfu(); // opens USB mass storage drive
+
+      } else if (strncmp(C_Version.value(), "OTA", 3) == 0) {      // $PSRFC,OTA*22
+          Serial.println(F("PSRFC Enter OTA DFU..."));
+          enterOTADfu(); // reboots into BLE Secure DFU bootloader
 #endif /* ARDUINO_ARCH_NRF52 */
 
 #if defined(USE_OLED)
