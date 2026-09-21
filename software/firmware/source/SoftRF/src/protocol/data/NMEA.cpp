@@ -801,6 +801,7 @@ bool NMEA_encode(const char *buf, const int len)
  * All header fields hex without leading zeros, payload bytes hex with leading zeros.
  */
 static void FN_transmit_ack(uint8_t dest_mfr, uint16_t dest_id);
+static bool FN_clear_pending_ack_if_match(uint8_t src_mfr, uint16_t src_id);
 
 void NMEA_FNF_Out(const uint8_t *raw, size_t raw_len)
 {
@@ -855,6 +856,14 @@ void NMEA_FNF_Out(const uint8_t *raw, size_t raw_len)
     }
 
     size_t payload_len = (raw_len > payload_offset) ? raw_len - payload_offset : 0;
+
+    /* Some apps (e.g. when the pilot opens/reads the message) reply with a
+     * message of their own — a "seen" text — instead of relying on our
+     * Type 0 delivery ACK. Any unicast reply from the address we're still
+     * waiting on an ACK for confirms the original message got through, so
+     * treat it the same as a Type 0 ACK and stop the resend timer. */
+    if (unicast && type != 0)
+        FN_clear_pending_ack_if_match(vendor, address);
 
     if (type >= 2 && type <= 4) {
         Serial.print("FNF: RX Type ");
@@ -1136,6 +1145,35 @@ static void FN_transmit_ack(uint8_t dest_mfr, uint16_t dest_id)
 }
 
 /*
+ * If src_mfr/src_id matches the unicast message we're still waiting on an
+ * ACK for, clear that pending state (stopping the resend timer) and tell
+ * the app via #FNR ACK. Used both for a real Type 0 ACK and for a reply
+ * of any other type from the same address, which some apps send instead
+ * of (or as well as) the Type 0 ACK once the message is displayed/read —
+ * either way it proves the message got through, so no need to keep
+ * resending it.
+ * Returns true if it matched (and was cleared), false if unsolicited.
+ */
+static bool FN_clear_pending_ack_if_match(uint8_t src_mfr, uint16_t src_id)
+{
+    if (fnf_ack_pending_ms == 0 ||
+        src_mfr != fnf_ack_pending_mfr || src_id != fnf_ack_pending_id)
+        return false;
+
+    Serial.print("FN_clear_pending_ack_if_match: MATCH pending! sending #FNR ACK to app for ");
+    Serial.print(src_mfr, HEX);
+    Serial.print(",");
+    Serial.println(src_id, HEX);
+    char buf[32];
+    int len = snprintf(buf, sizeof(buf), "#FNR ACK,%X,%X\n",
+                       (unsigned)src_mfr, (unsigned)src_id);
+    NMEA_Out(DEST_BLUETOOTH, buf, len, false);
+    fnf_ack_pending_ms = 0;
+    fnf_ack_pending_frame_len = 0;
+    return true;
+}
+
+/*
  * Check incoming FANET packet for ACK (Type 0) addressed to us.
  * Called from ParseData() after NMEA_FNF_Out() for FANET packets.
  * If it matches a pending ACK we're waiting for, send #FNR ACK to BLE.
@@ -1191,19 +1229,7 @@ void FN_check_ack(const uint8_t *raw, size_t raw_len)
     }
 
     /* Only forward ACK to app if we're actually waiting for one (from #FNT with ack) */
-    if (fnf_ack_pending_ms != 0 &&
-        src_mfr == fnf_ack_pending_mfr && src_id == fnf_ack_pending_id) {
-        Serial.print("FN_check_ack: MATCH pending! sending #FNR ACK to app for ");
-        Serial.print(src_mfr, HEX);
-        Serial.print(",");
-        Serial.println(src_id, HEX);
-        char buf[32];
-        int len = snprintf(buf, sizeof(buf), "#FNR ACK,%X,%X\n",
-                           (unsigned)src_mfr, (unsigned)src_id);
-        NMEA_Out(DEST_BLUETOOTH, buf, len, false);
-        fnf_ack_pending_ms = 0;
-        fnf_ack_pending_frame_len = 0;
-    } else {
+    if (!FN_clear_pending_ack_if_match(src_mfr, src_id)) {
         Serial.print("  unsolicited ACK from ");
         Serial.print(src_mfr, HEX);
         Serial.print(",");
@@ -1297,7 +1323,8 @@ static bool SYC_process_command(char *buf, int len)
     NMEA_Source = DEST_NONE;
 
     if (strcmp(arg, "VER?") == 0) {
-        NMEA_Out(DEST_BLUETOOTH, "#SYC VER=v008.1\n", 16, false);
+        NMEA_Out(DEST_BLUETOOTH, "#SYC VER=" SOFTRF_FIRMWARE_INT "\n",
+                 sizeof("#SYC VER=" SOFTRF_FIRMWARE_INT "\n") - 1, false);
         NMEA_Source = saved_source;
         return true;
     }
@@ -2706,7 +2733,10 @@ void NMEA_Process_SRF_SKV_Sentences()
 
       } else if (strncmp(C_Version.value(), "OTA", 3) == 0) {      // $PSRFC,OTA*22
           Serial.println(F("PSRFC Enter OTA DFU..."));
-          enterOTADfu(); // reboots into BLE Secure DFU bootloader
+          // Not enterOTADfu() — that skips BLEDfu's peer-data handoff and clean
+          // SoftDevice shutdown, which left this bootloader's BLE stack unstable
+          // (see enterOtaDfuViaBleDfu()'s comment in driver/Bluetooth.cpp).
+          enterOtaDfuViaBleDfu();
 #endif /* ARDUINO_ARCH_NRF52 */
 
 #if defined(USE_OLED)
