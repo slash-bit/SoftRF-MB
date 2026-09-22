@@ -797,7 +797,7 @@ bool NMEA_encode(const char *buf, const int len)
 
 /*
  * #FNF — FANET frame output for XCGuide (GXAirCom protocol)
- * Format: #FNF src_manufacturer,src_id,broadcast,signature,type,length,payload\n
+ * Format: #FNF src_manufacturer,src_id,broadcast,signature,type,length,payload\r\n
  * All header fields hex without leading zeros, payload bytes hex with leading zeros.
  */
 static void FN_transmit_ack(uint8_t dest_mfr, uint16_t dest_id);
@@ -900,11 +900,10 @@ void NMEA_FNF_Out(const uint8_t *raw, size_t raw_len)
         len += snprintf(NMEABuffer + len, sizeof(NMEABuffer) - len, "%02X",
                         raw[payload_offset + i]);
     }
-    NMEABuffer[len++] = '\n';
     NMEABuffer[len] = '\0';
 
     /* Send directly to BLE (FNF is BLE-only, not a standard NMEA sentence) */
-    NMEA_Out(DEST_BLUETOOTH, NMEABuffer, len, false);
+    NMEA_Out(DEST_BLUETOOTH, NMEABuffer, len, true);
 
     /* For any unicast message to us, send Type 0 ACK back to the sender
      * so they know the message was delivered to this device.
@@ -942,14 +941,14 @@ static void FN_process_FNG(const char *args)
             fanet_sos_count = 0;
         }
 
-        NMEA_Out(DEST_BLUETOOTH, "#FNR OK\n", 8, false);
+        NMEA_Out(DEST_BLUETOOTH, "#FNR OK", 7, true);
         Serial.print("FNG: ground type=0x");
         Serial.print(gtype, HEX);
         Serial.print((fanet_sos_state == FANET_SOS_DISTRESS) ? " (distress)" : "");
         Serial.println();
 
     } else {
-        NMEA_Out(DEST_BLUETOOTH, "#FNR ERR,22,Bad ground type\n", 28, false);
+        NMEA_Out(DEST_BLUETOOTH, "#FNR ERR,22,Bad ground type", 27, true);
     }
 }
 
@@ -989,7 +988,7 @@ static void FN_process_FNT(const char *args)
 
     if (sscanf(args, "%X,%X,%X,%X,%X,%X,%n",
                &type, &dest_mfr, &dest_id, &fwd, &ack, &plen, &consumed) < 6) {
-        NMEA_Out(DEST_BLUETOOTH, "#FNR ERR,22,Parse error\n", 24, false);
+        NMEA_Out(DEST_BLUETOOTH, "#FNR ERR,22,Parse error", 23, true);
         return;
     }
 
@@ -1002,7 +1001,7 @@ static void FN_process_FNT(const char *args)
     if (unicast)  hdr_size += 3;                 /* +3 dest address bytes */
 
     if (hdr_size + plen >= MAX_PKT_SIZE) {
-        NMEA_Out(DEST_BLUETOOTH, "#FNR ERR,21,Frame too long\n", 27, false);
+        NMEA_Out(DEST_BLUETOOTH, "#FNR ERR,21,Frame too long", 26, true);
         return;
     }
 
@@ -1016,9 +1015,9 @@ static void FN_process_FNT(const char *args)
     if (hex_len != (size_t)plen * 2) {
         char buf[64];
         int len = snprintf(buf, sizeof(buf),
-                            "#FNR ERR,23,Length mismatch %u!=%u\n",
+                            "#FNR ERR,23,Length mismatch %u!=%u",
                             (unsigned)hex_len, (unsigned)(plen * 2));
-        NMEA_Out(DEST_BLUETOOTH, buf, len, false);
+        NMEA_Out(DEST_BLUETOOTH, buf, len, true);
         Serial.print("FNT: length mismatch, declared plen=");
         Serial.print(plen);
         Serial.print(" (");
@@ -1056,7 +1055,7 @@ static void FN_process_FNT(const char *args)
     for (unsigned int i = 0; i < plen; i++) {
         unsigned int byte_val;
         if (sscanf(hex + i * 2, "%2X", &byte_val) != 1) {
-            NMEA_Out(DEST_BLUETOOTH, "#FNR ERR,22,Bad payload hex\n", 28, false);
+            NMEA_Out(DEST_BLUETOOTH, "#FNR ERR,22,Bad payload hex", 27, true);
             return;
         }
         frame[pos + i] = (uint8_t)byte_val;
@@ -1110,7 +1109,7 @@ static void FN_process_FNT(const char *args)
         fnf_ack_resends_left = FNF_ACK_MAX_RESENDS;
     }
 
-    NMEA_Out(DEST_BLUETOOTH, "#FNR OK\n", 8, false);
+    NMEA_Out(DEST_BLUETOOTH, "#FNR OK", 7, true);
 }
 
 /*
@@ -1165,9 +1164,9 @@ static bool FN_clear_pending_ack_if_match(uint8_t src_mfr, uint16_t src_id)
     Serial.print(",");
     Serial.println(src_id, HEX);
     char buf[32];
-    int len = snprintf(buf, sizeof(buf), "#FNR ACK,%X,%X\n",
+    int len = snprintf(buf, sizeof(buf), "#FNR ACK,%X,%X",
                        (unsigned)src_mfr, (unsigned)src_id);
-    NMEA_Out(DEST_BLUETOOTH, buf, len, false);
+    NMEA_Out(DEST_BLUETOOTH, buf, len, true);
     fnf_ack_pending_ms = 0;
     fnf_ack_pending_frame_len = 0;
     return true;
@@ -1262,9 +1261,9 @@ void FN_check_ack_timeout()
             fnf_ack_pending_ms = millis();   /* restart timeout window */
         } else {
             char buf[32];
-            int len = snprintf(buf, sizeof(buf), "#FNR NACK,%X,%X\n",
+            int len = snprintf(buf, sizeof(buf), "#FNR NACK,%X,%X",
                                (unsigned)fnf_ack_pending_mfr, (unsigned)fnf_ack_pending_id);
-            NMEA_Out(DEST_BLUETOOTH, buf, len, false);
+            NMEA_Out(DEST_BLUETOOTH, buf, len, true);
             fnf_ack_pending_ms = 0;
             fnf_ack_pending_frame_len = 0;
         }
@@ -1323,43 +1322,43 @@ static bool SYC_process_command(char *buf, int len)
     NMEA_Source = DEST_NONE;
 
     if (strcmp(arg, "VER?") == 0) {
-        NMEA_Out(DEST_BLUETOOTH, "#SYC VER=" SOFTRF_FIRMWARE_INT "\n",
-                 sizeof("#SYC VER=" SOFTRF_FIRMWARE_INT "\n") - 1, false);
+        NMEA_Out(DEST_BLUETOOTH, "#SYC VER=" SOFTRF_FIRMWARE_INT,
+                 sizeof("#SYC VER=" SOFTRF_FIRMWARE_INT) - 1, true);
         NMEA_Source = saved_source;
         return true;
     }
     if (strcmp(arg, "FNTPWR?") == 0) {
-        NMEA_Out(DEST_BLUETOOTH, "#SYC FNTPWR=14\n", 15, false);
+        NMEA_Out(DEST_BLUETOOTH, "#SYC FNTPWR=14", 15, true);
         NMEA_Source = saved_source;
         return true;
     }
     if (strcmp(arg, "RFMODE?") == 0) {
         char reply[32];
-        int rlen = snprintf(reply, sizeof(reply), "#SYC RFMODE=%u\n", fnf_rfmode);
-        NMEA_Out(DEST_BLUETOOTH, reply, rlen, false);
+        int rlen = snprintf(reply, sizeof(reply), "#SYC RFMODE=%u", fnf_rfmode);
+        NMEA_Out(DEST_BLUETOOTH, reply, rlen, true);
         NMEA_Source = saved_source;
         return true;
     }
     if (strcmp(arg, "NAME?") == 0) {
         char reply[64];
         const char *name = fnf_session_name[0] ? fnf_session_name : settings->fanet_name;
-        int rlen = snprintf(reply, sizeof(reply), "#SYC NAME=%s\n", name);
-        NMEA_Out(DEST_BLUETOOTH, reply, rlen, false);
+        int rlen = snprintf(reply, sizeof(reply), "#SYC NAME=%s", name);
+        NMEA_Out(DEST_BLUETOOTH, reply, rlen, true);
         NMEA_Source = saved_source;
         return true;
     }
     if (strcmp(arg, "AIRMODE?") == 0) {
         char reply[32];
-        int rlen = snprintf(reply, sizeof(reply), "#SYC AIRMODE=%u\n", fnf_airmode);
-        NMEA_Out(DEST_BLUETOOTH, reply, rlen, false);
+        int rlen = snprintf(reply, sizeof(reply), "#SYC AIRMODE=%u", fnf_airmode);
+        NMEA_Out(DEST_BLUETOOTH, reply, rlen, true);
         NMEA_Source = saved_source;
         return true;
     }
     if (strcmp(arg, "TYPE?") == 0) {
         char reply[32];
-        int rlen = snprintf(reply, sizeof(reply), "#SYC TYPE=%u\n",
+        int rlen = snprintf(reply, sizeof(reply), "#SYC TYPE=%u",
                             AT_TO_FANET(ThisAircraft.aircraft_type));
-        NMEA_Out(DEST_BLUETOOTH, reply, rlen, false);
+        NMEA_Out(DEST_BLUETOOTH, reply, rlen, true);
         NMEA_Source = saved_source;
         return true;
     }
@@ -1398,7 +1397,7 @@ static bool SYC_process_command(char *buf, int len)
         }
 
         *eq = '=';  /* restore buffer */
-        NMEA_Out(DEST_BLUETOOTH, "#SYC OK\n", 8, false);
+        NMEA_Out(DEST_BLUETOOTH, "#SYC OK", 7, true);
         NMEA_Source = saved_source;
         return true;
     }
