@@ -1081,12 +1081,12 @@ void parseJSettings(JsonObject root)
     settings->logalarms = (!strcmp(s,"YES") || !strcmp(s,"1"));
   }
 
-  key = "fanet_sos";
+  key = "auto_sos";
   if (root.containsKey(key)) {
     const char *s = root[key].as<const char*>();
-    if      (!strcmp(s,"OFF") || !strcmp(s,"0"))     settings->fanet_sos = 0;
-    else if (!strcmp(s,"MANUAL") || !strcmp(s,"1"))  settings->fanet_sos = 1;
-    else if (!strcmp(s,"AUTO") || !strcmp(s,"2"))    settings->fanet_sos = 2;
+    if      (!strcmp(s,"OFF") || !strcmp(s,"0"))     settings->auto_sos = 0;
+    else if (!strcmp(s,"MANUAL") || !strcmp(s,"1"))  settings->auto_sos = 1;
+    else if (!strcmp(s,"AUTO") || !strcmp(s,"2"))    settings->auto_sos = 2;
   }
 
   key = "logflight";
@@ -1153,7 +1153,7 @@ void parseJSettings(JsonObject root)
   static const char * const handled[] = {
     "protocol", "altprotocol", "band", "acft_type", "id_method",
     "aircraft_id", "ignore_id", "alarm", "txpower", "tx_power",
-    "volume", "alarmlog", "fanet_sos", "logflight",
+    "volume", "alarmlog", "auto_sos", "logflight",
     "loginterval", "igc_pilot", "igc_type", "igc_reg", "fanet_name",
     "debug_flags", "flr_adsl", "aircraft_type",
     NULL
@@ -1273,9 +1273,9 @@ bool writeJSettings(JsonObject obj)
   obj["ignore_id"] = hexbuf;
 
   obj["alarmlog"] = settings->logalarms ? "YES" : "NO";
-  obj["fanet_sos"] =
-    (settings->fanet_sos == 0) ? "OFF"    :
-    (settings->fanet_sos == 1) ? "MANUAL" : "AUTO";
+  obj["auto_sos"] =
+    (settings->auto_sos == 0) ? "OFF"    :
+    (settings->auto_sos == 1) ? "MANUAL" : "AUTO";
 
   obj["logflight"] =
     (settings->logflight == FLIGHT_LOG_NONE)     ? "OFF"      :

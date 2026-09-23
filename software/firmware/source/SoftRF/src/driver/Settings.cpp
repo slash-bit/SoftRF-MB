@@ -199,7 +199,6 @@ static void init_stgdesc()
   stgdesc[STG_POWER_EXT]  = { "power_ext",  (char*)&settings->power_ext,  STG_UINT1,   V_T };
   stgdesc[STG_RFC]        = { "rfc",        (char*)&settings->freq_corr,  STG_HIDDEN,  V_ALL };
   stgdesc[STG_ALARMLOG]   = { "alarmlog",   (char*)&settings->logalarms,  STG_UINT1,   V_CBT };
-  stgdesc[STG_AUTO_SOS]   = { "fanet_sos",  (char*)&settings->fanet_sos,  STG_UINT1,   0 };
   stgdesc[STG_LOG_NMEA]   = { "log_nmea",   (char*)&settings->log_nmea,   esp_only(STG_UINT1), V_T };
   stgdesc[STG_GNSS_PINS]  = { "gnss_pins",  (char*)&settings->gnss_pins,  esp_only(STG_UINT1), V_T };
   stgdesc[STG_PPSWIRE]    = { "ppswire",    (char*)&settings->ppswire,    esp_only(STG_UINT1), V_T };
@@ -224,7 +223,7 @@ static void init_stgdesc()
   stgdesc[STG_EPD_AGHOST] = { "antighost",  (char*)&settings->antighost,  epd_only(STG_UINT1), V_B };
   stgdesc[STG_EPD_TEAM]   = { "team",       (char*)&settings->team,       epd_only(STG_HEX6),  V_B };
   stgdesc[STG_FANET_NAME] = { "fanet_name",  settings->fanet_name,        sizeof(settings->fanet_name), V_ALL };
-  stgdesc[STG_FANET_SOS]  = { "fanet_sos",  (char*)&settings->fanet_sos,  STG_UINT1,   V_C };
+  stgdesc[STG_AUTO_SOS]   = { "auto_sos",   (char*)&settings->auto_sos,   STG_UINT1,   V_C };
   stgdesc[STG_DEBUG_FLAGS]= { "debug_flags",(char*)&settings->debug_flags,STG_HEX6,    V_ALL };
 
   // ensure no null labels in the array
@@ -290,7 +289,7 @@ static void init_stgdesc()
   stgcomment[STG_RFC]        = "freq correction +-30";
   stgcomment[STG_LEAPSECS]   = "leap seconds - automatic";
   stgcomment[STG_ALARMLOG]   = yesno;
-  stgcomment[STG_FANET_SOS]  = "0=off 1=manual 2=auto";
+  stgcomment[STG_AUTO_SOS]   = "0=off 1=manual 2=auto";
   stgcomment[STG_LOG_NMEA]   = "1 = log all NMEA output to SD card";
   stgcomment[STG_LOGFLIGHT]  = "0=off 1=always 2=airborne 3=traffic";
   stgcomment[STG_LOGINTERVAL]= "seconds, 1-255";
@@ -312,7 +311,7 @@ static void init_stgdesc()
   stgminmax[3] = { STG_TXPOWER,     0,  2 };
   stgminmax[4] = { STG_EXPIRE,      1, ENTRY_EXPIRATION_TIME };
   stgminmax[5] = { STG_MODE_S,      0,  9 };
-  stgminmax[6] = { STG_FANET_SOS,   0,  2 };
+  stgminmax[6] = { STG_AUTO_SOS,    0,  2 };
 }
 
 // copy the settings from settingb (EEPROM) to settings (file)
@@ -919,7 +918,7 @@ void Settings_defaults(bool keepsome)
 #endif
 
     settings->logalarms  = false;
-    settings->fanet_sos  = 0;
+    settings->auto_sos   = 0;
     settings->log_nmea   = false;
   }
   // otherwise keep those settings from the previous version

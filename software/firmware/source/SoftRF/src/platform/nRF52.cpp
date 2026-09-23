@@ -2404,8 +2404,8 @@ void handleEvent(AceButton* button, uint8_t eventType,
           if (fanet_sos_state == FANET_SOS_COUNTDOWN) {
             fanet_sos_state = FANET_SOS_LANDED_OK;
             Serial.println(F("Auto-SOS cancelled - Landed OK"));
-          } else if (settings->fanet_sos == 0) {
-            /* fanet_sos=OFF: double-click does nothing for distress */
+          } else if (settings->auto_sos == 0) {
+            /* auto_sos=OFF: double-click does nothing for distress */
           } else {
             /* MANUAL or AUTO: double-click immediately toggles distress */
             if (fanet_sos_state != FANET_SOS_DISTRESS) {

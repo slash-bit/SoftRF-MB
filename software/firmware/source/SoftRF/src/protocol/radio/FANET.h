@@ -131,7 +131,7 @@ enum fanet_ground_type_e
 };
 
 /* Runtime SOS state machine (not persisted).
- * settings->fanet_sos controls the mode (off/manual/auto);
+ * settings->auto_sos controls the mode (off/manual/auto);
  * fanet_sos_state tracks the current dynamic state.
  */
 enum fanet_sos_state_e

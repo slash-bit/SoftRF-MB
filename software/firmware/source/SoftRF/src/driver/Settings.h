@@ -215,7 +215,6 @@ enum stgidx {
     STG_POWER_EXT,
     STG_RFC,
     STG_ALARMLOG,
-    STG_AUTO_SOS,
 //#if defined(ESP32)
     STG_LOG_NMEA,
     STG_GNSS_PINS,
@@ -245,7 +244,7 @@ enum stgidx {
     STG_EPD_TEAM,
 //#endif
     STG_FANET_NAME,
-    STG_FANET_SOS,
+    STG_AUTO_SOS,
     STG_DEBUG_FLAGS,
     STG_END
 };
@@ -408,7 +407,7 @@ typedef struct Settings {
     int8_t   expire;
     bool     pflaa_cs;
     bool     logalarms;
-    uint8_t  fanet_sos;     /* 0=off, 1=manual(button), 2=auto(60s after landing) */
+    uint8_t  auto_sos;      /* 0=off, 1=manual(button), 2=auto(60s after landing) */
     uint32_t debug_flags;   /* each bit activates output of some debug info */
 
 //#if defined(ESP32)

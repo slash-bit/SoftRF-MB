@@ -610,7 +610,7 @@ void this_airborne(bool validfix)
     } else if (ThisAircraft.airborne==1 && airborne<=0) {
       airborne_changed = true;
       // AirborneTime = 0;
-      if (settings->fanet_sos == 2 && fanet_sos_state != FANET_SOS_DISTRESS) {
+      if (settings->auto_sos == 2 && fanet_sos_state != FANET_SOS_DISTRESS) {
         fanet_sos_state = FANET_SOS_COUNTDOWN;
         sos_countdown_start_ms = millis();
         Serial.println(F("Auto-SOS countdown started (3min)"));
