@@ -2790,10 +2790,10 @@ void NMEA_Process_SRF_SKV_Sentences()
           }
           settings_dump_active = false;
 
-      } else if (strncmp(C_Version.value(), "GT", 2) == 0 && C_Version.value()[2] != '\0') {
-          /* $PSRFC,GT<X> — set FANET ground type, X is a single hex digit (0-F).
-           * Encodes type in the 3-char command token to avoid needing a second field.
-           * e.g. $PSRFC,GT9 = Landed OK, $PSRFC,GTE = Distress (0xE=14) */
+      } else if (strncmp(C_Version.value(), "GS", 2) == 0 && C_Version.value()[2] != '\0') {
+          /* $PSRFC,GS<X> — set FANET ground status, X is a single hex digit (0-F).
+           * Encodes status in the 3-char command token to avoid needing a second field.
+           * e.g. $PSRFC,GS9 = Landed OK, $PSRFC,GSE = Distress (0xE=14) */
           unsigned int gtype = 0;
           if (sscanf(C_Version.value() + 2, "%1X", &gtype) == 1 && gtype <= 0xF) {
               fanet_ground_type = (uint8_t)gtype;
@@ -2804,7 +2804,7 @@ void NMEA_Process_SRF_SKV_Sentences()
                   fanet_sos_last_ms = 0;
                   fanet_sos_count = 0;
               }
-              Serial.print(F("PSRFC GT: ground type=0x"));
+              Serial.print(F("PSRFC GS: ground status=0x"));
               Serial.println(gtype, HEX);
           }
 
