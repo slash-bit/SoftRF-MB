@@ -1539,13 +1539,14 @@ void NMEA_bridge_buf(char c, char* buf, int& n)
         // fall through to buf[n++] = c;
     } else if (c == '#') {
         n = 0;
-        // start #FN/#SYC command (XCGuide protocol)
+        // start #FN/#SYC command (XCGuide protocol), drop any preceding data
         // fall through to buf[n++] = c;
-    } else if (n == 0) {      // wait for a '$' (or '!' or '#')
-        if (c != '!')
-            return;
-        // if '!', start new sentence of some related protocols
+    } else if (c == '!') {
+        n = 0;
+        // start new sentence of some related protocols, drop any preceding data
         // fall through to buf[n++] = c;
+    } else if (n == 0) {      // wait for a '$', '#', or '!'
+        return;
     } else if (c=='\r' || c=='\n') {
         int maxlen = (buf[0] == '#') ? 256 : 128;
         if (n > 3 && n <= maxlen) {
