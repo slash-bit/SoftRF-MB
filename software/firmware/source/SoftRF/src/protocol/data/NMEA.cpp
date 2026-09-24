@@ -905,11 +905,11 @@ void NMEA_FNF_Out(const uint8_t *raw, size_t raw_len)
     /* Send directly to BLE (FNF is BLE-only, not a standard NMEA sentence) */
     NMEA_Out(DEST_BLUETOOTH, NMEABuffer, len, true);
 
-    /* For any unicast message to us, send Type 0 ACK back to the sender
-     * so they know the message was delivered to this device.
+    /* For a unicast message to us with ACK requested, send Type 0 ACK back
+     * to the sender so they know the message was delivered to this device.
      * When the pilot presses OK in XCGuide, the app sends a separate
      * "read ACK" (#FNT) which we transmit as a second acknowledgement. */
-    if (unicast) {
+    if (unicast && ack_requested) {
         Serial.print("FNF: sending delivery ACK to ");
         Serial.print(vendor, HEX);
         Serial.print(",");
@@ -1112,35 +1112,34 @@ static void FN_process_FNT(const char *args)
     NMEA_Out(DEST_BLUETOOTH, "#FNR OK", 7, true);
 }
 
+/* Pending hardware-level (Type 0) ACK, kept OUTSIDE fn_tx_pending_buf.
+ * fn_tx_pending_buf/fn_tx_pending_len is a single-slot mailbox also written
+ * by FN_process_FNT() (app-queued frames, e.g. a "read ACK" or reply sent
+ * via #FNT). Without this side channel, a Type 0 ACK staged here could be
+ * silently overwritten - and lost - if the app sends a #FNT command before
+ * the next FANET TX slot. Since the Type 0 ACK has no payload, it costs
+ * nothing to build it on the fly in FN_TX_check() instead of pre-rendering
+ * it into the shared buffer. */
+static bool     fn_ack_owed     = false;
+static uint8_t  fn_ack_dest_mfr = 0;
+static uint16_t fn_ack_dest_id  = 0;
+
 /*
- * Encode and transmit a FANET Type 0 (ACK) packet.
+ * Stage a FANET Type 0 (ACK) packet for transmission.
  * ACK is unicast to the specified address, no payload.
+ * Takes priority over fn_tx_pending_buf in FN_TX_check() so it can never be
+ * clobbered by an app-queued #FNT frame written in the meantime.
  */
 static void FN_transmit_ack(uint8_t dest_mfr, uint16_t dest_id)
 {
-    uint8_t frame[8];
-    uint32_t id = ThisAircraft.addr;
-
-    /* Byte 0: type=0, forward=0, ext_header=1 */
-    frame[0] = 0x80;
-    /* Source address */
-    frame[1] = (id >> 16) & 0xFF;
-    frame[2] = id & 0xFF;
-    frame[3] = (id >> 8) & 0xFF;
-    /* Extended header: no ACK, unicast */
-    frame[4] = (1 << 5);  /* unicast bit */
-    /* Destination address */
-    frame[5] = dest_mfr;
-    frame[6] = dest_id & 0xFF;
-    frame[7] = (dest_id >> 8) & 0xFF;
+    fn_ack_dest_mfr = dest_mfr;
+    fn_ack_dest_id  = dest_id;
+    fn_ack_owed     = true;
 
     Serial.print("FN_transmit_ack: Type 0 ACK queued to ");
     Serial.print(dest_mfr, HEX);
     Serial.print(",");
     Serial.println(dest_id, HEX);
-    /* Queue for transmission in next available FANET TX slot */
-    memcpy(fn_tx_pending_buf, frame, 8);
-    fn_tx_pending_len = 8;
 }
 
 /*
@@ -1276,6 +1275,33 @@ void FN_check_ack_timeout()
  */
 bool FN_TX_check()
 {
+    /* A hardware-level Type 0 ACK we owe takes priority over anything sitting
+     * in fn_tx_pending_buf (e.g. an app-queued #FNT frame) - it has no
+     * payload so it's built here on the fly rather than pre-rendered into
+     * that shared buffer. */
+    if (fn_ack_owed) {
+        if (!RF_Transmit_Ready(true))
+            return false;
+
+        uint32_t id = ThisAircraft.addr;
+        TxBuffer[0] = 0x80;                     /* type=0, forward=0, ext_header=1 */
+        TxBuffer[1] = (id >> 16) & 0xFF;        /* source address */
+        TxBuffer[2] = id & 0xFF;
+        TxBuffer[3] = (id >> 8) & 0xFF;
+        TxBuffer[4] = (1 << 5);                 /* ext header: unicast bit, no ACK */
+        TxBuffer[5] = fn_ack_dest_mfr;           /* destination address */
+        TxBuffer[6] = fn_ack_dest_id & 0xFF;
+        TxBuffer[7] = (fn_ack_dest_id >> 8) & 0xFF;
+
+        fn_ack_owed = false;   /* clear before transmit so re-entry is safe */
+        RF_Transmit(8, true);
+        Serial.print("FN_TX: transmitted queued Type 0 ACK, to ");
+        Serial.print(fn_ack_dest_mfr, HEX);
+        Serial.print(",");
+        Serial.println(fn_ack_dest_id, HEX);
+        return true;
+    }
+
     if (fn_tx_pending_len == 0)
         return false;
 
