@@ -38,9 +38,9 @@
 #define SOFTRF_FIRMWARE_VERSION "VB008"
 #define SOFTRF_IDENT            "SoftRF" //temp changed from SoftRF
 #define SOFTRF_USB_FW_VERSION   0x0101
-#define SOFTRF_SUBVERSION       "y"
+#define SOFTRF_SUBVERSION       "z"
 #define SOFTRF_REVISION         "dev"
-#define SOFTRF_FIRMWARE_INT     "8.0.1"
+#define SOFTRF_FIRMWARE_INT     "8.0.2"
 
 #define ENTRY_EXPIRATION_TIME  30 /* seconds - was 17 - NMEA export limited further by 'expire' setting */
 #define NONDIR_EXPIRATION       5 /* seconds */
