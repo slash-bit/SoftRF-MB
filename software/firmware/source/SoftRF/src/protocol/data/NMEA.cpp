@@ -960,7 +960,8 @@ static size_t   fn_tx_pending_len = 0;
 static uint8_t  fnf_ack_pending_mfr = 0;
 static uint16_t fnf_ack_pending_id  = 0;
 static uint32_t fnf_ack_pending_ms  = 0;
-#define FNF_ACK_TIMEOUT_MS  5000
+#define FNF_ACK_TIMEOUT_MS  15000  /* FANET TX interval can exceed 5s; also allow
+                                     * time for the other party's own TX slot */
 
 /* Retransmission of unicast ACK-required frames when no ACK arrives in time.
  * Original frame is kept so it can be re-queued unchanged (same payload,
@@ -1469,23 +1470,6 @@ bool FN_process_command(char *buf, int len)
         NMEA_Source = saved_source;
         return true;
     }
-    /* #FNR ACK,manufacturer,id — app acknowledges receipt of a message,
-     * SoftRF transmits FANET Type 0 ACK back to the sender over radio */
-    if (buf[3] == 'R' && buf[4] == ' ') {
-        if (strncmp(buf + 5, "ACK,", 4) == 0) {
-            unsigned int mfr, aid;
-            if (sscanf(buf + 9, "%X,%X", &mfr, &aid) == 2) {
-                Serial.print("FN_cmd: #FNR ACK from app, TX ack to ");
-                Serial.print(mfr, HEX);
-                Serial.print(",");
-                Serial.println(aid, HEX);
-                FN_transmit_ack((uint8_t)mfr, (uint16_t)aid);
-            }
-        }
-        NMEA_Source = saved_source;
-        return true;
-    }
-
     NMEA_Source = saved_source;
     return false;
 }
