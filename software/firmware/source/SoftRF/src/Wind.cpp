@@ -593,6 +593,7 @@ void this_airborne(bool validfix)
     bool airborne_changed = false;
     if (ThisAircraft.airborne==0 && airborne>0) {
       airborne_changed = true;
+      fanet_sos_cancel();  /* no-op unless we were in distress on the ground */
       fanet_sos_state = FANET_SOS_AIRBORNE;
       // AirborneTime = RF_time;
 //#if defined(ESP32)

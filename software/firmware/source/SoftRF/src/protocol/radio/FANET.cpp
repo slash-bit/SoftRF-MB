@@ -420,9 +420,20 @@ bool fanet_decode(void *fanet_pkt, container_t *this_aircraft, ufo_t *fop) {
 static uint32_t fanet_name_last_ms = 0;
 uint32_t fanet_sos_last_ms  = 0;
 uint8_t  fanet_sos_count    = 0;
+static bool fanet_sos_cancel_pending = false;
 
 #define FANET_SOS_INTERVAL_MS  30000  /* broadcast SOS message every 30 seconds */
 #define FANET_SOS_MAX_COUNT    3      /* send SOS message this many times, then stop */
+
+/* Call when leaving FANET_SOS_DISTRESS for any other state, so a one-shot
+ * "Cancelled SOS" broadcast goes out - otherwise anyone who received the
+ * distress message has no way to know it was a false alarm / resolved,
+ * short of the tracking/ground packets simply stopping being distress. */
+void fanet_sos_cancel(void)
+{
+  if (fanet_sos_state == FANET_SOS_DISTRESS)
+    fanet_sos_cancel_pending = true;
+}
 
 static size_t fanet_type2_encode(void *fanet_pkt, container_t *this_aircraft) {
 
@@ -588,6 +599,16 @@ size_t fanet_encode(void *fanet_pkt, container_t *this_aircraft) {
 
   uint32_t now = millis();
 
+  /* One-shot "Cancelled SOS" broadcast, takes priority over everything else
+   * so it goes out on the very next TX slot after distress is cleared. */
+  if (fanet_sos_cancel_pending) {
+    fanet_sos_cancel_pending = false;
+    char msg[40];
+    snprintf(msg, sizeof(msg), "Cancelled SOS %.5f,%.5f",
+             this_aircraft->latitude, this_aircraft->longitude);
+    return fanet_type3_encode(fanet_pkt, this_aircraft, msg);
+  }
+
   /* Every 2 minutes, send a Name packet (Type 2) instead of tracking */
   if ((fnf_session_name[0] || settings->fanet_name[0] != '\0') &&
       (now - fanet_name_last_ms) >= FANET_NAME_INTERVAL_MS) {
@@ -603,9 +624,14 @@ size_t fanet_encode(void *fanet_pkt, container_t *this_aircraft) {
          (now - fanet_sos_last_ms) >= FANET_SOS_INTERVAL_MS)) {
       fanet_sos_last_ms = now;
       fanet_sos_count++;
-      char sos_msg[60];
-      snprintf(sos_msg, sizeof(sos_msg), "SOS message Pilot in distress %.5f,%.5f",
-               this_aircraft->latitude, this_aircraft->longitude);
+      char sos_msg[72];
+      /* Altitude included to help rescue in high-gradient terrain, where
+       * lat/lon alone leave a large search area on a steep slope. */
+      snprintf(sos_msg, sizeof(sos_msg), "SOS %s %.5f,%.5f,%.0fm",
+               (fanet_ground_type == FANET_GROUND_TYPE_NEED_MED) ?
+                   "need medical help" : "Pilot in DISTRESS",
+               this_aircraft->latitude, this_aircraft->longitude,
+               this_aircraft->altitude);
       return fanet_type3_encode(fanet_pkt, this_aircraft, sos_msg);
     }
     return fanet_type7_encode(fanet_pkt, this_aircraft);

@@ -183,5 +183,6 @@ extern const uint8_t aircraft_type_from_fanet[];
 
 bool fanet_decode(void *, container_t *, ufo_t *);
 size_t fanet_encode(void *, container_t *);
+void   fanet_sos_cancel(void);
 
 #endif /* PROTOCOL_FANET_H */

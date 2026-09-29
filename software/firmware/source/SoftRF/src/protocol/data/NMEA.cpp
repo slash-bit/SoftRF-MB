@@ -932,13 +932,15 @@ static void FN_process_FNG(const char *args)
     if (sscanf(args, "%1X", &gtype) == 1 && gtype <= 0xF) {
         fanet_ground_type = (uint8_t)gtype;
         ThisAircraft.airborne = 0;  /* explicit ground command — force ground mode */
-        fanet_sos_state = FANET_SOS_LANDED_OK;
 
         /* Distress ground types trigger SOS message transmission */
         if (gtype >= FANET_GROUND_TYPE_NEED_MED) {  /* 13, 14, 15 */
             fanet_sos_state = FANET_SOS_DISTRESS;
             fanet_sos_last_ms = 0;   /* send SOS immediately */
             fanet_sos_count = 0;
+        } else {
+            fanet_sos_cancel();  /* no-op unless we were in distress */
+            fanet_sos_state = FANET_SOS_LANDED_OK;
         }
 
         NMEA_Out(DEST_BLUETOOTH, "#FNR OK", 7, true);
@@ -2809,11 +2811,13 @@ void NMEA_Process_SRF_SKV_Sentences()
           if (sscanf(C_Version.value() + 2, "%1X", &gtype) == 1 && gtype <= 0xF) {
               fanet_ground_type = (uint8_t)gtype;
               ThisAircraft.airborne = 0;  /* explicit ground command — force ground mode */
-              fanet_sos_state = FANET_SOS_LANDED_OK;
               if (gtype >= FANET_GROUND_TYPE_NEED_MED) {  /* 13, 14, 15 */
                   fanet_sos_state = FANET_SOS_DISTRESS;
                   fanet_sos_last_ms = 0;
                   fanet_sos_count = 0;
+              } else {
+                  fanet_sos_cancel();  /* no-op unless we were in distress */
+                  fanet_sos_state = FANET_SOS_LANDED_OK;
               }
               Serial.print(F("PSRFC GS: ground status=0x"));
               Serial.println(gtype, HEX);
