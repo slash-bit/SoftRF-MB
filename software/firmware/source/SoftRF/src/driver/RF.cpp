@@ -2931,6 +2931,8 @@ void RF_SetBandAuto(float lat, float lon)
   uint8_t band;
   if (lon >= -20.0f && lon <= 60.0f) {
     band = RF_BAND_EU;    // Europe + Africa: 868 MHz
+  } else if (lat >= 5.0f && lat <= 40.0f && lon >= 69.0f && lon <= 89.0f) {
+    band = RF_BAND_IN;    // Indian subcontinent: 866 MHz
   } else if (lat < 20.0f) {
     if (lon > 164.0f && lat < -30.0f && lat > -48.0f)
       band = RF_BAND_NZ;  // New Zealand: 869.25 MHz
