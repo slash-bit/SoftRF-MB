@@ -991,7 +991,8 @@ void parseJSettings(JsonObject root)
   key = "band";
   if (root.containsKey(key)) {
     const char *s = root[key].as<const char*>();
-    if      (!strcmp(s,"EU"))  settings->band = RF_BAND_EU;
+    if      (!strcmp(s,"AUTO")) settings->band = RF_BAND_AUTO;
+    else if (!strcmp(s,"EU"))  settings->band = RF_BAND_EU;
     else if (!strcmp(s,"US"))  settings->band = RF_BAND_US;
     else if (!strcmp(s,"AU"))  settings->band = RF_BAND_AU;
     else if (!strcmp(s,"NZ"))  settings->band = RF_BAND_NZ;
@@ -1212,6 +1213,7 @@ bool writeJSettings(JsonObject obj)
     (settings->altprotocol == RF_PROTOCOL_ADSL)      ? "ADS-L"  : "NONE";
 
   obj["band"] =
+    (settings->band == RF_BAND_AUTO) ? "AUTO" :
     (settings->band == RF_BAND_EU) ? "EU" :
     (settings->band == RF_BAND_US) ? "US" :
     (settings->band == RF_BAND_AU) ? "AU" :
