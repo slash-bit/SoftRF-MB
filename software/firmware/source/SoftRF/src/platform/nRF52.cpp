@@ -2423,6 +2423,7 @@ void handleEvent(AceButton* button, uint8_t eventType,
                 Serial.println(F("FANET SOS+DISTRESS mode ON"));
               }
             } else {
+              fanet_sos_cancel();  /* queue one-shot "Cancelled SOS" broadcast */
               fanet_sos_state = FANET_SOS_LANDED_OK;
               /* Restore original protocol if we switched */
               if (saved_rf_protocol != RF_PROTOCOL_NONE) {

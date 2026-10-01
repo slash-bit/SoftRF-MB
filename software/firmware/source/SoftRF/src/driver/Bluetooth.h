@@ -203,7 +203,6 @@ typedef struct {
 
 extern IODev_ops_t nRF52_Bluetooth_ops;
 extern void BT_NUS_flush();
-extern void enterOtaDfuViaBleDfu();
 
 #endif /* ESP32 or ARDUINO_ARCH_NRF52 */
 
