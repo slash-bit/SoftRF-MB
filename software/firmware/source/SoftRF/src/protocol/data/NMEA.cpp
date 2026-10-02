@@ -2804,13 +2804,18 @@ void NMEA_Process_SRF_SKV_Sentences()
           /* $PSRFC,GS<X> — set FANET ground status, X is a single hex digit (0-F).
            * Encodes status in the 3-char command token to avoid needing a second field.
            * e.g. $PSRFC,GS9 = Landed OK, $PSRFC,GSE = Distress (0xE=14)
-           * $PSRFC,GS0 = OTHER, used as "revert to Type 1 Tracking" (back to airborne) */
+           * $PSRFC,GS0 = OTHER, used as "revert to Type 1 Tracking", regardless of
+           * whether the device is actually moving — fanet_encode() sends Type 1
+           * whenever fanet_sos_state != FANET_SOS_LANDED_OK, even if not airborne
+           * (see FANET.cpp). Do NOT also force ThisAircraft.airborne = 1 here: the
+           * GPS-speed logic in Wind.cpp treats that as a real takeoff and will flip
+           * it straight back to FANET_SOS_LANDED_OK on the very next sample once it
+           * sees the device isn't actually moving, undoing this command immediately. */
           unsigned int gtype = 0;
           if (sscanf(C_Version.value() + 2, "%1X", &gtype) == 1 && gtype <= 0xF) {
               if (gtype == FANET_GROUND_TYPE_OTHER) {
                   fanet_ground_type = 0xFF;   /* not set - fall back to Type 1 Tracking */
                   fanet_sos_cancel();  /* no-op unless we were in distress */
-                  ThisAircraft.airborne = 1;
                   fanet_sos_state = FANET_SOS_AIRBORNE;
               } else {
                   fanet_ground_type = (uint8_t)gtype;
