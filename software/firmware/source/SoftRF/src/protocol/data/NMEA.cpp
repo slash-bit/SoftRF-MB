@@ -1097,9 +1097,10 @@ static void FN_process_FNT(const char *args)
     }
     Serial.println("\"");
 
-    /* Queue for transmission in next available FANET TX slot */
+    /* Queue for transmission ASAP via the FANET priority lane */
     memcpy(fn_tx_pending_buf, frame, frame_len);
     fn_tx_pending_len = frame_len;
+    RF_Priority_Schedule(RF_PRIO_MSG_MIN_MS, RF_PRIO_MSG_MAX_MS);
 
     /* If ACK requested for unicast, track it so we can match incoming Type 0,
      * and keep a copy of the frame so we can resend it on timeout. */
@@ -1138,6 +1139,7 @@ static void FN_transmit_ack(uint8_t dest_mfr, uint16_t dest_id)
     fn_ack_dest_mfr = dest_mfr;
     fn_ack_dest_id  = dest_id;
     fn_ack_owed     = true;
+    RF_Priority_Schedule(RF_PRIO_ACK_MIN_MS, RF_PRIO_ACK_MAX_MS);
 
     Serial.print("FN_transmit_ack: Type 0 ACK queued to ");
     Serial.print(dest_mfr, HEX);
@@ -1260,6 +1262,7 @@ void FN_check_ack_timeout()
             Serial.println(" attempt(s) left)");
             memcpy(fn_tx_pending_buf, fnf_ack_pending_frame, fnf_ack_pending_frame_len);
             fn_tx_pending_len = fnf_ack_pending_frame_len;
+            RF_Priority_Schedule(RF_PRIO_MSG_MIN_MS, RF_PRIO_MSG_MAX_MS);
             fnf_ack_pending_ms = millis();   /* restart timeout window */
         } else {
             char buf[32];
@@ -1273,7 +1276,7 @@ void FN_check_ack_timeout()
 }
 
 /*
- * Transmit pending FANET frame if TX slot is available.
+ * Transmit pending FANET frame via the priority lane (ASAP, does not consume the tracking slot).
  * Called from main loop. Returns true if a frame was transmitted.
  */
 bool FN_TX_check()
@@ -1283,7 +1286,7 @@ bool FN_TX_check()
      * payload so it's built here on the fly rather than pre-rendered into
      * that shared buffer. */
     if (fn_ack_owed) {
-        if (!RF_Transmit_Ready(true))
+        if (!RF_Priority_Ready())
             return false;
 
         uint32_t id = ThisAircraft.addr;
@@ -1297,7 +1300,7 @@ bool FN_TX_check()
         TxBuffer[7] = (fn_ack_dest_id >> 8) & 0xFF;
 
         fn_ack_owed = false;   /* clear before transmit so re-entry is safe */
-        RF_Transmit(8, true);
+        RF_Transmit_Priority(8);
         Serial.print("FN_TX: transmitted queued Type 0 ACK, to ");
         Serial.print(fn_ack_dest_mfr, HEX);
         Serial.print(",");
@@ -1308,13 +1311,13 @@ bool FN_TX_check()
     if (fn_tx_pending_len == 0)
         return false;
 
-    if (!RF_Transmit_Ready(true))
+    if (!RF_Priority_Ready())
         return false;
 
     memcpy(TxBuffer, fn_tx_pending_buf, fn_tx_pending_len);
     size_t len = fn_tx_pending_len;
     fn_tx_pending_len = 0;   /* clear before transmit so re-entry is safe */
-    RF_Transmit(len, true);
+    RF_Transmit_Priority(len);
     Serial.print("FN_TX: transmitted queued frame, len=");
     Serial.println(len);
     return true;

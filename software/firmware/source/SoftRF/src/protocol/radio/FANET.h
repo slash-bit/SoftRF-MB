@@ -154,8 +154,8 @@ enum fanet_sos_state_e
 
 #define FANET_AIR_TIME        36   /* in ms */
 
-#define FANET_TX_INTERVAL_MIN 2500 /* in ms */
-#define FANET_TX_INTERVAL_MAX 3500
+#define FANET_TX_INTERVAL_MIN 4500 /* in ms - ~5s avg, per FANET author guidance */
+#define FANET_TX_INTERVAL_MAX 5500
 
 #define FANET_NAME_MAX_LEN  33   /* 32 chars + null */
 #define FANET_NAME_TABLE_SIZE  8
