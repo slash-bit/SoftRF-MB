@@ -58,6 +58,7 @@ uint32_t TxEndMarker  = 0;
 /* FANET priority TX lane (ACK, message, forward, name) - separate from the
  * own-position tracking schedule above, which it never modifies */
 uint32_t LastFanetTxMs = 0;
+static uint32_t PrioSlotFrom = 0;   /* FLR+FANET: earliest priority TX in this Slot 1 */
 static bool prio_tx = false;   /* true while RF_Transmit() serves the priority lane */
 byte TxBuffer[MAX_PKT_SIZE] __attribute__((aligned(sizeof(uint32_t))));
 
@@ -3061,6 +3062,9 @@ void RF_loop()
     if (dual_protocol == RF_FLR_FANET || dual_protocol == RF_FLR_P3I) {
         TxTimeMarker = RF_OK_until;          /* transmit only in FANET/P3I */
         TxEndMarker = slot_base_ms + 1370;
+        /* priority lane: random start within the slot, so frames queued
+         * during Slot 0 do not all go out right at the start of Slot 1 */
+        PrioSlotFrom = slot_base_ms + 805 + SoC->random(0, 400);
         if (TxTimeMarker2 == 0) {   // tx happened in previous Slot 1
             uint32_t interval;
             if (dual_protocol == RF_FLR_FANET)
@@ -3193,7 +3197,7 @@ bool RF_Priority_Ready()
     if (dual_protocol == RF_FLR_FANET)
         return (RF_current_slot == 1
              && curr_rx_protocol_ptr == &fanet_proto_desc
-             && now_ms >= RF_OK_from
+             && now_ms >= PrioSlotFrom
              && now_ms + FANET_AIR_TIME < TxEndMarker);
     return (dual_protocol == RF_SINGLE_PROTOCOL);
 }

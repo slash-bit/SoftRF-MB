@@ -718,7 +718,9 @@ uint32_t fanet_tx_interval_ms(void)
  *  - only packets with the forward bit set; relay 1:1 with forward bit cleared
  *  - only weak (far) senders, at most 5 neighbors, at most once every 10s
  *  - cancel if another node's relay of the same packet is heard first
- *  - per-source lockout so one aircraft cannot monopolize the relay
+ *  - per-source lockout so one aircraft cannot monopolize the relay - applied
+ *    only while other weak sources compete for it; a lone weak source is
+ *    forwarded at the full rate (once per 10s)
  */
 #define FANET_FWD_MAX_RSSI          (-90)
 #define FANET_FWD_MAX_NEIGHBORS     5
@@ -734,6 +736,7 @@ static uint32_t fwd_src       = 0;
 static uint32_t fwd_queued_ms = 0;
 static uint32_t fwd_due_ms    = 0;
 static uint32_t fwd_last_ms   = 0;
+static uint32_t fwd_contention_ms = 0;  /* last time a different source lost out */
 
 /* same packet as the pending forward, ignoring the forward bit */
 static bool fanet_fwd_same(const uint8_t *raw, size_t len)
@@ -789,18 +792,26 @@ void fanet_rx_forward(const uint8_t *raw, size_t len, int8_t rssi)
   uint32_t now = millis();
   uint8_t  n   = fanet_neighbor_count();
   const char *why = NULL;
+  bool lost_out = false;     /* eligible, but the relay is taken */
   if (rssi > FANET_FWD_MAX_RSSI)
     why = "RSSI";
   else if (n > FANET_FWD_MAX_NEIGHBORS)
     why = "neighbors";
-  else if (fwd_last_ms != 0 && (now - fwd_last_ms) < FANET_FWD_MIN_INTERVAL_MS)
+  else if (fwd_contention_ms != 0 && (now - fwd_contention_ms) < FANET_FWD_SRC_LOCKOUT_MS
+        && nb->last_fwd_ms != 0 && (now - nb->last_fwd_ms) < FANET_FWD_SRC_LOCKOUT_MS)
+    why = "src-lockout";     /* only while other sources compete for the relay */
+  else if (fwd_last_ms != 0 && (now - fwd_last_ms) < FANET_FWD_MIN_INTERVAL_MS) {
     why = "rate-limit";
-  else if (nb->last_fwd_ms != 0 && (now - nb->last_fwd_ms) < FANET_FWD_SRC_LOCKOUT_MS)
-    why = "src-lockout";
-  else if (fwd_len > 0)
+    lost_out = true;
+  } else if (fwd_len > 0) {
     why = "busy";
+    lost_out = true;
+  }
 
   if (why) {
+    /* a different source wanted the relay but lost out: from now on take turns */
+    if (lost_out && src != fwd_src)
+      fwd_contention_ms = now;
     Serial.printf("FWD: dropped (%s) type %d from %06X rssi %d nb %d\r\n",
                   why, (int) type, (unsigned) src, (int) rssi, (int) n);
     return;
