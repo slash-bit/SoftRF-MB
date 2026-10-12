@@ -55,9 +55,8 @@ uint32_t RF_OK_until  = 0;
 uint32_t TxTimeMarker = 0;
 uint32_t TxTimeMarker2 = 0;
 uint32_t TxEndMarker  = 0;
-/* FANET priority TX lane (ACK, message, forward) - separate from the
+/* FANET priority TX lane (ACK, message, forward, name) - separate from the
  * own-position tracking schedule above, which it never modifies */
-uint32_t PrioTxMarker  = 0;
 uint32_t LastFanetTxMs = 0;
 static bool prio_tx = false;   /* true while RF_Transmit() serves the priority lane */
 byte TxBuffer[MAX_PKT_SIZE] __attribute__((aligned(sizeof(uint32_t))));
@@ -3065,7 +3064,7 @@ void RF_loop()
         if (TxTimeMarker2 == 0) {   // tx happened in previous Slot 1
             uint32_t interval;
             if (dual_protocol == RF_FLR_FANET)
-                interval = 3805;
+                interval = 3805 + (fanet_tx_interval_ms() - 5000);  // scaled by neighbor count
             else              // RF_FLR_P3I
                 interval = 1805;
             uint32_t when = SoC->random(0, (565+565));
@@ -3162,15 +3161,15 @@ bool RF_Transmit_Ready(bool wait)
 }
 
 /*
- * FANET priority lane: ACKs, messages and (FANET-only mode) forwards are sent
- * as soon as possible, after a short random backoff, without waiting for -
- * or consuming - the own-position tracking slot.
+ * FANET priority lane: ACKs, messages, forwards (FANET-only mode) and name
+ * broadcasts are sent as soon as possible, each after its own short random
+ * backoff, without waiting for - or consuming - the own-position tracking slot.
  * In FLR+FANET time slicing it can only fire while the radio is listening
  * on FANET in Slot 1.
  */
-void RF_Priority_Schedule(uint32_t min_ms, uint32_t max_ms)
+uint32_t RF_Priority_Backoff(uint32_t min_ms, uint32_t max_ms)
 {
-    PrioTxMarker = millis() + SoC->random(min_ms, max_ms);
+    return millis() + SoC->random(min_ms, max_ms);   /* absolute due time */
 }
 
 bool RF_Priority_Ready()
@@ -3178,9 +3177,18 @@ bool RF_Priority_Ready()
     if (current_TX_protocol != RF_PROTOCOL_FANET)
         return false;
     uint32_t now_ms = millis();
-    if ((int32_t)(now_ms - PrioTxMarker) < 0)
-        return false;
     if (LastFanetTxMs != 0 && (now_ms - LastFanetTxMs) < RF_PRIO_GUARD_MS)
+        return false;
+    /* own tracking goes first once it is due - but only for a grace period,
+     * in case it cannot be sent (bad data, TX disabled, relay-only...) */
+    uint32_t track_due = 0;
+    if (dual_protocol == RF_FLR_FANET) {
+        if (TxTimeMarker2 != 0 && now_ms > TxTimeMarker2 && now_ms < TxEndMarker)
+            track_due = TxTimeMarker2;
+    } else if (TxEndMarker == 0 && now_ms > TxTimeMarker) {
+        track_due = TxTimeMarker;
+    }
+    if (track_due != 0 && (now_ms - track_due) < RF_PRIO_TRACK_GRACE_MS)
         return false;
     if (dual_protocol == RF_FLR_FANET)
         return (RF_current_slot == 1
@@ -3400,7 +3408,10 @@ OurTime, ms, (int)gnss.time.minute(), (int)gnss.time.second(), (RF_time & 0x0F),
         break;
       case RF_TIMING_INTERVAL:
       default:
-        TxTimeMarker = millis() + SoC->random(ts->interval_min, ts->interval_max) - ts->air_time;
+        if (current_TX_protocol == RF_PROTOCOL_FANET)   /* +-0.5s around neighbor-scaled interval */
+          TxTimeMarker = millis() + fanet_tx_interval_ms() + SoC->random(0, 1000) - 500 - ts->air_time;
+        else
+          TxTimeMarker = millis() + SoC->random(ts->interval_min, ts->interval_max) - ts->air_time;
         break;
       }
 

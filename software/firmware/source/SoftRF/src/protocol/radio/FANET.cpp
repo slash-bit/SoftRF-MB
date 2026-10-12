@@ -609,13 +609,8 @@ size_t fanet_encode(void *fanet_pkt, container_t *this_aircraft) {
     return fanet_type3_encode(fanet_pkt, this_aircraft, msg);
   }
 
-  /* Every 2 minutes, send a Name packet (Type 2) instead of tracking */
-  if ((fnf_session_name[0] || settings->fanet_name[0] != '\0') &&
-      (now - fanet_name_last_ms) >= FANET_NAME_INTERVAL_MS) {
-    fanet_name_last_ms = now;
-    size_t s = fanet_type2_encode(fanet_pkt, this_aircraft);
-    if (s > 0) return s;
-  }
+  /* Name packet (Type 2) is no longer sent instead of tracking -
+   * it goes out on the priority lane, see fanet_name_tx() */
 
   /* Distress mode: alternate SOS message and DISTRESS tracking */
   if (fanet_sos_state == FANET_SOS_DISTRESS) {
@@ -647,5 +642,225 @@ size_t fanet_encode(void *fanet_pkt, container_t *this_aircraft) {
 
   /* Otherwise send normal Tracking (Type 1) */
   return fanet_type1_encode(fanet_pkt, this_aircraft);
+}
+
+/*
+ * FANET neighbor table: every FANET source heard recently (any packet type).
+ * Used to scale the tracking interval and to gate forwarding.
+ */
+#define FANET_NEIGHBOR_TABLE_SIZE  32
+#define FANET_NEIGHBOR_TIMEOUT_MS  120000
+
+typedef struct {
+  uint32_t addr;
+  uint32_t last_rx_ms;
+  uint32_t last_fwd_ms;   /* when we last forwarded a packet from this source */
+} fanet_neighbor_t;
+
+static fanet_neighbor_t fanet_neighbors[FANET_NEIGHBOR_TABLE_SIZE];
+
+static fanet_neighbor_t *fanet_neighbor_find(uint32_t addr)
+{
+  uint32_t now = millis();
+  for (int i = 0; i < FANET_NEIGHBOR_TABLE_SIZE; i++) {
+    fanet_neighbor_t *nb = &fanet_neighbors[i];
+    if (nb->addr == addr && (now - nb->last_rx_ms) < FANET_NEIGHBOR_TIMEOUT_MS)
+      return nb;
+  }
+  return NULL;
+}
+
+static fanet_neighbor_t *fanet_neighbor_seen(uint32_t addr)
+{
+  uint32_t now = millis();
+  int oldest = 0;
+  uint32_t oldest_age = 0;
+  for (int i = 0; i < FANET_NEIGHBOR_TABLE_SIZE; i++) {
+    fanet_neighbor_t *nb = &fanet_neighbors[i];
+    if (nb->addr == addr) {
+      nb->last_rx_ms = now;
+      return nb;
+    }
+    uint32_t age = (nb->addr == 0) ? 0xFFFFFFFF : (now - nb->last_rx_ms);
+    if (age >= oldest_age) {
+      oldest_age = age;
+      oldest = i;
+    }
+  }
+  fanet_neighbor_t *nb = &fanet_neighbors[oldest];
+  nb->addr        = addr;
+  nb->last_rx_ms  = now;
+  nb->last_fwd_ms = 0;
+  return nb;
+}
+
+uint8_t fanet_neighbor_count(void)
+{
+  uint32_t now = millis();
+  uint8_t n = 0;
+  for (int i = 0; i < FANET_NEIGHBOR_TABLE_SIZE; i++) {
+    if (fanet_neighbors[i].addr != 0
+        && (now - fanet_neighbors[i].last_rx_ms) < FANET_NEIGHBOR_TIMEOUT_MS)
+      n++;
+  }
+  return n;
+}
+
+/* Tracking interval per FANET author guidance: floor((neighbors/10 + 1) * 5s) */
+uint32_t fanet_tx_interval_ms(void)
+{
+  uint32_t n = fanet_neighbor_count();
+  return ((5 * (n + 10)) / 10) * 1000;
+}
+
+/*
+ * FANET forwarding (FANET-only mode), per FANET author guidance:
+ *  - only packets with the forward bit set; relay 1:1 with forward bit cleared
+ *  - only weak (far) senders, at most 5 neighbors, at most once every 10s
+ *  - cancel if another node's relay of the same packet is heard first
+ *  - per-source lockout so one aircraft cannot monopolize the relay
+ */
+#define FANET_FWD_MAX_RSSI          (-90)
+#define FANET_FWD_MAX_NEIGHBORS     5
+#define FANET_FWD_MIN_INTERVAL_MS   10000
+#define FANET_FWD_SRC_LOCKOUT_MS    30000
+#define FANET_FWD_DELAY_MIN_MS      100
+#define FANET_FWD_DELAY_MAX_MS      300
+#define FANET_FWD_STALE_MS          2000
+
+static uint8_t  fwd_buf[MAX_PKT_SIZE];
+static size_t   fwd_len       = 0;
+static uint32_t fwd_src       = 0;
+static uint32_t fwd_queued_ms = 0;
+static uint32_t fwd_due_ms    = 0;
+static uint32_t fwd_last_ms   = 0;
+
+/* same packet as the pending forward, ignoring the forward bit */
+static bool fanet_fwd_same(const uint8_t *raw, size_t len)
+{
+  return (len == fwd_len
+       && (raw[0] & 0xBF) == (fwd_buf[0] & 0xBF)
+       && memcmp(raw + 1, fwd_buf + 1, len - 1) == 0);
+}
+
+/* Called for every received FANET packet (raw bytes, actual length) */
+void fanet_rx_forward(const uint8_t *raw, size_t len, int8_t rssi)
+{
+  if (len < FANET_HEADER_SIZE || len > MAX_PKT_SIZE)
+    return;
+
+  uint32_t src = ((uint32_t)raw[1] << 16) | ((uint32_t)raw[3] << 8) | raw[2];
+  if (src == ThisAircraft.addr)
+    return;
+
+  fanet_neighbor_t *nb = fanet_neighbor_seen(src);
+  bool    fwd_bit = (raw[0] >> 6) & 0x01;
+  uint8_t type    = raw[0] & 0x3F;
+
+  if (fwd_len > 0 && fanet_fwd_same(raw, len)) {
+    if (! fwd_bit) {
+      Serial.printf("FWD: dropped (overheard) type %d from %06X\r\n",
+                    (int) type, (unsigned) src);
+      fwd_len = 0;
+    }
+    return;    /* or a repeat of the original we already queued */
+  }
+
+  if (! fwd_bit)
+    return;
+  /* forwarding only in FANET-only mode */
+  if (dual_protocol != RF_SINGLE_PROTOCOL || settings->rf_protocol != RF_PROTOCOL_FANET)
+    return;
+  if (!(fnf_rfmode & FNF_RFMODE_FANET_TX) || settings->txpower == RF_TX_POWER_OFF)
+    return;
+
+  /* unicast: never if addressed to us, otherwise only to a known neighbor */
+  if ((raw[0] & 0x80) && len >= 8 && (raw[4] & 0x20)) {
+    uint32_t dest = ((uint32_t)raw[5] << 16) | ((uint32_t)raw[7] << 8) | raw[6];
+    if (dest == ThisAircraft.addr)
+      return;
+    if (fanet_neighbor_find(dest) == NULL) {
+      Serial.printf("FWD: dropped (dest not neighbor) type %d from %06X\r\n",
+                    (int) type, (unsigned) src);
+      return;
+    }
+  }
+
+  uint32_t now = millis();
+  uint8_t  n   = fanet_neighbor_count();
+  const char *why = NULL;
+  if (rssi > FANET_FWD_MAX_RSSI)
+    why = "RSSI";
+  else if (n > FANET_FWD_MAX_NEIGHBORS)
+    why = "neighbors";
+  else if (fwd_last_ms != 0 && (now - fwd_last_ms) < FANET_FWD_MIN_INTERVAL_MS)
+    why = "rate-limit";
+  else if (nb->last_fwd_ms != 0 && (now - nb->last_fwd_ms) < FANET_FWD_SRC_LOCKOUT_MS)
+    why = "src-lockout";
+  else if (fwd_len > 0)
+    why = "busy";
+
+  if (why) {
+    Serial.printf("FWD: dropped (%s) type %d from %06X rssi %d nb %d\r\n",
+                  why, (int) type, (unsigned) src, (int) rssi, (int) n);
+    return;
+  }
+
+  memcpy(fwd_buf, raw, len);
+  fwd_buf[0]   &= ~0x40;            /* clear forward bit: hop limit 2 */
+  fwd_len       = len;
+  fwd_src       = src;
+  fwd_queued_ms = now;
+  fwd_due_ms    = RF_Priority_Backoff(FANET_FWD_DELAY_MIN_MS, FANET_FWD_DELAY_MAX_MS);
+  Serial.printf("FWD: queued type %d from %06X rssi %d nb %d\r\n",
+                (int) type, (unsigned) src, (int) rssi, (int) n);
+}
+
+/* Priority lane: transmit the pending forward when due. Returns true if sent. */
+bool fanet_forward_tx(void)
+{
+  if (fwd_len == 0)
+    return false;
+  if ((millis() - fwd_queued_ms) > FANET_FWD_STALE_MS) {
+    Serial.printf("FWD: dropped (stale) from %06X\r\n", (unsigned) fwd_src);
+    fwd_len = 0;
+    return false;
+  }
+  if (! RF_TIME_REACHED(fwd_due_ms) || ! RF_Priority_Ready())
+    return false;
+
+  memcpy(TxBuffer, fwd_buf, fwd_len);
+  size_t len = fwd_len;
+  fwd_len = 0;                      /* clear before transmit so re-entry is safe */
+  RF_Transmit_Priority(len);
+  fwd_last_ms = millis();
+  fanet_neighbor_t *nb = fanet_neighbor_find(fwd_src);
+  if (nb)
+    nb->last_fwd_ms = fwd_last_ms;
+  Serial.printf("FWD: sent type %d from %06X len %d, %d ms after RX\r\n",
+                (int) (fwd_buf[0] & 0x3F), (unsigned) fwd_src, (int) len,
+                (int) (fwd_last_ms - fwd_queued_ms));
+  return true;
+}
+
+/* Priority lane: Name (Type 2) every FANET_NAME_INTERVAL_MS. Returns true if sent. */
+bool fanet_name_tx(void)
+{
+  if (!(fnf_rfmode & FNF_RFMODE_FANET_TX))
+    return false;
+  if (!fnf_session_name[0] && settings->fanet_name[0] == '\0')
+    return false;
+  if ((millis() - fanet_name_last_ms) < FANET_NAME_INTERVAL_MS)
+    return false;
+  if (! RF_Priority_Ready())
+    return false;
+
+  size_t s = fanet_type2_encode((void *) TxBuffer, &ThisAircraft);
+  if (s == 0)
+    return false;
+  fanet_name_last_ms = millis();
+  RF_Transmit_Priority(s);
+  Serial.println("FN_TX: transmitted Type 2 name");
+  return true;
 }
  

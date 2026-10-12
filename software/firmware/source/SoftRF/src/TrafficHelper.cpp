@@ -1675,6 +1675,7 @@ Serial.println(which_rx_try);
         if (fnf_len > sizeof(fo_raw)) fnf_len = sizeof(fo_raw);
         NMEA_FNF_Out(fo_raw, fnf_len);
         FN_check_ack(fo_raw, fnf_len);
+        fanet_rx_forward(fo_raw, fnf_len, RF_last_rssi);   /* neighbor table + relay */
     }
 
     EmptyFO(&fo);    /* to ensure no data from past packets remains in any field */

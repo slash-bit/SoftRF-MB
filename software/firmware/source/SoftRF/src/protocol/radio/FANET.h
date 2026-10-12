@@ -185,4 +185,10 @@ bool fanet_decode(void *, container_t *, ufo_t *);
 size_t fanet_encode(void *, container_t *);
 void   fanet_sos_cancel(void);
 
+uint8_t  fanet_neighbor_count(void);
+uint32_t fanet_tx_interval_ms(void);
+void     fanet_rx_forward(const uint8_t *raw, size_t len, int8_t rssi);
+bool     fanet_forward_tx(void);
+bool     fanet_name_tx(void);
+
 #endif /* PROTOCOL_FANET_H */
