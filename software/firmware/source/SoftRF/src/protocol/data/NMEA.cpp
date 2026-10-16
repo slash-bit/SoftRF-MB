@@ -3039,7 +3039,7 @@ void NMEA_Process_SRF_SKV_Sentences()
         cfg_is_updated = true;  // for non-UINT1 settings assume it's a change
         bool loaded = false;
         if (S_value.isUpdated())
-            query = (*S_value.value() == '?');
+            query = (*S_value.value() == '?' || *S_value.value() == '\0');  // empty field = query
         if (! query) {
             if (stgdesc[i].type == STG_UINT1)
                 cfg_is_updated = (*((uint8_t *)(stgdesc[i].value)) != atoi(S_value.value()));
