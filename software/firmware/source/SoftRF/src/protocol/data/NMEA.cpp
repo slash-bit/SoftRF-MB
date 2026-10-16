@@ -963,8 +963,9 @@ static uint32_t fn_tx_pending_due_ms = 0;   /* random backoff before TX */
 static uint8_t  fnf_ack_pending_mfr = 0;
 static uint16_t fnf_ack_pending_id  = 0;
 static uint32_t fnf_ack_pending_ms  = 0;
-#define FNF_ACK_TIMEOUT_MS  15000  /* FANET TX interval can exceed 5s; also allow
-                                     * time for the other party's own TX slot */
+#define FNF_ACK_TIMEOUT_MS   6000  /* counted from the actual TX: with the priority
+                                     * lane the message and the returning ACK each
+                                     * go out within about 1s (next Slot 1) */
 
 /* Retransmission of unicast ACK-required frames when no ACK arrives in time.
  * Original frame is kept so it can be re-queued unchanged (same payload,
@@ -1318,6 +1319,10 @@ bool FN_TX_check()
         size_t len = fn_tx_pending_len;
         fn_tx_pending_len = 0;   /* clear before transmit so re-entry is safe */
         RF_Transmit_Priority(len);
+        /* ACK timeout counts from the actual transmission, not from queueing */
+        if (fnf_ack_pending_ms != 0 && len == fnf_ack_pending_frame_len
+            && memcmp(fn_tx_pending_buf, fnf_ack_pending_frame, len) == 0)
+            fnf_ack_pending_ms = millis();
         Serial.print("FN_TX: transmitted queued frame, len=");
         Serial.println(len);
         return true;

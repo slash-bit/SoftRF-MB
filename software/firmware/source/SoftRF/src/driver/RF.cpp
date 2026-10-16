@@ -3147,6 +3147,39 @@ bool RF_Transmit_Happened()
     return (TxTimeMarker >= RF_OK_until);
 }
 
+/*
+ * FANET-only mode: transmit only within the FLARM-family Slot 1 window
+ * (805..1370 ms after PPS), while still listening to FANET all the time,
+ * so that time-sliced multi-protocol devices are likely to be listening
+ * to FANET when we transmit. Without a PPS reference timing stays free.
+ */
+#define FANET_SLOT1_START   805
+#define FANET_SLOT1_LEN     565
+
+static bool fanet_only_slotted()
+{
+    return (dual_protocol == RF_SINGLE_PROTOCOL
+         && current_TX_protocol == RF_PROTOCOL_FANET
+         && ref_time_ms != 0);
+}
+
+/* start of the Slot 1 window that contains time t, or else the next one */
+static uint32_t slot1_window_start(uint32_t t)
+{
+    int32_t d = (int32_t)(t - (ref_time_ms + FANET_SLOT1_START));
+    int32_t k = (d >= 0) ? (d / 1000) : -((-d + 999) / 1000);
+    uint32_t w = ref_time_ms + FANET_SLOT1_START + 1000 * k;
+    if ((int32_t)(t - (w + FANET_SLOT1_LEN)) >= 0)
+        w += 1000;
+    return w;
+}
+
+static bool in_slot1_window(uint32_t t)
+{
+    uint32_t w = slot1_window_start(t);
+    return ((int32_t)(t - w) >= 0 && t + FANET_AIR_TIME < w + FANET_SLOT1_LEN);
+}
+
 bool RF_Transmit_Ready(bool wait)
 {
     //if (RF_Transmit_Happened())
@@ -3159,8 +3192,11 @@ bool RF_Transmit_Ready(bool wait)
     if ((dual_protocol == RF_FLR_FANET && current_TX_protocol == RF_PROTOCOL_FANET)
     ||  (dual_protocol == RF_FLR_P3I   && current_TX_protocol == RF_PROTOCOL_P3I))
         return (TxTimeMarker2 != 0 && now_ms > TxTimeMarker2 && now_ms < TxEndMarker);
-    if (! TxEndMarker)                     // for protocols handled by the original code
+    if (! TxEndMarker) {                   // for protocols handled by the original code
+        if (fanet_only_slotted() && ! in_slot1_window(now_ms))
+            return false;
         return (now_ms > TxTimeMarker);
+    }
     return (now_ms >= (wait? TxTimeMarker : RF_OK_from) && now_ms < TxEndMarker);
 }
 
@@ -3199,7 +3235,18 @@ bool RF_Priority_Ready()
              && curr_rx_protocol_ptr == &fanet_proto_desc
              && now_ms >= PrioSlotFrom
              && now_ms + FANET_AIR_TIME < TxEndMarker);
-    return (dual_protocol == RF_SINGLE_PROTOCOL);
+    if (dual_protocol != RF_SINGLE_PROTOCOL)
+        return false;
+    if (! fanet_only_slotted())
+        return true;                       /* no PPS reference: free timing */
+    /* FANET-only: next Slot 1, from a random point within it */
+    static uint32_t prio_window = 0;
+    uint32_t w = slot1_window_start(now_ms);
+    if (w != prio_window) {
+        prio_window  = w;
+        PrioSlotFrom = w + SoC->random(0, 400);
+    }
+    return (now_ms >= PrioSlotFrom && now_ms + FANET_AIR_TIME < w + FANET_SLOT1_LEN);
 }
 
 bool RF_Transmit_Priority(size_t size)
@@ -3412,7 +3459,12 @@ OurTime, ms, (int)gnss.time.minute(), (int)gnss.time.second(), (RF_time & 0x0F),
         break;
       case RF_TIMING_INTERVAL:
       default:
-        if (current_TX_protocol == RF_PROTOCOL_FANET)   /* +-0.5s around neighbor-scaled interval */
+        if (current_TX_protocol == RF_PROTOCOL_FANET && fanet_only_slotted())
+          /* random point within the Slot 1 window around the neighbor-scaled
+           * interval (the -200 keeps the average interval at the nominal one) */
+          TxTimeMarker = slot1_window_start(millis() + fanet_tx_interval_ms() - 200)
+                       + SoC->random(0, FANET_SLOT1_LEN - FANET_AIR_TIME - 5);
+        else if (current_TX_protocol == RF_PROTOCOL_FANET)   /* +-0.5s around neighbor-scaled interval */
           TxTimeMarker = millis() + fanet_tx_interval_ms() + SoC->random(0, 1000) - 500 - ts->air_time;
         else
           TxTimeMarker = millis() + SoC->random(ts->interval_min, ts->interval_max) - ts->air_time;

@@ -721,10 +721,15 @@ uint32_t fanet_tx_interval_ms(void)
  *  - per-source lockout so one aircraft cannot monopolize the relay - applied
  *    only while other weak sources compete for it; a lone weak source is
  *    forwarded at the full rate (once per 10s)
+ *  - the 10s limit and the lockout apply to position packets (Type 1, 7) only;
+ *    messages (Type 3) are rare and not repeated, so they have their own light
+ *    limit and take precedence over a pending position forward
+ *  - other types (e.g. Type 2 Name) are not forwarded
  */
 #define FANET_FWD_MAX_RSSI          (-90)
 #define FANET_FWD_MAX_NEIGHBORS     5
 #define FANET_FWD_MIN_INTERVAL_MS   10000
+#define FANET_FWD_MSG_INTERVAL_MS   2000
 #define FANET_FWD_SRC_LOCKOUT_MS    30000
 #define FANET_FWD_DELAY_MIN_MS      100
 #define FANET_FWD_DELAY_MAX_MS      300
@@ -735,7 +740,8 @@ static size_t   fwd_len       = 0;
 static uint32_t fwd_src       = 0;
 static uint32_t fwd_queued_ms = 0;
 static uint32_t fwd_due_ms    = 0;
-static uint32_t fwd_last_ms   = 0;
+static uint32_t fwd_last_ms   = 0;      /* last position (Type 1/7) forward */
+static uint32_t fwd_msg_last_ms = 0;    /* last message (Type 3) forward */
 static uint32_t fwd_contention_ms = 0;  /* last time a different source lost out */
 
 /* same packet as the pending forward, ignoring the forward bit */
@@ -777,6 +783,10 @@ void fanet_rx_forward(const uint8_t *raw, size_t len, int8_t rssi)
   if (!(fnf_rfmode & FNF_RFMODE_FANET_TX) || settings->txpower == RF_TX_POWER_OFF)
     return;
 
+  bool is_msg = (type == 3);
+  if (! is_msg && type != 1 && type != 7)
+    return;                         /* only positions and messages are forwarded */
+
   /* unicast: never if addressed to us, otherwise only to a known neighbor */
   if ((raw[0] & 0x80) && len >= 8 && (raw[4] & 0x20)) {
     uint32_t dest = ((uint32_t)raw[5] << 16) | ((uint32_t)raw[7] << 8) | raw[6];
@@ -797,6 +807,15 @@ void fanet_rx_forward(const uint8_t *raw, size_t len, int8_t rssi)
     why = "RSSI";
   else if (n > FANET_FWD_MAX_NEIGHBORS)
     why = "neighbors";
+  else if (is_msg) {
+    if (fwd_msg_last_ms != 0 && (now - fwd_msg_last_ms) < FANET_FWD_MSG_INTERVAL_MS)
+      why = "msg-rate";
+    else if (fwd_len > 0 && (fwd_buf[0] & 0x3F) == 3)
+      why = "busy";
+    else if (fwd_len > 0)           /* a message takes the slot from a position */
+      Serial.printf("FWD: replaced pending type %d from %06X by message\r\n",
+                    (int) (fwd_buf[0] & 0x3F), (unsigned) fwd_src);
+  }
   else if (fwd_contention_ms != 0 && (now - fwd_contention_ms) < FANET_FWD_SRC_LOCKOUT_MS
         && nb->last_fwd_ms != 0 && (now - nb->last_fwd_ms) < FANET_FWD_SRC_LOCKOUT_MS)
     why = "src-lockout";     /* only while other sources compete for the relay */
@@ -844,13 +863,19 @@ bool fanet_forward_tx(void)
   size_t len = fwd_len;
   fwd_len = 0;                      /* clear before transmit so re-entry is safe */
   RF_Transmit_Priority(len);
-  fwd_last_ms = millis();
-  fanet_neighbor_t *nb = fanet_neighbor_find(fwd_src);
-  if (nb)
-    nb->last_fwd_ms = fwd_last_ms;
+  uint32_t now  = millis();
+  uint8_t  type = fwd_buf[0] & 0x3F;
+  if (type == 3) {
+    fwd_msg_last_ms = now;          /* messages do not use up the position limits */
+  } else {
+    fwd_last_ms = now;
+    fanet_neighbor_t *nb = fanet_neighbor_find(fwd_src);
+    if (nb)
+      nb->last_fwd_ms = now;
+  }
   Serial.printf("FWD: sent type %d from %06X len %d, %d ms after RX\r\n",
-                (int) (fwd_buf[0] & 0x3F), (unsigned) fwd_src, (int) len,
-                (int) (fwd_last_ms - fwd_queued_ms));
+                (int) type, (unsigned) fwd_src, (int) len,
+                (int) (now - fwd_queued_ms));
   return true;
 }
 
