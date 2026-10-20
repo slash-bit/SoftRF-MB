@@ -805,7 +805,9 @@ static bool FN_clear_pending_ack_if_match(uint8_t src_mfr, uint16_t src_id);
 
 void NMEA_FNF_Out(const uint8_t *raw, size_t raw_len)
 {
-    if (!FNF_enabled || raw_len < FANET_HEADER_SIZE)
+    /* Note: FNF_enabled is checked further down - the delivery ACK below
+     * must go out even when no app is connected. */
+    if (raw_len < FANET_HEADER_SIZE)
         return;
 
     /* Parse FANET header (4 bytes) */
@@ -813,6 +815,8 @@ void NMEA_FNF_Out(const uint8_t *raw, size_t raw_len)
 
     /* Type 0 = ACK — handled by FN_check_ack(), do not forward to app */
     if (type == 0) {
+        if (!FNF_enabled)
+            return;
         Serial.print("FNF: skip Type 0 ACK from ");
         Serial.print(raw[1], HEX);
         Serial.print(",");
@@ -844,6 +848,8 @@ void NMEA_FNF_Out(const uint8_t *raw, size_t raw_len)
         uint8_t our_mfr = (our_addr >> 16) & 0xFF;
         uint16_t our_id = our_addr & 0xFFFF;
         if (dest_mfr != our_mfr || dest_id != our_id) {
+            if (!FNF_enabled)
+                return;
             Serial.print("FNF: skip unicast Type ");
             Serial.print(type);
             Serial.print(" to ");
@@ -854,6 +860,22 @@ void NMEA_FNF_Out(const uint8_t *raw, size_t raw_len)
             return;
         }
     }
+
+    /* For a unicast message to us with ACK requested, send Type 0 ACK back
+     * to the sender so they know the message was delivered to this device.
+     * Done whether or not an app is connected. When the pilot presses OK in
+     * XCGuide, the app sends a separate "read ACK" (#FNT) which we transmit
+     * as a second acknowledgement. */
+    if (unicast && ack_requested) {
+        Serial.print("FNF: sending delivery ACK to ");
+        Serial.print(vendor, HEX);
+        Serial.print(",");
+        Serial.println(address, HEX);
+        FN_transmit_ack(vendor, address);
+    }
+
+    if (!FNF_enabled)
+        return;
 
     size_t payload_len = (raw_len > payload_offset) ? raw_len - payload_offset : 0;
 
@@ -904,18 +926,6 @@ void NMEA_FNF_Out(const uint8_t *raw, size_t raw_len)
 
     /* Send directly to BLE (FNF is BLE-only, not a standard NMEA sentence) */
     NMEA_Out(DEST_BLUETOOTH, NMEABuffer, len, true);
-
-    /* For a unicast message to us with ACK requested, send Type 0 ACK back
-     * to the sender so they know the message was delivered to this device.
-     * When the pilot presses OK in XCGuide, the app sends a separate
-     * "read ACK" (#FNT) which we transmit as a second acknowledgement. */
-    if (unicast && ack_requested) {
-        Serial.print("FNF: sending delivery ACK to ");
-        Serial.print(vendor, HEX);
-        Serial.print(",");
-        Serial.println(address, HEX);
-        FN_transmit_ack(vendor, address);
-    }
 }
 
 /*
