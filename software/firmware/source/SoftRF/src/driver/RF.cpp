@@ -50,6 +50,7 @@ byte RxBuffer[MAX_PKT_SIZE] __attribute__((aligned(sizeof(uint32_t))));
 uint32_t RF_time;
 uint8_t RF_current_slot = 0;
 uint8_t RF_current_chan = 0;
+static uint32_t RF_freq_khz = 0;   /* frequency the radio was last tuned to (debug output) */
 uint32_t RF_OK_from   = 0;
 uint32_t RF_OK_until  = 0;
 uint32_t TxTimeMarker = 0;
@@ -60,6 +61,7 @@ uint32_t TxEndMarker  = 0;
 uint32_t LastFanetTxMs = 0;
 static uint32_t PrioSlotFrom = 0;   /* FLR+FANET: earliest priority TX in this Slot 1 */
 static bool prio_tx = false;   /* true while RF_Transmit() serves the priority lane */
+static bool prio_exact = false;   /* ...for a frame with its own spread due time */
 byte TxBuffer[MAX_PKT_SIZE] __attribute__((aligned(sizeof(uint32_t))));
 
 uint32_t tx_packets_counter = 0;
@@ -787,6 +789,7 @@ static void sx12xx_channel(uint8_t channel)
     } else {
       LMIC.freq = frequency;
     }
+    RF_freq_khz = LMIC.freq / 1000;
     /* Actual RF chip's channel registers will be updated before each Tx or Rx session */
 
     sx12xx_channel_prev = channel;
@@ -969,8 +972,9 @@ static bool sx12xx_receive()
 if (settings->debug_flags & DEBUG_DEEPER) {
 uint32_t ms = millis() - ref_time_ms;
 if (ms < 300)  ms += 1000;
-Serial.printf("RX in prot %d, time slot %d, sec %d(%d) + %d ms\r\n",
-    RF_last_protocol, RF_current_slot, RF_time, (RF_time & 0x0F), ms);
+Serial.printf("RX in prot %d, time slot %d, sec %d(%d) + %d ms, %lu kHz, rssi %d\r\n",
+    RF_last_protocol, RF_current_slot, RF_time, (RF_time & 0x0F), ms,
+    (unsigned long) RF_freq_khz, (int) RF_last_rssi);
 }
 
   }
@@ -3212,7 +3216,35 @@ uint32_t RF_Priority_Backoff(uint32_t min_ms, uint32_t max_ms)
     return millis() + SoC->random(min_ms, max_ms);   /* absolute due time */
 }
 
-bool RF_Priority_Ready()
+/*
+ * Absolute due time: min_ms from now, plus usable_ms of time in which a TX
+ * is allowed. In FANET-only slotted mode only time inside the Slot 1 windows
+ * counts, so a random usable_ms spreads evenly over the coming windows
+ * instead of piling up at the start of the next one.
+ * Use with RF_Transmit_Priority(size, true), which skips the random start.
+ */
+uint32_t RF_Priority_Spread(uint32_t min_ms, uint32_t usable_ms)
+{
+    uint32_t t = millis() + min_ms;
+    if (! fanet_only_slotted())
+        return t + usable_ms;
+    for (int i = 0; i < 10; i++) {
+        uint32_t w = slot1_window_start(t);
+        if ((int32_t)(t - w) < 0)
+            t = w;
+        uint32_t end   = w + FANET_SLOT1_LEN - FANET_AIR_TIME - 1;
+        uint32_t avail = ((int32_t)(end - t) > 0) ? (end - t) : 0;
+        if (usable_ms < avail)
+            return t + usable_ms;
+        usable_ms -= avail;
+        t = w + FANET_SLOT1_LEN;           /* on to the next window */
+    }
+    return t;
+}
+
+/* exact: the caller already picked its own time (RF_Priority_Spread), so
+ * skip the random start within the FANET-only Slot 1 window */
+bool RF_Priority_Ready(bool exact)
 {
     if (current_TX_protocol != RF_PROTOCOL_FANET)
         return false;
@@ -3246,16 +3278,18 @@ bool RF_Priority_Ready()
         prio_window  = w;
         PrioSlotFrom = w + SoC->random(0, 400);
     }
-    return (now_ms >= PrioSlotFrom && now_ms + FANET_AIR_TIME < w + FANET_SLOT1_LEN);
+    return ((exact || now_ms >= PrioSlotFrom) && now_ms + FANET_AIR_TIME < w + FANET_SLOT1_LEN);
 }
 
-bool RF_Transmit_Priority(size_t size)
+bool RF_Transmit_Priority(size_t size, bool exact)
 {
-    if (! RF_Priority_Ready())
+    if (! RF_Priority_Ready(exact))
         return false;
     prio_tx = true;
+    prio_exact = exact;
     bool rval = RF_Transmit(size, true);
     prio_tx = false;
+    prio_exact = false;
     return rval;
 }
 
@@ -3311,7 +3345,7 @@ bool RF_Transmit(size_t size, bool wait)   // only called with no-wait for air-r
 
       /* Experimental code by Moshe Braner */
 
-      if (prio_tx ? RF_Priority_Ready() : RF_Transmit_Ready(wait)) {
+      if (prio_tx ? RF_Priority_Ready(prio_exact) : RF_Transmit_Ready(wait)) {
 #if defined(USE_LR1110)
         if (rf_chip && rf_chip->type == RF_IC_LR1110) {
           /* For LR1110: compare against actual hardware state (lr11xx_current_protocol_ptr).
@@ -3345,9 +3379,9 @@ bool RF_Transmit(size_t size, bool wait)   // only called with no-wait for air-r
                 success = false;
 
 if (settings->debug_flags & DEBUG_DEEPER) {
-Serial.printf("TX in protocol %d(%s) at %d ms, size=%d\r\n",
+Serial.printf("TX in protocol %d(%s) at %d ms, size=%d, %lu kHz\r\n",
     current_TX_protocol, ((curr_tx_protocol_ptr == &latest_proto_desc)? "T" : (curr_tx_protocol_ptr == &adsl_proto_desc)? "A" : "?"),
-    millis()-ref_time_ms, RF_tx_size);
+    millis()-ref_time_ms, RF_tx_size, (unsigned long) RF_freq_khz);
 }
             RF_tx_size = 0;
         }
@@ -3420,7 +3454,7 @@ OurTime, ms, (int)gnss.time.minute(), (int)gnss.time.second(), (RF_time & 0x0F),
 
     /* original code for other protocols: */
 
-    if (prio_tx ? RF_Priority_Ready() : (!wait || millis() > TxTimeMarker)) {
+    if (prio_tx ? RF_Priority_Ready(prio_exact) : (!wait || millis() > TxTimeMarker)) {
 
       uint32_t timestamp = OurTime;
 
@@ -3633,6 +3667,7 @@ static void lr11xx_channel(uint8_t channel)
     };
 
     int state = lr11xx_radio->setFrequency((frequency + (fc * 1000)) / 1000000.0);
+    RF_freq_khz = (frequency + (fc * 1000)) / 1000;
 
 #if 0
     if (state == RADIOLIB_ERR_INVALID_FREQUENCY) {
@@ -3941,6 +3976,7 @@ static void lr11xx_setup()
 
     if (high) {
     state = lr11xx_radio->setFrequency(frequency / 1000000.0);
+    RF_freq_khz = frequency / 1000;
 
 #if RADIOLIB_DEBUG_BASIC
     if (state == RADIOLIB_ERR_INVALID_FREQUENCY) {
@@ -4767,8 +4803,9 @@ if (lr11xx_receive_complete == true) {
       if (settings->debug_flags) {
         uint32_t ms = millis() - ref_time_ms;
         if (ms < 300)  ms += 1000;
-        Serial.printf("RX in prot %d, time slot %d, sec %d(%d) + %d ms\r\n",
-            current_RX_protocol, RF_current_slot, (long)RF_time, int(RF_time & 0x0F), ms);
+        Serial.printf("RX in prot %d, time slot %d, sec %d(%d) + %d ms, %lu kHz, rssi %d\r\n",
+            current_RX_protocol, RF_current_slot, (long)RF_time, int(RF_time & 0x0F), ms,
+            (unsigned long) RF_freq_khz, (int) RF_last_rssi);
       }
     } else {
       // len == 0: radio fired IRQ but no data available.

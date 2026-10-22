@@ -161,8 +161,9 @@ bool    RF_Transmit(size_t size, bool wait);
 #define RF_PRIO_MSG_MAX_MS     150
 #define RF_TIME_REACHED(t)    ((int32_t)(millis() - (t)) >= 0)
 uint32_t RF_Priority_Backoff(uint32_t min_ms, uint32_t max_ms);
-bool    RF_Priority_Ready(void);
-bool    RF_Transmit_Priority(size_t size);
+uint32_t RF_Priority_Spread(uint32_t min_ms, uint32_t usable_ms);
+bool    RF_Priority_Ready(bool exact = false);
+bool    RF_Transmit_Priority(size_t size, bool exact = false);
 bool    RF_Receive(void);
 void    RF_Shutdown(void);
 uint8_t RF_Payload_Size(uint8_t);

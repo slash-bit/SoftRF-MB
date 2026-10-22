@@ -1296,14 +1296,17 @@ void FN_check_ack_timeout()
  */
 bool FN_TX_check()
 {
-    if (!RF_Priority_Ready())
+    /* forwards pick their own spread due time (exact), the others also wait
+     * for the random start within the Slot 1 window */
+    if (!RF_Priority_Ready(true))
         return false;
+    bool slot_ready = RF_Priority_Ready();
 
     /* A hardware-level Type 0 ACK we owe takes priority over anything sitting
      * in fn_tx_pending_buf (e.g. an app-queued #FNT frame) - it has no
      * payload so it's built here on the fly rather than pre-rendered into
      * that shared buffer. */
-    if (fn_ack_owed && RF_TIME_REACHED(fn_ack_due_ms)) {
+    if (slot_ready && fn_ack_owed && RF_TIME_REACHED(fn_ack_due_ms)) {
 
         uint32_t id = ThisAircraft.addr;
         TxBuffer[0] = 0x80;                     /* type=0, forward=0, ext_header=1 */
@@ -1324,7 +1327,7 @@ bool FN_TX_check()
         return true;
     }
 
-    if (fn_tx_pending_len > 0 && RF_TIME_REACHED(fn_tx_pending_due_ms)) {
+    if (slot_ready && fn_tx_pending_len > 0 && RF_TIME_REACHED(fn_tx_pending_due_ms)) {
         memcpy(TxBuffer, fn_tx_pending_buf, fn_tx_pending_len);
         size_t len = fn_tx_pending_len;
         fn_tx_pending_len = 0;   /* clear before transmit so re-entry is safe */

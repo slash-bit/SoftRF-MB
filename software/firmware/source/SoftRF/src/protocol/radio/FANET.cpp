@@ -755,9 +755,16 @@ uint32_t fanet_tx_interval_ms(void)
 #define FANET_FWD_PAIRS             4
 #define FANET_FWD_PAIR_TIMEOUT_MS   300000
 #define FANET_FWD_ACK_DEDUP_MS      5000
+/* forward delay = DELAY_MIN + up to RANK + up to JITTER ms of usable TX time
+ * (in FANET-only slotted mode only Slot 1 time counts, ~530 ms per second).
+ * The better placed relay (higher above / farther from the sender) gets less
+ * of RANK, so it usually goes first and the others hear it and cancel. */
 #define FANET_FWD_DELAY_MIN_MS      100
-#define FANET_FWD_DELAY_MAX_MS      300
-#define FANET_FWD_STALE_MS          2000
+#define FANET_FWD_RANK_MS           700
+#define FANET_FWD_JITTER_MS         400
+#define FANET_FWD_RANK_BELOW_M      2000    /* this far below = best rank */
+#define FANET_FWD_RANK_DIST_M       20000   /* Type 1: this far away = best rank */
+#define FANET_FWD_STALE_MS          3500
 
 /* message pairs we relayed a Type 3 between (either direction) */
 typedef struct {
@@ -897,6 +904,9 @@ void fanet_rx_forward(const uint8_t *raw, size_t len, int8_t rssi)
   const char *why = NULL;
   bool lost_out = false;     /* eligible, but the relay is taken */
   bool urgent   = false;     /* may take the slot from a pending position */
+  float rank    = 0.5f;      /* 0..1, 1 = best placed relay; unknown = middle */
+  if (below_known)
+    rank = (float) below / FANET_FWD_RANK_BELOW_M;
 
   switch (type) {
   case 0:                           /* ACK between a relayed message pair */
@@ -962,10 +972,13 @@ void fanet_rx_forward(const uint8_t *raw, size_t len, int8_t rssi)
     payload_absolut2coord(&lat, &lon, (uint8_t *) raw + FANET_HEADER_SIZE);
     float y = 111300.0f * (lat - ThisAircraft.latitude);
     float x = 111300.0f * (lon - ThisAircraft.longitude) * CosLat();
-    if (hypotf(x, y) <= FANET_FWD_AIR_DIST_M && below < FANET_FWD_AIR_BELOW_M) {
+    float dist = hypotf(x, y);
+    if (dist <= FANET_FWD_AIR_DIST_M && below < FANET_FWD_AIR_BELOW_M) {
       why = "near";
       break;
     }
+    if (dist / FANET_FWD_RANK_DIST_M > rank)
+      rank = dist / FANET_FWD_RANK_DIST_M;
     if (n >= FANET_FWD_BUSY_NEIGHBORS) {
       if (nb->last_fwd_ms != 0 && (now - nb->last_fwd_ms) < FANET_FWD_BUSY_INTERVAL_MS)
         why = "src-rate";
@@ -1012,10 +1025,15 @@ void fanet_rx_forward(const uint8_t *raw, size_t len, int8_t rssi)
   fwd_dest      = dest;
   fwd_urgent    = urgent;
   fwd_queued_ms = now;
-  fwd_due_ms    = RF_Priority_Backoff(FANET_FWD_DELAY_MIN_MS, FANET_FWD_DELAY_MAX_MS);
-  Serial.printf("FWD: queued type %d from %06X rssi %d nb %d below %d%s\r\n",
+  if (rank < 0.0f) rank = 0.0f;
+  if (rank > 1.0f) rank = 1.0f;
+  uint32_t usable = (uint32_t) ((1.0f - rank) * FANET_FWD_RANK_MS)
+                  + SoC->random(0, FANET_FWD_JITTER_MS);
+  fwd_due_ms    = RF_Priority_Spread(FANET_FWD_DELAY_MIN_MS, usable);
+  Serial.printf("FWD: queued type %d from %06X rssi %d nb %d below %d%s rank %d%% in %d ms\r\n",
                 (int) type, (unsigned) src, (int) rssi, (int) n,
-                (int) below, below_known ? "" : "?");
+                (int) below, below_known ? "" : "?",
+                (int) (rank * 100), (int) (fwd_due_ms - now));
 }
 
 /* Priority lane: transmit the pending forward when due. Returns true if sent. */
@@ -1028,13 +1046,13 @@ bool fanet_forward_tx(void)
     fwd_len = 0;
     return false;
   }
-  if (! RF_TIME_REACHED(fwd_due_ms) || ! RF_Priority_Ready())
+  if (! RF_TIME_REACHED(fwd_due_ms) || ! RF_Priority_Ready(true))
     return false;
 
   memcpy(TxBuffer, fwd_buf, fwd_len);
   size_t len = fwd_len;
   fwd_len = 0;                      /* clear before transmit so re-entry is safe */
-  RF_Transmit_Priority(len);
+  RF_Transmit_Priority(len, true);  /* exact: due time already spread */
   uint32_t now  = millis();
   uint8_t  type = fwd_buf[0] & 0x3F;
   if (type == 3) {
