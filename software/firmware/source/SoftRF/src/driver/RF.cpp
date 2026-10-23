@@ -4176,6 +4176,9 @@ static void lr11xx_transmit()
           (uint8_t *) &tx_proto->syncword[0],
           (size_t)    (tx_proto->syncword_size));
   state = lr11xx_radio->transmit((uint8_t *) &RL_txPacket.payload, (size_t) RL_txPacket.len);
+  // TxDone raised the shared IRQ pin, so the RX handler set the flag too;
+  // transmit() already cleared the radio's IRQ status - not a received packet
+  lr11xx_receive_complete = false;
   // Restore RX syncword. For FLARM/Latest: skip 2 bytes so XC Tracer packets are received.
   // For ADSL: use full syncword (no skip) — the LR1110 needs all 8 bytes for reliable detection.
   {
