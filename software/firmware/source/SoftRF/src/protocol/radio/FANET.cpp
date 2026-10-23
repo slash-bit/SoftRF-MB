@@ -704,7 +704,7 @@ typedef struct {
   uint32_t addr;
   uint32_t last_rx_ms;
   uint32_t last_fwd_ms;   /* when we last forwarded a position packet from this source */
-  int16_t  alt_m;         /* altitude from its last Type 1 (Type 7 carries none) */
+  int16_t  alt_m;         /* altitude above the ellipsoid from its last Type 1 (Type 7 carries none) */
   bool     alt_valid;
 } fanet_neighbor_t;
 
@@ -860,8 +860,7 @@ static bool fanet_fwd_below(const fanet_neighbor_t *nb, int32_t *below)
 {
   if (! nb->alt_valid || ! isValidFix())
     return false;
-  /* alt_m is FANET altitude (above MSL), ours is above the ellipsoid */
-  *below = (int32_t) (ThisAircraft.altitude - ThisAircraft.geoid_separation) - nb->alt_m;
+  *below = (int32_t) ThisAircraft.altitude - nb->alt_m;   /* both above the ellipsoid */
   return true;
 }
 
@@ -906,7 +905,9 @@ void fanet_rx_forward(const uint8_t *raw, size_t len, int8_t rssi)
     int alt = ((p[7] & 0x07) << 8) | p[6];
     if (p[7] & 0x08)
       alt *= 4;
-    nb->alt_m     = (int16_t) alt;
+    /* FANET altitude is above MSL - keep it above the ellipsoid, like all
+     * internal altitudes */
+    nb->alt_m     = (int16_t) (alt + ThisAircraft.geoid_separation);
     nb->alt_valid = true;
   }
 
