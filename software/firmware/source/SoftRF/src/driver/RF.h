@@ -151,6 +151,19 @@ bool    RF_Transmit_Happened();
 bool    RF_Transmit_Ready(bool wait);
 size_t  RF_Encode(container_t *cip, bool wait);
 bool    RF_Transmit(size_t size, bool wait);
+
+/* FANET priority TX lane (ACK, message, forward, name) */
+#define RF_PRIO_GUARD_MS        50   /* min gap between consecutive FANET TXs */
+#define RF_PRIO_TRACK_GRACE_MS 200   /* own tracking, once due, goes first for this long */
+#define RF_PRIO_ACK_MIN_MS      20   /* random backoff before a priority TX */
+#define RF_PRIO_ACK_MAX_MS      80
+#define RF_PRIO_MSG_MIN_MS      50
+#define RF_PRIO_MSG_MAX_MS     150
+#define RF_TIME_REACHED(t)    ((int32_t)(millis() - (t)) >= 0)
+uint32_t RF_Priority_Backoff(uint32_t min_ms, uint32_t max_ms);
+uint32_t RF_Priority_Spread(uint32_t min_ms, uint32_t usable_ms);
+bool    RF_Priority_Ready(bool exact = false);
+bool    RF_Transmit_Priority(size_t size, bool exact = false);
 bool    RF_Receive(void);
 void    RF_Shutdown(void);
 uint8_t RF_Payload_Size(uint8_t);

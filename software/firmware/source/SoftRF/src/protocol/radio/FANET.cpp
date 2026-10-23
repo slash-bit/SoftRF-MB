@@ -23,6 +23,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <math.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -30,6 +31,8 @@
 #include <TimeLib.h>
 
 #include "../../../SoftRF.h"
+#include "../../TrafficHelper.h"
+#include "../../driver/GNSS.h"
 #include "../../driver/RF.h"
 #include "FANET.h"
 #include "../../driver/Settings.h"
@@ -609,13 +612,8 @@ size_t fanet_encode(void *fanet_pkt, container_t *this_aircraft) {
     return fanet_type3_encode(fanet_pkt, this_aircraft, msg);
   }
 
-  /* Every 2 minutes, send a Name packet (Type 2) instead of tracking */
-  if ((fnf_session_name[0] || settings->fanet_name[0] != '\0') &&
-      (now - fanet_name_last_ms) >= FANET_NAME_INTERVAL_MS) {
-    fanet_name_last_ms = now;
-    size_t s = fanet_type2_encode(fanet_pkt, this_aircraft);
-    if (s > 0) return s;
-  }
+  /* Name packet (Type 2) is no longer sent instead of tracking -
+   * it goes out on the priority lane, see fanet_name_tx() */
 
   /* Distress mode: alternate SOS message and DISTRESS tracking */
   if (fanet_sos_state == FANET_SOS_DISTRESS) {
@@ -647,5 +645,453 @@ size_t fanet_encode(void *fanet_pkt, container_t *this_aircraft) {
 
   /* Otherwise send normal Tracking (Type 1) */
   return fanet_type1_encode(fanet_pkt, this_aircraft);
+}
+
+/*
+ * FANET neighbor table: every FANET source heard recently (any packet type).
+ * Used to scale the tracking interval and to gate forwarding.
+ */
+#define FANET_NEIGHBOR_TABLE_SIZE  32
+#define FANET_NEIGHBOR_TIMEOUT_MS  120000
+
+typedef struct {
+  uint32_t addr;
+  uint32_t last_rx_ms;
+  uint32_t last_fwd_ms;   /* when we last forwarded a position packet from this source */
+  int16_t  alt_m;         /* altitude from its last Type 1 (Type 7 carries none) */
+  bool     alt_valid;
+} fanet_neighbor_t;
+
+static fanet_neighbor_t fanet_neighbors[FANET_NEIGHBOR_TABLE_SIZE];
+
+static fanet_neighbor_t *fanet_neighbor_find(uint32_t addr)
+{
+  uint32_t now = millis();
+  for (int i = 0; i < FANET_NEIGHBOR_TABLE_SIZE; i++) {
+    fanet_neighbor_t *nb = &fanet_neighbors[i];
+    if (nb->addr == addr && (now - nb->last_rx_ms) < FANET_NEIGHBOR_TIMEOUT_MS)
+      return nb;
+  }
+  return NULL;
+}
+
+static fanet_neighbor_t *fanet_neighbor_seen(uint32_t addr)
+{
+  uint32_t now = millis();
+  int oldest = 0;
+  uint32_t oldest_age = 0;
+  for (int i = 0; i < FANET_NEIGHBOR_TABLE_SIZE; i++) {
+    fanet_neighbor_t *nb = &fanet_neighbors[i];
+    if (nb->addr == addr) {
+      nb->last_rx_ms = now;
+      return nb;
+    }
+    uint32_t age = (nb->addr == 0) ? 0xFFFFFFFF : (now - nb->last_rx_ms);
+    if (age >= oldest_age) {
+      oldest_age = age;
+      oldest = i;
+    }
+  }
+  fanet_neighbor_t *nb = &fanet_neighbors[oldest];
+  nb->addr        = addr;
+  nb->last_rx_ms  = now;
+  nb->last_fwd_ms = 0;
+  nb->alt_valid   = false;
+  return nb;
+}
+
+uint8_t fanet_neighbor_count(void)
+{
+  uint32_t now = millis();
+  uint8_t n = 0;
+  for (int i = 0; i < FANET_NEIGHBOR_TABLE_SIZE; i++) {
+    if (fanet_neighbors[i].addr != 0
+        && (now - fanet_neighbors[i].last_rx_ms) < FANET_NEIGHBOR_TIMEOUT_MS)
+      n++;
+  }
+  return n;
+}
+
+/* Tracking interval per FANET author guidance: floor((neighbors/10 + 1) * 5s) */
+uint32_t fanet_tx_interval_ms(void)
+{
+  uint32_t n = fanet_neighbor_count();
+  return ((5 * (n + 10)) / 10) * 1000;
+}
+
+/*
+ * FANET forwarding (FANET-only mode), per FANET author guidance + Issue #7
+ * rules. "Below" means how far the sender is below us; a relay is only
+ * useful when it is higher than the sender.
+ *  - only packets with the forward bit set; relay 1:1 with forward bit
+ *    cleared (hop limit 2). Exception: a Type 0 ACK between a message pair
+ *    we relayed (its sender clears the bit)
+ *  - cancel if another node's relay of the same packet is heard first
+ *  - Type 1: only if > 10 km away OR >= 1000 m below us; none above 10
+ *    neighbors; with 5+ neighbors once per minute per source; otherwise
+ *    once every 10s, with a per-source lockout while other sources compete
+ *  - Type 7: distress (13-15) if >= 100 m below, need ride / landed OK (8, 9)
+ *    if >= 300 m below, any distance; once per minute per source; others not
+ *    forwarded. Type 7 has no altitude - the sender's last Type 1 altitude is
+ *    used, unknown counts as a pass
+ *  - Type 3: unicast only, to a known neighbor, sender >= 500 m below (unknown
+ *    counts as a pass). The pair is then remembered for 5 minutes, and its
+ *    replies and ACKs are forwarded regardless of height / neighbor
+ *  - messages, ACKs and distress take the slot from a pending position forward
+ *  - other types (e.g. Type 2 Name, broadcast messages) are not forwarded
+ */
+#define FANET_FWD_MAX_NEIGHBORS     10      /* Type 1: none above this */
+#define FANET_FWD_BUSY_NEIGHBORS    5       /* Type 1: from here once/min/source */
+#define FANET_FWD_MIN_INTERVAL_MS   10000
+#define FANET_FWD_BUSY_INTERVAL_MS  60000
+#define FANET_FWD_GROUND_INTERVAL_MS 60000
+#define FANET_FWD_MSG_INTERVAL_MS   2000
+#define FANET_FWD_SRC_LOCKOUT_MS    30000
+#define FANET_FWD_AIR_DIST_M        10000
+#define FANET_FWD_AIR_BELOW_M       1000
+#define FANET_FWD_DISTRESS_BELOW_M  100
+#define FANET_FWD_LANDED_BELOW_M    300
+#define FANET_FWD_MSG_BELOW_M       500
+#define FANET_FWD_PAIRS             4
+#define FANET_FWD_PAIR_TIMEOUT_MS   300000
+#define FANET_FWD_ACK_DEDUP_MS      5000
+/* forward delay = DELAY_MIN + up to RANK + up to JITTER ms of usable TX time
+ * (in FANET-only slotted mode only Slot 1 time counts, ~530 ms per second).
+ * The better placed relay (higher above / farther from the sender) gets less
+ * of RANK, so it usually goes first and the others hear it and cancel. */
+#define FANET_FWD_DELAY_MIN_MS      100
+#define FANET_FWD_RANK_MS           700
+#define FANET_FWD_JITTER_MS         400
+#define FANET_FWD_RANK_BELOW_M      2000    /* this far below = best rank */
+#define FANET_FWD_RANK_DIST_M       20000   /* Type 1: this far away = best rank */
+#define FANET_FWD_STALE_MS          3500
+
+/* message pairs we relayed a Type 3 between (either direction) */
+typedef struct {
+  uint32_t a, b;
+  uint32_t last_ms;       /* last relayed message, 0 = free */
+  uint32_t ack_fwd_ms;    /* last relayed (or overheard relayed) ACK */
+} fanet_fwd_pair_t;
+
+static fanet_fwd_pair_t fwd_pairs[FANET_FWD_PAIRS];
+
+static fanet_fwd_pair_t *fanet_pair_find(uint32_t x, uint32_t y)
+{
+  uint32_t now = millis();
+  for (int i = 0; i < FANET_FWD_PAIRS; i++) {
+    fanet_fwd_pair_t *p = &fwd_pairs[i];
+    if (p->last_ms != 0 && (now - p->last_ms) < FANET_FWD_PAIR_TIMEOUT_MS
+        && ((p->a == x && p->b == y) || (p->a == y && p->b == x)))
+      return p;
+  }
+  return NULL;
+}
+
+static void fanet_pair_add(uint32_t x, uint32_t y)
+{
+  uint32_t now = millis();
+  fanet_fwd_pair_t *p = fanet_pair_find(x, y);
+  if (p == NULL) {
+    int oldest = 0;
+    uint32_t oldest_age = 0;
+    for (int i = 0; i < FANET_FWD_PAIRS; i++) {
+      uint32_t age = (fwd_pairs[i].last_ms == 0) ? 0xFFFFFFFF : (now - fwd_pairs[i].last_ms);
+      if (age >= oldest_age) {
+        oldest_age = age;
+        oldest = i;
+      }
+    }
+    p = &fwd_pairs[oldest];
+    p->a = x;
+    p->b = y;
+    p->ack_fwd_ms = 0;
+  }
+  p->last_ms = now;
+}
+
+/* how far the source is below us (m); false if its or our altitude is unknown */
+static bool fanet_fwd_below(const fanet_neighbor_t *nb, int32_t *below)
+{
+  if (! nb->alt_valid || ! isValidFix())
+    return false;
+  *below = (int32_t) ThisAircraft.altitude - nb->alt_m;
+  return true;
+}
+
+static uint8_t  fwd_buf[MAX_PKT_SIZE];
+static size_t   fwd_len       = 0;
+static uint32_t fwd_src       = 0;
+static uint32_t fwd_dest      = 0;      /* unicast destination, 0 = broadcast */
+static bool     fwd_urgent    = false;  /* message / ACK / distress */
+static uint32_t fwd_queued_ms = 0;
+static uint32_t fwd_due_ms    = 0;
+static uint32_t fwd_last_ms   = 0;      /* last position (Type 1/7) forward */
+static uint32_t fwd_msg_last_ms = 0;    /* last message (Type 3) forward */
+static uint32_t fwd_contention_ms = 0;  /* last time a different source lost out */
+
+/* same packet as the pending forward, ignoring the forward bit */
+static bool fanet_fwd_same(const uint8_t *raw, size_t len)
+{
+  return (len == fwd_len
+       && (raw[0] & 0xBF) == (fwd_buf[0] & 0xBF)
+       && memcmp(raw + 1, fwd_buf + 1, len - 1) == 0);
+}
+
+/* Called for every received FANET packet (raw bytes, actual length) */
+void fanet_rx_forward(const uint8_t *raw, size_t len, int8_t rssi)
+{
+  if (len < FANET_HEADER_SIZE || len > MAX_PKT_SIZE)
+    return;
+
+  uint32_t src = ((uint32_t)raw[1] << 16) | ((uint32_t)raw[3] << 8) | raw[2];
+  if (src == ThisAircraft.addr)
+    return;
+
+  fanet_neighbor_t *nb = fanet_neighbor_seen(src);
+  bool    fwd_bit = (raw[0] >> 6) & 0x01;
+  bool    ext     = (raw[0] & 0x80);
+  uint8_t type    = raw[0] & 0x3F;
+
+  /* remember the altitude of every Type 1 source - Type 3 and Type 7
+   * carry none, so their height checks use this */
+  if (type == 1 && ! ext && len >= FANET_HEADER_SIZE + 8) {
+    const uint8_t *p = raw + FANET_HEADER_SIZE;
+    int alt = ((p[7] & 0x07) << 8) | p[6];
+    if (p[7] & 0x08)
+      alt *= 4;
+    nb->alt_m     = (int16_t) alt;
+    nb->alt_valid = true;
+  }
+
+  /* unicast destination, if any */
+  bool     unicast = ext && len >= 8 && (raw[4] & 0x20);
+  uint32_t dest    = unicast ?
+           (((uint32_t)raw[5] << 16) | ((uint32_t)raw[7] << 8) | raw[6]) : 0;
+
+  if (fwd_len > 0 && fanet_fwd_same(raw, len)) {
+    if (! fwd_bit) {
+      Serial.printf("FWD: dropped (overheard) type %d from %06X\r\n",
+                    (int) type, (unsigned) src);
+      fwd_len = 0;
+      if (type == 0) {              /* that ACK is relayed: don't relay it again */
+        fanet_fwd_pair_t *pair = fanet_pair_find(src, dest);
+        if (pair)
+          pair->ack_fwd_ms = millis();
+      }
+    }
+    return;    /* or a repeat of the original we already queued */
+  }
+
+  /* forwarding only in FANET-only mode */
+  if (dual_protocol != RF_SINGLE_PROTOCOL || settings->rf_protocol != RF_PROTOCOL_FANET)
+    return;
+  if (!(fnf_rfmode & FNF_RFMODE_FANET_TX) || settings->txpower == RF_TX_POWER_OFF)
+    return;
+
+  if (unicast && dest == ThisAircraft.addr)
+    return;                         /* addressed to us */
+  fanet_fwd_pair_t *pair = unicast ? fanet_pair_find(src, dest) : NULL;
+
+  /* forward bit required - except for an ACK of a message pair we relayed,
+   * since its sender always clears the bit */
+  if (type == 0 ? (pair == NULL) : ! fwd_bit)
+    return;
+
+  uint32_t now = millis();
+  uint8_t  n   = fanet_neighbor_count();
+  int32_t  below = 0;
+  bool     below_known = fanet_fwd_below(nb, &below);
+  const char *why = NULL;
+  bool lost_out = false;     /* eligible, but the relay is taken */
+  bool urgent   = false;     /* may take the slot from a pending position */
+  float rank    = 0.5f;      /* 0..1, 1 = best placed relay; unknown = middle */
+  if (below_known)
+    rank = (float) below / FANET_FWD_RANK_BELOW_M;
+
+  switch (type) {
+  case 0:                           /* ACK between a relayed message pair */
+    urgent = true;
+    if (pair->ack_fwd_ms != 0 && (now - pair->ack_fwd_ms) < FANET_FWD_ACK_DEDUP_MS)
+      why = "ack-dup";
+    break;
+
+  case 3:                           /* message */
+    urgent = true;
+    if (! unicast)
+      why = "broadcast";
+    else if (pair == NULL && fanet_neighbor_find(dest) == NULL)
+      why = "dest not neighbor";
+    else if (pair == NULL && below_known && below < FANET_FWD_MSG_BELOW_M)
+      why = "height";
+    else if (fwd_msg_last_ms != 0 && (now - fwd_msg_last_ms) < FANET_FWD_MSG_INTERVAL_MS)
+      why = "msg-rate";
+    break;
+
+  case 7: {                         /* ground tracking */
+    if (ext || len < FANET_HEADER_SIZE + FANET_GROUND_BODY_SIZE) {
+      why = "format";
+      break;
+    }
+    uint8_t state = raw[FANET_HEADER_SIZE + 6] >> 4;
+    bool distress = (state >= FANET_GROUND_TYPE_NEED_MED);
+    urgent = distress;
+    if (distress) {
+      if (below_known && below < FANET_FWD_DISTRESS_BELOW_M)
+        why = "height";
+    } else if (state == FANET_GROUND_TYPE_NEED_RIDE || state == FANET_GROUND_TYPE_LANDED_OK) {
+      if (below_known && below < FANET_FWD_LANDED_BELOW_M)
+        why = "height";
+    } else {
+      why = "ground state";
+    }
+    if (why == NULL && nb->last_fwd_ms != 0
+        && (now - nb->last_fwd_ms) < FANET_FWD_GROUND_INTERVAL_MS)
+      why = "src-rate";
+    else if (why == NULL && ! distress && fwd_last_ms != 0
+             && (now - fwd_last_ms) < FANET_FWD_MIN_INTERVAL_MS) {
+      why = "rate-limit";
+      lost_out = true;
+    }
+    break;
+  }
+
+  case 1: {                         /* airborne tracking */
+    if (ext || len < FANET_HEADER_SIZE + 8) {
+      why = "format";
+      break;
+    }
+    if (n > FANET_FWD_MAX_NEIGHBORS) {
+      why = "neighbors";
+      break;
+    }
+    if (! below_known) {            /* we have no fix */
+      why = "no fix";
+      break;
+    }
+    float lat, lon;
+    payload_absolut2coord(&lat, &lon, (uint8_t *) raw + FANET_HEADER_SIZE);
+    float y = 111300.0f * (lat - ThisAircraft.latitude);
+    float x = 111300.0f * (lon - ThisAircraft.longitude) * CosLat();
+    float dist = hypotf(x, y);
+    if (dist <= FANET_FWD_AIR_DIST_M && below < FANET_FWD_AIR_BELOW_M) {
+      why = "near";
+      break;
+    }
+    if (dist / FANET_FWD_RANK_DIST_M > rank)
+      rank = dist / FANET_FWD_RANK_DIST_M;
+    if (n >= FANET_FWD_BUSY_NEIGHBORS) {
+      if (nb->last_fwd_ms != 0 && (now - nb->last_fwd_ms) < FANET_FWD_BUSY_INTERVAL_MS)
+        why = "src-rate";
+    } else if (fwd_contention_ms != 0 && (now - fwd_contention_ms) < FANET_FWD_SRC_LOCKOUT_MS
+          && nb->last_fwd_ms != 0 && (now - nb->last_fwd_ms) < FANET_FWD_SRC_LOCKOUT_MS) {
+      why = "src-lockout";   /* only while other sources compete for the relay */
+    }
+    if (why == NULL && fwd_last_ms != 0 && (now - fwd_last_ms) < FANET_FWD_MIN_INTERVAL_MS) {
+      why = "rate-limit";
+      lost_out = true;
+    }
+    break;
+  }
+
+  default:
+    return;                         /* other types are not forwarded */
+  }
+
+  /* one pending slot: an urgent packet takes it from a pending position */
+  if (why == NULL && fwd_len > 0) {
+    if (urgent && ! fwd_urgent) {
+      Serial.printf("FWD: replaced pending type %d from %06X by type %d\r\n",
+                    (int) (fwd_buf[0] & 0x3F), (unsigned) fwd_src, (int) type);
+    } else {
+      why = "busy";
+      lost_out = ! urgent;
+    }
+  }
+
+  if (why) {
+    /* a different source wanted the relay but lost out: from now on take turns */
+    if (lost_out && src != fwd_src)
+      fwd_contention_ms = now;
+    Serial.printf("FWD: dropped (%s) type %d from %06X rssi %d nb %d below %d%s\r\n",
+                  why, (int) type, (unsigned) src, (int) rssi, (int) n,
+                  (int) below, below_known ? "" : "?");
+    return;
+  }
+
+  memcpy(fwd_buf, raw, len);
+  fwd_buf[0]   &= ~0x40;            /* clear forward bit: hop limit 2 */
+  fwd_len       = len;
+  fwd_src       = src;
+  fwd_dest      = dest;
+  fwd_urgent    = urgent;
+  fwd_queued_ms = now;
+  if (rank < 0.0f) rank = 0.0f;
+  if (rank > 1.0f) rank = 1.0f;
+  uint32_t usable = (uint32_t) ((1.0f - rank) * FANET_FWD_RANK_MS)
+                  + SoC->random(0, FANET_FWD_JITTER_MS);
+  fwd_due_ms    = RF_Priority_Spread(FANET_FWD_DELAY_MIN_MS, usable);
+  Serial.printf("FWD: queued type %d from %06X rssi %d nb %d below %d%s rank %d%% in %d ms\r\n",
+                (int) type, (unsigned) src, (int) rssi, (int) n,
+                (int) below, below_known ? "" : "?",
+                (int) (rank * 100), (int) (fwd_due_ms - now));
+}
+
+/* Priority lane: transmit the pending forward when due. Returns true if sent. */
+bool fanet_forward_tx(void)
+{
+  if (fwd_len == 0)
+    return false;
+  if ((millis() - fwd_queued_ms) > FANET_FWD_STALE_MS) {
+    Serial.printf("FWD: dropped (stale) from %06X\r\n", (unsigned) fwd_src);
+    fwd_len = 0;
+    return false;
+  }
+  if (! RF_TIME_REACHED(fwd_due_ms) || ! RF_Priority_Ready(true))
+    return false;
+
+  memcpy(TxBuffer, fwd_buf, fwd_len);
+  size_t len = fwd_len;
+  fwd_len = 0;                      /* clear before transmit so re-entry is safe */
+  RF_Transmit_Priority(len, true);  /* exact: due time already spread */
+  uint32_t now  = millis();
+  uint8_t  type = fwd_buf[0] & 0x3F;
+  if (type == 3) {
+    fwd_msg_last_ms = now;          /* messages do not use up the position limits */
+    fanet_pair_add(fwd_src, fwd_dest);  /* let replies and ACKs back for 5 min */
+  } else if (type == 0) {
+    fanet_fwd_pair_t *pair = fanet_pair_find(fwd_src, fwd_dest);
+    if (pair)
+      pair->ack_fwd_ms = now;
+  } else {
+    fwd_last_ms = now;
+    fanet_neighbor_t *nb = fanet_neighbor_find(fwd_src);
+    if (nb)
+      nb->last_fwd_ms = now;
+  }
+  Serial.printf("FWD: sent type %d from %06X len %d, %d ms after RX\r\n",
+                (int) type, (unsigned) fwd_src, (int) len,
+                (int) (now - fwd_queued_ms));
+  return true;
+}
+
+/* Priority lane: Name (Type 2) every FANET_NAME_INTERVAL_MS. Returns true if sent. */
+bool fanet_name_tx(void)
+{
+  if (!(fnf_rfmode & FNF_RFMODE_FANET_TX))
+    return false;
+  if (!fnf_session_name[0] && settings->fanet_name[0] == '\0')
+    return false;
+  if ((millis() - fanet_name_last_ms) < FANET_NAME_INTERVAL_MS)
+    return false;
+  if (! RF_Priority_Ready())
+    return false;
+
+  size_t s = fanet_type2_encode((void *) TxBuffer, &ThisAircraft);
+  if (s == 0)
+    return false;
+  fanet_name_last_ms = millis();
+  RF_Transmit_Priority(s);
+  Serial.println("FN_TX: transmitted Type 2 name");
+  return true;
 }
  

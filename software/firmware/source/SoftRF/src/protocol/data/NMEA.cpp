@@ -805,7 +805,9 @@ static bool FN_clear_pending_ack_if_match(uint8_t src_mfr, uint16_t src_id);
 
 void NMEA_FNF_Out(const uint8_t *raw, size_t raw_len)
 {
-    if (!FNF_enabled || raw_len < FANET_HEADER_SIZE)
+    /* Note: FNF_enabled is checked further down - the delivery ACK below
+     * must go out even when no app is connected. */
+    if (raw_len < FANET_HEADER_SIZE)
         return;
 
     /* Parse FANET header (4 bytes) */
@@ -813,6 +815,8 @@ void NMEA_FNF_Out(const uint8_t *raw, size_t raw_len)
 
     /* Type 0 = ACK — handled by FN_check_ack(), do not forward to app */
     if (type == 0) {
+        if (!FNF_enabled)
+            return;
         Serial.print("FNF: skip Type 0 ACK from ");
         Serial.print(raw[1], HEX);
         Serial.print(",");
@@ -844,6 +848,8 @@ void NMEA_FNF_Out(const uint8_t *raw, size_t raw_len)
         uint8_t our_mfr = (our_addr >> 16) & 0xFF;
         uint16_t our_id = our_addr & 0xFFFF;
         if (dest_mfr != our_mfr || dest_id != our_id) {
+            if (!FNF_enabled)
+                return;
             Serial.print("FNF: skip unicast Type ");
             Serial.print(type);
             Serial.print(" to ");
@@ -854,6 +860,22 @@ void NMEA_FNF_Out(const uint8_t *raw, size_t raw_len)
             return;
         }
     }
+
+    /* For a unicast message to us with ACK requested, send Type 0 ACK back
+     * to the sender so they know the message was delivered to this device.
+     * Done whether or not an app is connected. When the pilot presses OK in
+     * XCGuide, the app sends a separate "read ACK" (#FNT) which we transmit
+     * as a second acknowledgement. */
+    if (unicast && ack_requested) {
+        Serial.print("FNF: sending delivery ACK to ");
+        Serial.print(vendor, HEX);
+        Serial.print(",");
+        Serial.println(address, HEX);
+        FN_transmit_ack(vendor, address);
+    }
+
+    if (!FNF_enabled)
+        return;
 
     size_t payload_len = (raw_len > payload_offset) ? raw_len - payload_offset : 0;
 
@@ -904,18 +926,6 @@ void NMEA_FNF_Out(const uint8_t *raw, size_t raw_len)
 
     /* Send directly to BLE (FNF is BLE-only, not a standard NMEA sentence) */
     NMEA_Out(DEST_BLUETOOTH, NMEABuffer, len, true);
-
-    /* For a unicast message to us with ACK requested, send Type 0 ACK back
-     * to the sender so they know the message was delivered to this device.
-     * When the pilot presses OK in XCGuide, the app sends a separate
-     * "read ACK" (#FNT) which we transmit as a second acknowledgement. */
-    if (unicast && ack_requested) {
-        Serial.print("FNF: sending delivery ACK to ");
-        Serial.print(vendor, HEX);
-        Serial.print(",");
-        Serial.println(address, HEX);
-        FN_transmit_ack(vendor, address);
-    }
 }
 
 /*
@@ -954,16 +964,18 @@ static void FN_process_FNG(const char *args)
     }
 }
 
-/* Pending FANET TX queue — frames queued here and transmitted in next available TX slot */
+/* Pending FANET TX queue — frames queued here and transmitted ASAP via the priority lane */
 static uint8_t  fn_tx_pending_buf[MAX_PKT_SIZE];
 static size_t   fn_tx_pending_len = 0;
+static uint32_t fn_tx_pending_due_ms = 0;   /* random backoff before TX */
 
 /* Pending ACK tracking for unicast messages sent via #FNT */
 static uint8_t  fnf_ack_pending_mfr = 0;
 static uint16_t fnf_ack_pending_id  = 0;
 static uint32_t fnf_ack_pending_ms  = 0;
-#define FNF_ACK_TIMEOUT_MS  15000  /* FANET TX interval can exceed 5s; also allow
-                                     * time for the other party's own TX slot */
+#define FNF_ACK_TIMEOUT_MS   6000  /* counted from the actual TX: with the priority
+                                     * lane the message and the returning ACK each
+                                     * go out within about 1s (next Slot 1) */
 
 /* Retransmission of unicast ACK-required frames when no ACK arrives in time.
  * Original frame is kept so it can be re-queued unchanged (same payload,
@@ -1097,9 +1109,10 @@ static void FN_process_FNT(const char *args)
     }
     Serial.println("\"");
 
-    /* Queue for transmission in next available FANET TX slot */
+    /* Queue for transmission ASAP via the FANET priority lane */
     memcpy(fn_tx_pending_buf, frame, frame_len);
     fn_tx_pending_len = frame_len;
+    fn_tx_pending_due_ms = RF_Priority_Backoff(RF_PRIO_MSG_MIN_MS, RF_PRIO_MSG_MAX_MS);
 
     /* If ACK requested for unicast, track it so we can match incoming Type 0,
      * and keep a copy of the frame so we can resend it on timeout. */
@@ -1126,6 +1139,7 @@ static void FN_process_FNT(const char *args)
 static bool     fn_ack_owed     = false;
 static uint8_t  fn_ack_dest_mfr = 0;
 static uint16_t fn_ack_dest_id  = 0;
+static uint32_t fn_ack_due_ms   = 0;   /* random backoff before TX */
 
 /*
  * Stage a FANET Type 0 (ACK) packet for transmission.
@@ -1138,6 +1152,7 @@ static void FN_transmit_ack(uint8_t dest_mfr, uint16_t dest_id)
     fn_ack_dest_mfr = dest_mfr;
     fn_ack_dest_id  = dest_id;
     fn_ack_owed     = true;
+    fn_ack_due_ms   = RF_Priority_Backoff(RF_PRIO_ACK_MIN_MS, RF_PRIO_ACK_MAX_MS);
 
     Serial.print("FN_transmit_ack: Type 0 ACK queued to ");
     Serial.print(dest_mfr, HEX);
@@ -1260,6 +1275,7 @@ void FN_check_ack_timeout()
             Serial.println(" attempt(s) left)");
             memcpy(fn_tx_pending_buf, fnf_ack_pending_frame, fnf_ack_pending_frame_len);
             fn_tx_pending_len = fnf_ack_pending_frame_len;
+            fn_tx_pending_due_ms = RF_Priority_Backoff(RF_PRIO_MSG_MIN_MS, RF_PRIO_MSG_MAX_MS);
             fnf_ack_pending_ms = millis();   /* restart timeout window */
         } else {
             char buf[32];
@@ -1273,18 +1289,24 @@ void FN_check_ack_timeout()
 }
 
 /*
- * Transmit pending FANET frame if TX slot is available.
+ * Transmit pending FANET frames via the priority lane (ASAP, does not consume
+ * the tracking slot). Order: Type 0 ACK > queued message (#FNT / resend) >
+ * forward > Type 2 name. Each item waits for its own random backoff.
  * Called from main loop. Returns true if a frame was transmitted.
  */
 bool FN_TX_check()
 {
+    /* forwards pick their own spread due time (exact), the others also wait
+     * for the random start within the Slot 1 window */
+    if (!RF_Priority_Ready(true))
+        return false;
+    bool slot_ready = RF_Priority_Ready();
+
     /* A hardware-level Type 0 ACK we owe takes priority over anything sitting
      * in fn_tx_pending_buf (e.g. an app-queued #FNT frame) - it has no
      * payload so it's built here on the fly rather than pre-rendered into
      * that shared buffer. */
-    if (fn_ack_owed) {
-        if (!RF_Transmit_Ready(true))
-            return false;
+    if (slot_ready && fn_ack_owed && RF_TIME_REACHED(fn_ack_due_ms)) {
 
         uint32_t id = ThisAircraft.addr;
         TxBuffer[0] = 0x80;                     /* type=0, forward=0, ext_header=1 */
@@ -1297,7 +1319,7 @@ bool FN_TX_check()
         TxBuffer[7] = (fn_ack_dest_id >> 8) & 0xFF;
 
         fn_ack_owed = false;   /* clear before transmit so re-entry is safe */
-        RF_Transmit(8, true);
+        RF_Transmit_Priority(8);
         Serial.print("FN_TX: transmitted queued Type 0 ACK, to ");
         Serial.print(fn_ack_dest_mfr, HEX);
         Serial.print(",");
@@ -1305,19 +1327,24 @@ bool FN_TX_check()
         return true;
     }
 
-    if (fn_tx_pending_len == 0)
-        return false;
+    if (slot_ready && fn_tx_pending_len > 0 && RF_TIME_REACHED(fn_tx_pending_due_ms)) {
+        memcpy(TxBuffer, fn_tx_pending_buf, fn_tx_pending_len);
+        size_t len = fn_tx_pending_len;
+        fn_tx_pending_len = 0;   /* clear before transmit so re-entry is safe */
+        RF_Transmit_Priority(len);
+        /* ACK timeout counts from the actual transmission, not from queueing */
+        if (fnf_ack_pending_ms != 0 && len == fnf_ack_pending_frame_len
+            && memcmp(fn_tx_pending_buf, fnf_ack_pending_frame, len) == 0)
+            fnf_ack_pending_ms = millis();
+        Serial.print("FN_TX: transmitted queued frame, len=");
+        Serial.println(len);
+        return true;
+    }
 
-    if (!RF_Transmit_Ready(true))
-        return false;
+    if (fanet_forward_tx())
+        return true;
 
-    memcpy(TxBuffer, fn_tx_pending_buf, fn_tx_pending_len);
-    size_t len = fn_tx_pending_len;
-    fn_tx_pending_len = 0;   /* clear before transmit so re-entry is safe */
-    RF_Transmit(len, true);
-    Serial.print("FN_TX: transmitted queued frame, len=");
-    Serial.println(len);
-    return true;
+    return fanet_name_tx();
 }
 
 /*
@@ -3025,7 +3052,7 @@ void NMEA_Process_SRF_SKV_Sentences()
         cfg_is_updated = true;  // for non-UINT1 settings assume it's a change
         bool loaded = false;
         if (S_value.isUpdated())
-            query = (*S_value.value() == '?');
+            query = (*S_value.value() == '?' || *S_value.value() == '\0');  // empty field = query
         if (! query) {
             if (stgdesc[i].type == STG_UINT1)
                 cfg_is_updated = (*((uint8_t *)(stgdesc[i].value)) != atoi(S_value.value()));

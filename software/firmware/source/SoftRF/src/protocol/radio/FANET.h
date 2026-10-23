@@ -154,8 +154,8 @@ enum fanet_sos_state_e
 
 #define FANET_AIR_TIME        36   /* in ms */
 
-#define FANET_TX_INTERVAL_MIN 2500 /* in ms */
-#define FANET_TX_INTERVAL_MAX 3500
+#define FANET_TX_INTERVAL_MIN 4500 /* in ms - ~5s avg, per FANET author guidance */
+#define FANET_TX_INTERVAL_MAX 5500
 
 #define FANET_NAME_MAX_LEN  33   /* 32 chars + null */
 #define FANET_NAME_TABLE_SIZE  8
@@ -184,5 +184,11 @@ extern const uint8_t aircraft_type_from_fanet[];
 bool fanet_decode(void *, container_t *, ufo_t *);
 size_t fanet_encode(void *, container_t *);
 void   fanet_sos_cancel(void);
+
+uint8_t  fanet_neighbor_count(void);
+uint32_t fanet_tx_interval_ms(void);
+void     fanet_rx_forward(const uint8_t *raw, size_t len, int8_t rssi);
+bool     fanet_forward_tx(void);
+bool     fanet_name_tx(void);
 
 #endif /* PROTOCOL_FANET_H */

@@ -50,11 +50,18 @@ byte RxBuffer[MAX_PKT_SIZE] __attribute__((aligned(sizeof(uint32_t))));
 uint32_t RF_time;
 uint8_t RF_current_slot = 0;
 uint8_t RF_current_chan = 0;
+static uint32_t RF_freq_khz = 0;   /* frequency the radio was last tuned to (debug output) */
 uint32_t RF_OK_from   = 0;
 uint32_t RF_OK_until  = 0;
 uint32_t TxTimeMarker = 0;
 uint32_t TxTimeMarker2 = 0;
 uint32_t TxEndMarker  = 0;
+/* FANET priority TX lane (ACK, message, forward, name) - separate from the
+ * own-position tracking schedule above, which it never modifies */
+uint32_t LastFanetTxMs = 0;
+static uint32_t PrioSlotFrom = 0;   /* FLR+FANET: earliest priority TX in this Slot 1 */
+static bool prio_tx = false;   /* true while RF_Transmit() serves the priority lane */
+static bool prio_exact = false;   /* ...for a frame with its own spread due time */
 byte TxBuffer[MAX_PKT_SIZE] __attribute__((aligned(sizeof(uint32_t))));
 
 uint32_t tx_packets_counter = 0;
@@ -782,6 +789,7 @@ static void sx12xx_channel(uint8_t channel)
     } else {
       LMIC.freq = frequency;
     }
+    RF_freq_khz = LMIC.freq / 1000;
     /* Actual RF chip's channel registers will be updated before each Tx or Rx session */
 
     sx12xx_channel_prev = channel;
@@ -964,8 +972,9 @@ static bool sx12xx_receive()
 if (settings->debug_flags & DEBUG_DEEPER) {
 uint32_t ms = millis() - ref_time_ms;
 if (ms < 300)  ms += 1000;
-Serial.printf("RX in prot %d, time slot %d, sec %d(%d) + %d ms\r\n",
-    RF_last_protocol, RF_current_slot, RF_time, (RF_time & 0x0F), ms);
+Serial.printf("RX in prot %d, time slot %d, sec %d(%d) + %d ms, %lu kHz, rssi %d\r\n",
+    RF_last_protocol, RF_current_slot, RF_time, (RF_time & 0x0F), ms,
+    (unsigned long) RF_freq_khz, (int) RF_last_rssi);
 }
 
   }
@@ -3057,10 +3066,13 @@ void RF_loop()
     if (dual_protocol == RF_FLR_FANET || dual_protocol == RF_FLR_P3I) {
         TxTimeMarker = RF_OK_until;          /* transmit only in FANET/P3I */
         TxEndMarker = slot_base_ms + 1370;
+        /* priority lane: random start within the slot, so frames queued
+         * during Slot 0 do not all go out right at the start of Slot 1 */
+        PrioSlotFrom = slot_base_ms + 805 + SoC->random(0, 400);
         if (TxTimeMarker2 == 0) {   // tx happened in previous Slot 1
             uint32_t interval;
             if (dual_protocol == RF_FLR_FANET)
-                interval = 3805;
+                interval = 3805 + (fanet_tx_interval_ms() - 5000);  // scaled by neighbor count
             else              // RF_FLR_P3I
                 interval = 1805;
             uint32_t when = SoC->random(0, (565+565));
@@ -3139,17 +3151,146 @@ bool RF_Transmit_Happened()
     return (TxTimeMarker >= RF_OK_until);
 }
 
+/*
+ * FANET-only mode: transmit only within the FLARM-family Slot 1 window
+ * (805..1370 ms after PPS), while still listening to FANET all the time,
+ * so that time-sliced multi-protocol devices are likely to be listening
+ * to FANET when we transmit. Without a PPS reference timing stays free.
+ */
+#define FANET_SLOT1_START   805
+#define FANET_SLOT1_LEN     565
+
+static bool fanet_only_slotted()
+{
+    return (dual_protocol == RF_SINGLE_PROTOCOL
+         && current_TX_protocol == RF_PROTOCOL_FANET
+         && ref_time_ms != 0);
+}
+
+/* start of the Slot 1 window that contains time t, or else the next one */
+static uint32_t slot1_window_start(uint32_t t)
+{
+    int32_t d = (int32_t)(t - (ref_time_ms + FANET_SLOT1_START));
+    int32_t k = (d >= 0) ? (d / 1000) : -((-d + 999) / 1000);
+    uint32_t w = ref_time_ms + FANET_SLOT1_START + 1000 * k;
+    if ((int32_t)(t - (w + FANET_SLOT1_LEN)) >= 0)
+        w += 1000;
+    return w;
+}
+
+static bool in_slot1_window(uint32_t t)
+{
+    uint32_t w = slot1_window_start(t);
+    return ((int32_t)(t - w) >= 0 && t + FANET_AIR_TIME < w + FANET_SLOT1_LEN);
+}
+
 bool RF_Transmit_Ready(bool wait)
 {
     //if (RF_Transmit_Happened())
     //    return false;
     uint32_t now_ms = millis();
+    /* keep a gap after a FANET priority-lane TX before own tracking goes out */
+    if (current_TX_protocol == RF_PROTOCOL_FANET && LastFanetTxMs != 0
+        && (now_ms - LastFanetTxMs) < RF_PRIO_GUARD_MS)
+        return false;
     if ((dual_protocol == RF_FLR_FANET && current_TX_protocol == RF_PROTOCOL_FANET)
     ||  (dual_protocol == RF_FLR_P3I   && current_TX_protocol == RF_PROTOCOL_P3I))
         return (TxTimeMarker2 != 0 && now_ms > TxTimeMarker2 && now_ms < TxEndMarker);
-    if (! TxEndMarker)                     // for protocols handled by the original code
+    if (! TxEndMarker) {                   // for protocols handled by the original code
+        if (fanet_only_slotted() && ! in_slot1_window(now_ms))
+            return false;
         return (now_ms > TxTimeMarker);
+    }
     return (now_ms >= (wait? TxTimeMarker : RF_OK_from) && now_ms < TxEndMarker);
+}
+
+/*
+ * FANET priority lane: ACKs, messages, forwards (FANET-only mode) and name
+ * broadcasts are sent as soon as possible, each after its own short random
+ * backoff, without waiting for - or consuming - the own-position tracking slot.
+ * In FLR+FANET time slicing it can only fire while the radio is listening
+ * on FANET in Slot 1.
+ */
+uint32_t RF_Priority_Backoff(uint32_t min_ms, uint32_t max_ms)
+{
+    return millis() + SoC->random(min_ms, max_ms);   /* absolute due time */
+}
+
+/*
+ * Absolute due time: min_ms from now, plus usable_ms of time in which a TX
+ * is allowed. In FANET-only slotted mode only time inside the Slot 1 windows
+ * counts, so a random usable_ms spreads evenly over the coming windows
+ * instead of piling up at the start of the next one.
+ * Use with RF_Transmit_Priority(size, true), which skips the random start.
+ */
+uint32_t RF_Priority_Spread(uint32_t min_ms, uint32_t usable_ms)
+{
+    uint32_t t = millis() + min_ms;
+    if (! fanet_only_slotted())
+        return t + usable_ms;
+    for (int i = 0; i < 10; i++) {
+        uint32_t w = slot1_window_start(t);
+        if ((int32_t)(t - w) < 0)
+            t = w;
+        uint32_t end   = w + FANET_SLOT1_LEN - FANET_AIR_TIME - 1;
+        uint32_t avail = ((int32_t)(end - t) > 0) ? (end - t) : 0;
+        if (usable_ms < avail)
+            return t + usable_ms;
+        usable_ms -= avail;
+        t = w + FANET_SLOT1_LEN;           /* on to the next window */
+    }
+    return t;
+}
+
+/* exact: the caller already picked its own time (RF_Priority_Spread), so
+ * skip the random start within the FANET-only Slot 1 window */
+bool RF_Priority_Ready(bool exact)
+{
+    if (current_TX_protocol != RF_PROTOCOL_FANET)
+        return false;
+    uint32_t now_ms = millis();
+    if (LastFanetTxMs != 0 && (now_ms - LastFanetTxMs) < RF_PRIO_GUARD_MS)
+        return false;
+    /* own tracking goes first once it is due - but only for a grace period,
+     * in case it cannot be sent (bad data, TX disabled, relay-only...) */
+    uint32_t track_due = 0;
+    if (dual_protocol == RF_FLR_FANET) {
+        if (TxTimeMarker2 != 0 && now_ms > TxTimeMarker2 && now_ms < TxEndMarker)
+            track_due = TxTimeMarker2;
+    } else if (TxEndMarker == 0 && now_ms > TxTimeMarker) {
+        track_due = TxTimeMarker;
+    }
+    if (track_due != 0 && (now_ms - track_due) < RF_PRIO_TRACK_GRACE_MS)
+        return false;
+    if (dual_protocol == RF_FLR_FANET)
+        return (RF_current_slot == 1
+             && curr_rx_protocol_ptr == &fanet_proto_desc
+             && now_ms >= PrioSlotFrom
+             && now_ms + FANET_AIR_TIME < TxEndMarker);
+    if (dual_protocol != RF_SINGLE_PROTOCOL)
+        return false;
+    if (! fanet_only_slotted())
+        return true;                       /* no PPS reference: free timing */
+    /* FANET-only: next Slot 1, from a random point within it */
+    static uint32_t prio_window = 0;
+    uint32_t w = slot1_window_start(now_ms);
+    if (w != prio_window) {
+        prio_window  = w;
+        PrioSlotFrom = w + SoC->random(0, 400);
+    }
+    return ((exact || now_ms >= PrioSlotFrom) && now_ms + FANET_AIR_TIME < w + FANET_SLOT1_LEN);
+}
+
+bool RF_Transmit_Priority(size_t size, bool exact)
+{
+    if (! RF_Priority_Ready(exact))
+        return false;
+    prio_tx = true;
+    prio_exact = exact;
+    bool rval = RF_Transmit(size, true);
+    prio_tx = false;
+    prio_exact = false;
+    return rval;
 }
 
 size_t RF_Encode(container_t *fop, bool wait)
@@ -3204,7 +3345,7 @@ bool RF_Transmit(size_t size, bool wait)   // only called with no-wait for air-r
 
       /* Experimental code by Moshe Braner */
 
-      if (RF_Transmit_Ready(wait)) {
+      if (prio_tx ? RF_Priority_Ready(prio_exact) : RF_Transmit_Ready(wait)) {
 #if defined(USE_LR1110)
         if (rf_chip && rf_chip->type == RF_IC_LR1110) {
           /* For LR1110: compare against actual hardware state (lr11xx_current_protocol_ptr).
@@ -3238,9 +3379,9 @@ bool RF_Transmit(size_t size, bool wait)   // only called with no-wait for air-r
                 success = false;
 
 if (settings->debug_flags & DEBUG_DEEPER) {
-Serial.printf("TX in protocol %d(%s) at %d ms, size=%d\r\n",
+Serial.printf("TX in protocol %d(%s) at %d ms, size=%d, %lu kHz\r\n",
     current_TX_protocol, ((curr_tx_protocol_ptr == &latest_proto_desc)? "T" : (curr_tx_protocol_ptr == &adsl_proto_desc)? "A" : "?"),
-    millis()-ref_time_ms, RF_tx_size);
+    millis()-ref_time_ms, RF_tx_size, (unsigned long) RF_freq_khz);
 }
             RF_tx_size = 0;
         }
@@ -3253,7 +3394,12 @@ Serial.printf("TX in protocol %d(%s) at %d ms, size=%d\r\n",
 
 //Serial.printf("TX at millis %d\r\n", millis());
 
-        if (dual_protocol == RF_FLR_FANET) {
+        if (current_TX_protocol == RF_PROTOCOL_FANET)
+            LastFanetTxMs = millis();
+
+        if (prio_tx) {
+            /* priority lane: leave the tracking schedule untouched */
+        } else if (dual_protocol == RF_FLR_FANET) {
 //if (current_TX_protocol == RF_PROTOCOL_FANET)
 //Serial.println("setting TxTimeMarker2 to 0");
             if (current_TX_protocol == RF_PROTOCOL_FANET)
@@ -3308,7 +3454,7 @@ OurTime, ms, (int)gnss.time.minute(), (int)gnss.time.second(), (RF_time & 0x0F),
 
     /* original code for other protocols: */
 
-    if (!wait || millis() > TxTimeMarker) {
+    if (prio_tx ? RF_Priority_Ready(prio_exact) : (!wait || millis() > TxTimeMarker)) {
 
       uint32_t timestamp = OurTime;
 
@@ -3326,6 +3472,12 @@ OurTime, ms, (int)gnss.time.minute(), (int)gnss.time.second(), (RF_time & 0x0F),
       }
       RF_tx_size = 0;
 
+      if (current_TX_protocol == RF_PROTOCOL_FANET)
+          LastFanetTxMs = millis();
+
+      if (prio_tx)    /* priority lane: leave the tracking schedule untouched */
+          return true;
+
       Slot_descr_t *next;
       uint32_t adj;
 
@@ -3341,7 +3493,15 @@ OurTime, ms, (int)gnss.time.minute(), (int)gnss.time.second(), (RF_time & 0x0F),
         break;
       case RF_TIMING_INTERVAL:
       default:
-        TxTimeMarker = millis() + SoC->random(ts->interval_min, ts->interval_max) - ts->air_time;
+        if (current_TX_protocol == RF_PROTOCOL_FANET && fanet_only_slotted())
+          /* random point within the Slot 1 window around the neighbor-scaled
+           * interval (the -200 keeps the average interval at the nominal one) */
+          TxTimeMarker = slot1_window_start(millis() + fanet_tx_interval_ms() - 200)
+                       + SoC->random(0, FANET_SLOT1_LEN - FANET_AIR_TIME - 5);
+        else if (current_TX_protocol == RF_PROTOCOL_FANET)   /* +-0.5s around neighbor-scaled interval */
+          TxTimeMarker = millis() + fanet_tx_interval_ms() + SoC->random(0, 1000) - 500 - ts->air_time;
+        else
+          TxTimeMarker = millis() + SoC->random(ts->interval_min, ts->interval_max) - ts->air_time;
         break;
       }
 
@@ -3507,6 +3667,7 @@ static void lr11xx_channel(uint8_t channel)
     };
 
     int state = lr11xx_radio->setFrequency((frequency + (fc * 1000)) / 1000000.0);
+    RF_freq_khz = (frequency + (fc * 1000)) / 1000;
 
 #if 0
     if (state == RADIOLIB_ERR_INVALID_FREQUENCY) {
@@ -3815,6 +3976,7 @@ static void lr11xx_setup()
 
     if (high) {
     state = lr11xx_radio->setFrequency(frequency / 1000000.0);
+    RF_freq_khz = frequency / 1000;
 
 #if RADIOLIB_DEBUG_BASIC
     if (state == RADIOLIB_ERR_INVALID_FREQUENCY) {
@@ -4641,8 +4803,9 @@ if (lr11xx_receive_complete == true) {
       if (settings->debug_flags) {
         uint32_t ms = millis() - ref_time_ms;
         if (ms < 300)  ms += 1000;
-        Serial.printf("RX in prot %d, time slot %d, sec %d(%d) + %d ms\r\n",
-            current_RX_protocol, RF_current_slot, (long)RF_time, int(RF_time & 0x0F), ms);
+        Serial.printf("RX in prot %d, time slot %d, sec %d(%d) + %d ms, %lu kHz, rssi %d\r\n",
+            current_RX_protocol, RF_current_slot, (long)RF_time, int(RF_time & 0x0F), ms,
+            (unsigned long) RF_freq_khz, (int) RF_last_rssi);
       }
     } else {
       // len == 0: radio fired IRQ but no data available.
