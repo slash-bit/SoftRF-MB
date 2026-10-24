@@ -230,21 +230,16 @@ void LED_loop() {
     int green_led = SOC_GPIO_LED_T1000_GREEN;
 
     if (fanet_sos_state == FANET_SOS_COUNTDOWN) {
-      /* AUTO-SOS COUNTDOWN: accelerating red blink + beeps */
-      #define SOS_COUNTDOWN_MS  180000UL  /* 3 minutes */
+      /* SOS COUNTDOWN (auto-SOS 3 min, button 10 s): accelerating red blink + beeps */
       uint32_t elapsed = now_ms - sos_countdown_start_ms;
-      if (elapsed >= SOS_COUNTDOWN_MS) {
+      if (elapsed >= sos_countdown_ms) {
         /* Countdown expired — activate distress */
-        fanet_sos_state = FANET_SOS_DISTRESS;
-        fanet_sos_last_ms = 0;
-        fanet_sos_count = 0;
-        if (settings->rf_protocol != RF_PROTOCOL_FANET)
-          RF_protocol_switch(RF_PROTOCOL_FANET, settings->rf_protocol);
-        Serial.println(F("Auto-SOS: DISTRESS activated"));
+        fanet_sos_distress(true);
+        Serial.println(F("SOS countdown: DISTRESS activated"));
       } else {
         /* Blink red: faster as countdown progresses (1000ms → 200ms) */
-        uint32_t remaining = SOS_COUNTDOWN_MS - elapsed;
-        uint32_t blink_period = 200 + (remaining * 800 / SOS_COUNTDOWN_MS);
+        uint32_t remaining = sos_countdown_ms - elapsed;
+        uint32_t blink_period = 200 + (remaining * 800 / sos_countdown_ms);
         if (now_ms - t1000e_led_marker > blink_period) {
           t1000e_led_phase = !t1000e_led_phase;
           t1000e_led_marker = now_ms;
@@ -252,7 +247,7 @@ void LED_loop() {
           digitalWrite(green_led, LOW);
         }
         /* Beep: faster as countdown progresses (2000ms → 500ms) */
-        uint32_t beep_interval = 500 + (remaining * 1500 / SOS_COUNTDOWN_MS);
+        uint32_t beep_interval = 500 + (remaining * 1500 / sos_countdown_ms);
         if (now_ms - t1000e_buzz_marker > beep_interval) {
           t1000e_buzz_marker = now_ms;
           SoC->Buzzer_tone(2000, BUZZER_VOLUME_FULL);

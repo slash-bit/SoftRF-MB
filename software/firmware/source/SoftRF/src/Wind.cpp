@@ -612,6 +612,8 @@ void this_airborne(bool validfix)
       airborne_changed = true;
       // AirborneTime = 0;
       if (settings->auto_sos == 2 && fanet_sos_state != FANET_SOS_DISTRESS) {
+        sos_countdown_prev_state = FANET_SOS_AIRBORNE;   /* Type 1 while counting down */
+        sos_countdown_ms = 180000UL;                     /* 3 minutes */
         fanet_sos_state = FANET_SOS_COUNTDOWN;
         sos_countdown_start_ms = millis();
         Serial.println(F("Auto-SOS countdown started (3min)"));

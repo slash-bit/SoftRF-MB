@@ -2394,46 +2394,34 @@ void handleEvent(AceButton* button, uint8_t eventType,
             EPD_Down();
 #else
         if (eventType == AceButton::kEventDoubleClicked) {
-          static uint8_t saved_rf_protocol = RF_PROTOCOL_NONE;
-          static uint8_t saved_altprotocol = RF_PROTOCOL_NONE;
+          #define SOS_BUTTON_COUNTDOWN_MS  10000UL
 
           /* Button double-click overrides any #FNG-set ground type */
           fanet_ground_type = 0xFF;
 
-          /* If SOS countdown is active, cancel it and confirm Landed OK */
           if (fanet_sos_state == FANET_SOS_COUNTDOWN) {
-            fanet_sos_state = FANET_SOS_LANDED_OK;
-            Serial.println(F("Auto-SOS cancelled - Landed OK"));
+            /* cancel a running countdown (button or auto-SOS) - back to
+             * where we were; an auto-SOS countdown confirms Landed OK */
+            fanet_sos_state = (sos_countdown_prev_state == FANET_SOS_AIRBORNE
+                               && ! ThisAircraft.airborne) ?
+                              FANET_SOS_LANDED_OK : sos_countdown_prev_state;
+            SoC->Buzzer_tone(800, BUZZER_VOLUME_FULL);   /* low beep: cancelled */
+            delay(300);
+            SoC->Buzzer_tone(0, BUZZER_VOLUME_FULL);
+            Serial.println(F("SOS countdown cancelled"));
           } else if (settings->auto_sos == 0) {
             /* auto_sos=OFF: double-click does nothing for distress */
+          } else if (fanet_sos_state != FANET_SOS_DISTRESS) {
+            /* MANUAL or AUTO: start a short countdown (accelerating beeps,
+             * see LED_loop) - another double-click within it cancels, so an
+             * accidental double-click does not raise an alarm */
+            sos_countdown_prev_state = fanet_sos_state;
+            sos_countdown_ms         = SOS_BUTTON_COUNTDOWN_MS;
+            sos_countdown_start_ms   = millis();
+            fanet_sos_state          = FANET_SOS_COUNTDOWN;
+            Serial.println(F("SOS countdown started (10s)"));
           } else {
-            /* MANUAL or AUTO: double-click immediately toggles distress */
-            if (fanet_sos_state != FANET_SOS_DISTRESS) {
-              fanet_sos_state = FANET_SOS_DISTRESS;
-              fanet_sos_last_ms = 0;  /* send SOS message immediately */
-              fanet_sos_count = 0;
-              /* If not already running FANET, switch to it */
-              if (settings->rf_protocol != RF_PROTOCOL_FANET) {
-                saved_rf_protocol = settings->rf_protocol;
-                saved_altprotocol = settings->altprotocol;
-                RF_protocol_switch(RF_PROTOCOL_FANET, saved_rf_protocol);
-                Serial.println(F("FANET SOS+DISTRESS mode ON (switched to FANET)"));
-              } else {
-                saved_rf_protocol = RF_PROTOCOL_NONE;
-                Serial.println(F("FANET SOS+DISTRESS mode ON"));
-              }
-            } else {
-              fanet_sos_cancel();  /* queue one-shot "Cancelled SOS" broadcast */
-              fanet_sos_state = FANET_SOS_LANDED_OK;
-              /* Restore original protocol if we switched */
-              if (saved_rf_protocol != RF_PROTOCOL_NONE) {
-                RF_protocol_switch(saved_rf_protocol, saved_altprotocol);
-                saved_rf_protocol = RF_PROTOCOL_NONE;
-                Serial.println(F("FANET SOS+DISTRESS mode OFF (restored protocol)"));
-              } else {
-                Serial.println(F("FANET SOS+DISTRESS mode OFF"));
-              }
-            }
+            fanet_sos_end();   /* same gesture ends DISTRESS -> Landed OK */
           }
         }
 #endif

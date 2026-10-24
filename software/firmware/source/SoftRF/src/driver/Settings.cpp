@@ -59,6 +59,8 @@ bool test_mode = false;            // activated by double-clicking middle button
 uint8_t  fanet_sos_state = FANET_SOS_AIRBORNE; // runtime SOS state (fanet_sos_state_e)
 uint8_t  fanet_ground_type = 0xFF;             // ground type from #FNG command, 0xFF=not set
 uint32_t sos_countdown_start_ms = 0;
+uint32_t sos_countdown_ms = 0;
+uint8_t  sos_countdown_prev_state = FANET_SOS_AIRBORNE;
 // Upon receiving a $PSRFT NMEA command,
 // first the variable test_mode is toggled, then
 // this is called, whether test_mode is on or off

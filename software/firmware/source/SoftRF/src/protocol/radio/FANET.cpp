@@ -425,17 +425,56 @@ uint32_t fanet_sos_last_ms  = 0;
 uint8_t  fanet_sos_count    = 0;
 static bool fanet_sos_cancel_pending = false;
 
-#define FANET_SOS_INTERVAL_MS  30000  /* broadcast SOS message every 30 seconds */
-#define FANET_SOS_MAX_COUNT    3      /* send SOS message this many times, then stop */
+#define FANET_SOS_TEXT_DELAY_MS 15000 /* SOS message this long after DISTRESS starts */
+#define FANET_SOS_MAX_COUNT    1      /* Type 7 DISTRESS repeats; the message goes once */
 
 /* Call when leaving FANET_SOS_DISTRESS for any other state, so a one-shot
  * "Cancelled SOS" broadcast goes out - otherwise anyone who received the
  * distress message has no way to know it was a false alarm / resolved,
- * short of the tracking/ground packets simply stopping being distress. */
+ * short of the tracking/ground packets simply stopping being distress.
+ * Nothing to cancel if no SOS message went out yet. */
 void fanet_sos_cancel(void)
 {
-  if (fanet_sos_state == FANET_SOS_DISTRESS)
+  if (fanet_sos_state == FANET_SOS_DISTRESS && fanet_sos_count > 0)
     fanet_sos_cancel_pending = true;
+}
+
+/* protocol in use before an SOS switched the radio to FANET, NONE = no switch */
+static uint8_t sos_saved_protocol    = RF_PROTOCOL_NONE;
+static uint8_t sos_saved_altprotocol = RF_PROTOCOL_NONE;
+
+/* Enter DISTRESS. Type 7 DISTRESS goes out at once; the first SOS message
+ * only FANET_SOS_TEXT_DELAY_MS later, so receivers (apps, ground stations)
+ * react to the repeated ground state first and can treat the message as
+ * a duplicate. */
+void fanet_sos_distress(bool switch_to_fanet)
+{
+  fanet_sos_state   = FANET_SOS_DISTRESS;
+  fanet_sos_last_ms = millis();
+  fanet_sos_count   = 0;
+  if (switch_to_fanet && settings->rf_protocol != RF_PROTOCOL_FANET) {
+    sos_saved_protocol    = settings->rf_protocol;
+    sos_saved_altprotocol = settings->altprotocol;
+    RF_protocol_switch(RF_PROTOCOL_FANET, sos_saved_protocol);
+    Serial.println(F("FANET SOS+DISTRESS mode ON (switched to FANET)"));
+  } else {
+    Serial.println(F("FANET SOS+DISTRESS mode ON"));
+  }
+}
+
+/* Leave DISTRESS: "Cancelled SOS" if an SOS message went out, back to
+ * Landed OK, and back to the original protocol if the SOS switched it */
+void fanet_sos_end(void)
+{
+  fanet_sos_cancel();
+  fanet_sos_state = FANET_SOS_LANDED_OK;
+  if (sos_saved_protocol != RF_PROTOCOL_NONE) {
+    RF_protocol_switch(sos_saved_protocol, sos_saved_altprotocol);
+    sos_saved_protocol = RF_PROTOCOL_NONE;
+    Serial.println(F("FANET SOS+DISTRESS mode OFF (restored protocol)"));
+  } else {
+    Serial.println(F("FANET SOS+DISTRESS mode OFF"));
+  }
 }
 
 static size_t fanet_type2_encode(void *fanet_pkt, container_t *this_aircraft) {
@@ -618,8 +657,7 @@ size_t fanet_encode(void *fanet_pkt, container_t *this_aircraft) {
   /* Distress mode: alternate SOS message and DISTRESS tracking */
   if (fanet_sos_state == FANET_SOS_DISTRESS) {
     if (fanet_sos_count < FANET_SOS_MAX_COUNT &&
-        (fanet_sos_last_ms == 0 ||
-         (now - fanet_sos_last_ms) >= FANET_SOS_INTERVAL_MS)) {
+        (now - fanet_sos_last_ms) >= FANET_SOS_TEXT_DELAY_MS) {
       fanet_sos_last_ms = now;
       fanet_sos_count++;
       char sos_msg[72];
@@ -637,9 +675,12 @@ size_t fanet_encode(void *fanet_pkt, container_t *this_aircraft) {
 
   /* If not airborne: only send Ground Tracking if confirmed landed */
   if (!this_aircraft->airborne) {
-    if (fanet_sos_state == FANET_SOS_LANDED_OK)
+    /* a button countdown started while landed keeps sending Landed OK */
+    if (fanet_sos_state == FANET_SOS_LANDED_OK
+        || (fanet_sos_state == FANET_SOS_COUNTDOWN
+            && sos_countdown_prev_state == FANET_SOS_LANDED_OK))
       return fanet_type7_encode(fanet_pkt, this_aircraft);
-    /* AIRBORNE or COUNTDOWN state → Type 1 */
+    /* AIRBORNE or auto-SOS COUNTDOWN state → Type 1 */
     return fanet_type1_encode(fanet_pkt, this_aircraft);
   }
 

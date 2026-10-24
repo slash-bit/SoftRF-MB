@@ -581,6 +581,8 @@ extern uint32_t fanet_sos_last_ms;
 extern uint8_t  fanet_sos_count;
 extern uint8_t  fanet_ground_type;  /* FANET ground type from #FNG (0x0-0xF), 0xFF=not set */
 extern uint32_t sos_countdown_start_ms;
+extern uint32_t sos_countdown_ms;          /* length of the running SOS countdown */
+extern uint8_t  sos_countdown_prev_state;  /* fanet_sos_state before the countdown */
 extern int8_t geoid_from_setting;
 
 #endif /* SETTINGS_H */
