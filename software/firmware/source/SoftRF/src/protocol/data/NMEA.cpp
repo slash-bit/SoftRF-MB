@@ -945,9 +945,7 @@ static void FN_process_FNG(const char *args)
 
         /* Distress ground types trigger SOS message transmission */
         if (gtype >= FANET_GROUND_TYPE_NEED_MED) {  /* 13, 14, 15 */
-            fanet_sos_state = FANET_SOS_DISTRESS;
-            fanet_sos_last_ms = 0;   /* send SOS immediately */
-            fanet_sos_count = 0;
+            fanet_sos_distress(false);   /* SOS message follows after 15 s */
         } else {
             fanet_sos_cancel();  /* no-op unless we were in distress */
             fanet_sos_state = FANET_SOS_LANDED_OK;
@@ -2848,9 +2846,7 @@ void NMEA_Process_SRF_SKV_Sentences()
                   fanet_ground_type = (uint8_t)gtype;
                   ThisAircraft.airborne = 0;  /* explicit ground command — force ground mode */
                   if (gtype >= FANET_GROUND_TYPE_NEED_MED) {  /* 13, 14, 15 */
-                      fanet_sos_state = FANET_SOS_DISTRESS;
-                      fanet_sos_last_ms = 0;
-                      fanet_sos_count = 0;
+                      fanet_sos_distress(false);   /* SOS message follows after 15 s */
                   } else {
                       fanet_sos_cancel();  /* no-op unless we were in distress */
                       fanet_sos_state = FANET_SOS_LANDED_OK;

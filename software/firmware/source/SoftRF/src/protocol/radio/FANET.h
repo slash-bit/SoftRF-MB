@@ -137,7 +137,7 @@ enum fanet_ground_type_e
 enum fanet_sos_state_e
 {
 	FANET_SOS_AIRBORNE   = 0, /* normal airborne — send Type 1 */
-	FANET_SOS_COUNTDOWN  = 1, /* auto-SOS countdown — still Type 1, waiting to confirm */
+	FANET_SOS_COUNTDOWN  = 1, /* auto-SOS (3 min) or button (10 s) countdown before DISTRESS */
 	FANET_SOS_LANDED_OK  = 2, /* landed OK — Type 7, ground_type=LANDED_OK */
 	FANET_SOS_DISTRESS   = 3, /* distress active — Type 7, ground_type=DISTRESS + SOS msgs */
 };
@@ -184,6 +184,8 @@ extern const uint8_t aircraft_type_from_fanet[];
 bool fanet_decode(void *, container_t *, ufo_t *);
 size_t fanet_encode(void *, container_t *);
 void   fanet_sos_cancel(void);
+void   fanet_sos_distress(bool switch_to_fanet);
+void   fanet_sos_end(void);
 
 uint8_t  fanet_neighbor_count(void);
 uint32_t fanet_tx_interval_ms(void);
