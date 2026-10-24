@@ -309,7 +309,10 @@ bool fanet_decode(void *fanet_pkt, container_t *this_aircraft, ufo_t *fop) {
     if (pkt->altitude_scale) {
       altitude = altitude * 4 /* -2 */;
     }
-    fop->altitude = (float) altitude;
+    /* FANET altitude is above MSL (as GXAirCom, OpenAce); SoftRF keeps
+     * altitudes above the ellipsoid internally - our own geoid separation
+     * is close enough within FANET range */
+    fop->altitude = (float) altitude + this_aircraft->geoid_separation;
 
     fop->aircraft_type = AT_FROM_FANET(pkt->aircraft_type);
 
@@ -339,7 +342,7 @@ bool fanet_decode(void *fanet_pkt, container_t *this_aircraft, ufo_t *fop) {
       offset_int *= 4;
     }
 
-    fop->pressure_altitude = fop->altitude + (float) offset_int;
+    fop->pressure_altitude = (float) altitude + (float) offset_int;  /* QNE - MSL */
 #endif
 
     fop->stealth = 0;
@@ -555,14 +558,16 @@ static size_t fanet_type1_encode(void *fanet_pkt, container_t *this_aircraft) {
   uint32_t id = this_aircraft->addr;
   float lat = this_aircraft->latitude;
   float lon = this_aircraft->longitude;
-  int16_t alt = (int16_t) this_aircraft->altitude;
+  /* FANET altitude is above MSL, ours is kept above the ellipsoid */
+  float alt_msl = this_aircraft->altitude - this_aircraft->geoid_separation;
+  int16_t alt = (int16_t) alt_msl;
   unsigned int aircraft_type =  this_aircraft->aircraft_type;
   float speed = this_aircraft->speed * _GPS_KMPH_PER_KNOT;
   float climb = this_aircraft->vs / (_GPS_FEET_PER_METER * 60.0);
   float heading = this_aircraft->course;
   float turnrate = 0;
   int16_t alt_diff = this_aircraft->pressure_altitude == 0 ? 0 :
-          (int16_t) (this_aircraft->pressure_altitude - this_aircraft->altitude);
+          (int16_t) (this_aircraft->pressure_altitude - alt_msl);
 
   fanet_packet_t *pkt = (fanet_packet_t *) fanet_pkt;
 
@@ -667,7 +672,7 @@ size_t fanet_encode(void *fanet_pkt, container_t *this_aircraft) {
                (fanet_ground_type == FANET_GROUND_TYPE_NEED_MED) ?
                    "need medical help" : "Pilot in DISTRESS",
                this_aircraft->latitude, this_aircraft->longitude,
-               this_aircraft->altitude);
+               this_aircraft->altitude - this_aircraft->geoid_separation);  /* MSL */
       return fanet_type3_encode(fanet_pkt, this_aircraft, sos_msg);
     }
     return fanet_type7_encode(fanet_pkt, this_aircraft);
@@ -699,7 +704,7 @@ typedef struct {
   uint32_t addr;
   uint32_t last_rx_ms;
   uint32_t last_fwd_ms;   /* when we last forwarded a position packet from this source */
-  int16_t  alt_m;         /* altitude from its last Type 1 (Type 7 carries none) */
+  int16_t  alt_m;         /* altitude above the ellipsoid from its last Type 1 (Type 7 carries none) */
   bool     alt_valid;
 } fanet_neighbor_t;
 
@@ -855,7 +860,7 @@ static bool fanet_fwd_below(const fanet_neighbor_t *nb, int32_t *below)
 {
   if (! nb->alt_valid || ! isValidFix())
     return false;
-  *below = (int32_t) ThisAircraft.altitude - nb->alt_m;
+  *below = (int32_t) ThisAircraft.altitude - nb->alt_m;   /* both above the ellipsoid */
   return true;
 }
 
@@ -900,7 +905,9 @@ void fanet_rx_forward(const uint8_t *raw, size_t len, int8_t rssi)
     int alt = ((p[7] & 0x07) << 8) | p[6];
     if (p[7] & 0x08)
       alt *= 4;
-    nb->alt_m     = (int16_t) alt;
+    /* FANET altitude is above MSL - keep it above the ellipsoid, like all
+     * internal altitudes */
+    nb->alt_m     = (int16_t) (alt + ThisAircraft.geoid_separation);
     nb->alt_valid = true;
   }
 

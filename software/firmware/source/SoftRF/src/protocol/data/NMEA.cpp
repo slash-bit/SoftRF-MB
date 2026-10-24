@@ -2376,7 +2376,8 @@ void NMEA_Export()
           (unsigned)(cip->addr & 0xFFFF),
           fanet_name_table[i].name,
           fanet_name_table[i].type_status,
-          cip->latitude, cip->longitude, cip->altitude,
+          cip->latitude, cip->longitude,
+          cip->altitude - ThisAircraft.geoid_separation,   /* MSL, like FANET and GGA */
           climb_ms, speed_kmh, cip->course);
         NMEAOutC(NMEA_T);
       }
