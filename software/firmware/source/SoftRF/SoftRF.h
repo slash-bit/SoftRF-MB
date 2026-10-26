@@ -38,7 +38,7 @@
 #define SOFTRF_FIRMWARE_VERSION "VB008"
 #define SOFTRF_IDENT            "SoftRF" //temp changed from SoftRF
 #define SOFTRF_USB_FW_VERSION   0x0101
-#define SOFTRF_SUBVERSION       "z11"
+#define SOFTRF_SUBVERSION       "z12"
 #define SOFTRF_REVISION         "dev"
 #define SOFTRF_FIRMWARE_INT     "8.0.11"
 

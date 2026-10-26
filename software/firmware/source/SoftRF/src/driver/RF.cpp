@@ -79,6 +79,7 @@ bool rx_flr_adsl = false;
 
 #if defined(USE_LR1110)
 static const rf_proto_desc_t *lr11xx_current_protocol_ptr = NULL;
+static const rf_proto_desc_t *lr11xx_reset_proto = NULL;   /* protocol for lr11xx_resetup(), NULL = RX */
 #endif
 
 FreqPlan RF_FreqPlan;
@@ -2561,7 +2562,7 @@ void RF_chip_reset(uint8_t protocol)
 #endif
     RF_chip_channel(protocol);
     Serial.printf("reset to Prot %d at millis %d, tx ok %d - %d, gd to %d\r\n",
-    current_RX_protocol, millis(), TxTimeMarker, TxEndMarker, RF_OK_until);
+    protocol, millis(), TxTimeMarker, TxEndMarker, RF_OK_until);
 }
 
 /* Switch main protocol at runtime (e.g., for distress FANET switch) */
@@ -3354,7 +3355,9 @@ bool RF_Transmit(size_t size, bool wait)   // only called with no-wait for air-r
           if (!rx_flr_adsl && lr11xx_current_protocol_ptr != curr_tx_protocol_ptr) {
             RF_FreqPlan.setPlan(settings->band, current_TX_protocol);
             lr11xx_current_protocol_ptr = curr_tx_protocol_ptr;
+            lr11xx_reset_proto = curr_tx_protocol_ptr;   /* configure radio for TX protocol */
             RF_chip_reset(current_TX_protocol);
+            lr11xx_reset_proto = NULL;
           }
         } else if (LMIC.protocol != curr_tx_protocol_ptr) {
             RF_FreqPlan.setPlan(settings->band, current_TX_protocol);
@@ -3414,20 +3417,23 @@ Serial.printf("TX in protocol %d(%s) at %d ms, size=%d, %lu kHz\r\n",
         } else {
             TxTimeMarker = RF_OK_until;  // do not transmit again (even relay) until next slot
             /* do not set next transmit time here - it is done in RF_loop() */
-            if (curr_tx_protocol_ptr != curr_rx_protocol_ptr) {
-                // go back to rx mode ASAP
-                delay(10);
-                RF_FreqPlan.setPlan(settings->band, current_RX_protocol);
-                LMIC.protocol = curr_rx_protocol_ptr;
+        }
+
+        /* After a TX in another protocol than this slot's RX protocol (any mode,
+         * incl. FANET TX in a FLR+FANET Slot 1 that listens to FLARM, and the
+         * priority lane) go back to RX mode ASAP */
+        if (curr_tx_protocol_ptr != curr_rx_protocol_ptr) {
+            delay(10);
+            RF_FreqPlan.setPlan(settings->band, current_RX_protocol);
+            LMIC.protocol = curr_rx_protocol_ptr;
 #if defined(USE_LR1110)
-                /* For LR1110 + flr_adsl: the TX used Latest syncword/size but RX slot
-                 * uses flr_adsl. Update lr11xx_current_protocol_ptr to force lr11xx_resetup()
-                 * to reconfigure for the actual RX protocol (flr_adsl or otherwise). */
-                if (rf_chip && rf_chip->type == RF_IC_LR1110)
-                    lr11xx_current_protocol_ptr = NULL;  /* force full reconfiguration */
+            /* For LR1110 + flr_adsl: the TX used Latest syncword/size but RX slot
+             * uses flr_adsl. Update lr11xx_current_protocol_ptr to force lr11xx_resetup()
+             * to reconfigure for the actual RX protocol (flr_adsl or otherwise). */
+            if (rf_chip && rf_chip->type == RF_IC_LR1110)
+                lr11xx_current_protocol_ptr = NULL;  /* force full reconfiguration */
 #endif
-                RF_chip_reset(current_RX_protocol);
-            }
+            RF_chip_reset(current_RX_protocol);
         }
 
 //Serial.println(">");
@@ -4248,8 +4254,12 @@ static void lr11xx_resetup()
         protocol_decode = &flr_adsl_decode;
   }
 
+  /* Radio is configured for the TX protocol when RF_Transmit() asks for it
+   * (e.g. FANET TX in a Slot 1 that listens to FLARM), otherwise for RX */
+  const rf_proto_desc_t *cfg = lr11xx_reset_proto ? lr11xx_reset_proto : curr_rx_protocol_ptr;
+
   // Update frequency plan
-  RF_FreqPlan.setPlan(settings->band, current_RX_protocol);
+  RF_FreqPlan.setPlan(settings->band, lr11xx_reset_proto ? cfg->type : current_RX_protocol);
 
   // Get TCXO voltage (needed for begin() calls)
   float Vtcxo;
@@ -4273,7 +4283,7 @@ static void lr11xx_resetup()
   // ===== CONFIGURE MODULATION TYPE AND PROTOCOL-SPECIFIC PARAMETERS =====
   float bw;
   
-  switch (curr_rx_protocol_ptr->modulation_type)
+  switch (cfg->modulation_type)
   {
   case RF_MODULATION_TYPE_LORA:
     // Serial.println("[LR11XX] → LoRa mode");
@@ -4305,7 +4315,7 @@ static void lr11xx_resetup()
     // LoRa-specific parameters
     state = lr11xx_radio->setSpreadingFactor(7);
     state = lr11xx_radio->setCodingRate(5);
-    state = lr11xx_radio->setSyncWord((uint8_t) curr_rx_protocol_ptr->syncword[0]);
+    state = lr11xx_radio->setSyncWord((uint8_t) cfg->syncword[0]);
 
     state = lr11xx_radio->setPreambleLength(8);
     state = lr11xx_radio->explicitHeader();
@@ -4325,12 +4335,12 @@ static void lr11xx_resetup()
     // Serial.print(millis() - t1);
     // Serial.println(" ms");
     // Set bitrate
-    float br = high ? 125.0 : (curr_rx_protocol_ptr->bitrate == RF_BITRATE_38400 ? 38.4 : 100.0);
+    float br = high ? 125.0 : (cfg->bitrate == RF_BITRATE_38400 ? 38.4 : 100.0);
     state = lr11xx_radio->setBitRate(br);
     // Serial.println("[LR11XX] → set bitrate");
     // Set frequency deviation
     float fdev;
-    switch (curr_rx_protocol_ptr->deviation)
+    switch (cfg->deviation)
     {
     // case RF_FREQUENCY_DEVIATION_10KHZ:
     //   fdev = high ? 62.5 : 10.0;
@@ -4349,7 +4359,7 @@ static void lr11xx_resetup()
     state = lr11xx_radio->setFrequencyDeviation(fdev);
     // Serial.println("[LR11XX] set freq deviation");
     // Set RX bandwidth
-    switch (curr_rx_protocol_ptr->bandwidth)
+    switch (cfg->bandwidth)
     {
     case RF_RX_BANDWIDTH_SS_50KHZ:
       bw = 117.3;
@@ -4376,7 +4386,7 @@ static void lr11xx_resetup()
     state = lr11xx_radio->setRxBandwidth(bw);
     // Serial.println("[LR11XX] → Set Bandwidth");
     // Set preamble
-    state = lr11xx_radio->setPreambleLength(curr_rx_protocol_ptr->preamble_size * 8);
+    state = lr11xx_radio->setPreambleLength(cfg->preamble_size * 8);
     // Serial.println("[LR11XX] → Set Preamble Length");
     // Data shaping
     state = lr11xx_radio->setDataShaping(RADIOLIB_SHAPING_0_5);
@@ -4386,8 +4396,8 @@ static void lr11xx_resetup()
     state = lr11xx_radio->setCRC(0, 0);
     
     // Calculate packet size (Manchester doubles it)
-    size_t pkt_size = curr_rx_protocol_ptr->payload_offset + curr_rx_protocol_ptr->payload_size + curr_rx_protocol_ptr->crc_size;
-    if (curr_rx_protocol_ptr->whitening == RF_WHITENING_MANCHESTER) {
+    size_t pkt_size = cfg->payload_offset + cfg->payload_size + cfg->crc_size;
+    if (cfg->whitening == RF_WHITENING_MANCHESTER) {
       pkt_size += pkt_size;
     }
     
@@ -4400,25 +4410,29 @@ static void lr11xx_resetup()
     // flr_adsl {0x56,0x66} and others must be used as-is.
     // NOTE: setSyncWord() internally calls setPacketParamsGFSK() with MAX length,
     // clobbering fixedPacketLengthMode — so fixedPacketLengthMode must come AFTER.
-    if (curr_rx_protocol_ptr->type == RF_PROTOCOL_P3I
-        && curr_rx_protocol_ptr->syncword_size == 2) {
-      uint8_t preamble = (curr_rx_protocol_ptr->preamble_type == RF_PREAMBLE_TYPE_AA) ? 0xAA : 0x55;
-      uint8_t sword[4] = { preamble, preamble, curr_rx_protocol_ptr->syncword[0], curr_rx_protocol_ptr->syncword[1] };
+    if (cfg->type == RF_PROTOCOL_P3I
+        && cfg->syncword_size == 2) {
+      uint8_t preamble = (cfg->preamble_type == RF_PREAMBLE_TYPE_AA) ? 0xAA : 0x55;
+      uint8_t sword[4] = { preamble, preamble, cfg->syncword[0], cfg->syncword[1] };
       state = lr11xx_radio->setSyncWord(sword, 4);
     } else {
       /* For ADSL: use full 8-byte syncword (no skip). The syncword_skip=2 is a
        * SX12xx workaround; on the LR1110 it causes mis-alignment and stale FIFO reads.
        * For FLARM/Latest: keep the 2-byte skip so XC Tracer (SX1262) frames are received. */
-      int sw_skip = (curr_rx_protocol_ptr->type == RF_PROTOCOL_ADSL) ? 0 : curr_rx_protocol_ptr->syncword_skip;
+      int sw_skip = (cfg->type == RF_PROTOCOL_ADSL) ? 0 : cfg->syncword_skip;
       state = lr11xx_radio->setSyncWord(
-          (uint8_t *) &curr_rx_protocol_ptr->syncword[sw_skip],
-          (size_t)    (curr_rx_protocol_ptr->syncword_size - sw_skip));
+          (uint8_t *) &cfg->syncword[sw_skip],
+          (size_t)    (cfg->syncword_size - sw_skip));
     }
     // Restore fixed packet length AFTER setSyncWord (which clobbers it to 255)
     state = lr11xx_radio->fixedPacketLengthMode(pkt_size);
 
     break;
   }
+  /* standby() above stopped any Rx - make lr11xx_receive() start it again,
+   * and make the following channel() call re-tune (with freq. correction) */
+  lr11xx_receive_active = false;
+  lr11xx_channel_prev   = (int8_t) -1;
   state = rf_chip->receive();
   // Serial.print("[LR11XX] Protocol reconfiguration complete: ");
   // Serial.print(millis() - t0);
