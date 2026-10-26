@@ -325,13 +325,9 @@ void FlightLog_decomp()
 {
     // if there are .IGX files, decompress them (if there is enough space)
     Serial.println(F("Looking for .IGX files..."));
-#if defined(SOFTRF_NRF52_T1000E)
-    const char *logdir = "/Tracklogs";
-    const char *prefix = "/Tracklogs/";
-#else
-    const char *logdir = "/";
-    const char *prefix = "/";
-#endif
+    bool t1000e = (hw_info.model == SOFTRF_MODEL_CARD);
+    const char *logdir = t1000e ? "/Tracklogs"  : "/";
+    const char *prefix = t1000e ? "/Tracklogs/" : "/";
     File root = IGCFILESYS.open(logdir);
     if (! root) {
         Serial.println(F("Cannot open IGCFILESYS log dir"));
@@ -775,7 +771,8 @@ void makeLogNameDate(char *p)
 
 void makeFlightLogName()
 {
-#if defined(SOFTRF_NRF52_T1000E)
+#if defined(ARDUINO_ARCH_NRF52)
+  if (hw_info.model == SOFTRF_MODEL_CARD) {
     // T1000E: SOFTRF_YYYY-MM-DD-HH-MM.IGC in /Tracklogs/
     char buf[48];
     snprintf(buf, sizeof(buf), "/Tracklogs/SOFTRF_%04d-%02d-%02d-%02d-%02d.IGC",
@@ -791,7 +788,9 @@ void makeFlightLogName()
         IGCFILESYS.remove(compfilename);
     }
     strcpy(FlightLogPath, buf);
-#else
+  } else
+#endif /* ARDUINO_ARCH_NRF52 */
+  {
     char buf[8];
     makeLogNameDate(buf);
     buf[3] = 'X';
@@ -848,7 +847,7 @@ void makeFlightLogName()
         compfilename[cfnlen - 5] = flightn;
     }
     strcpy(FlightLogPath, filename.c_str());
-#endif
+  }
     Serial.print("New flight log: ");
     Serial.println(FlightLogPath);
 }
@@ -886,10 +885,13 @@ bool writeIGCHeader()
     igc_file_append_nonconst(buf);
 #if defined(ESP32)
     igc_file_append_const("HFRHWHARDWAREVERSION: T-Beam\r\n");
-#elif defined(SOFTRF_NRF52_T1000E)
-    igc_file_append_const("HFRHWHARDWAREVERSION: T1000-E Card\r\n");
 #elif defined(ARDUINO_ARCH_NRF52)
-    igc_file_append_const("HFRHWHARDWAREVERSION: T-Echo\r\n");
+    if (hw_info.model == SOFTRF_MODEL_CARD)
+        igc_file_append_const("HFRHWHARDWAREVERSION: T1000-E Card\r\n");
+    else if (hw_info.model == SOFTRF_MODEL_POCKET)
+        igc_file_append_const("HFRHWHARDWAREVERSION: ThinkNode M3\r\n");
+    else
+        igc_file_append_const("HFRHWHARDWAREVERSION: T-Echo\r\n");
 #endif
     //igc_file_append_const("HFGPSRECEIVER: Generic\r\n");
     if (baro_chip != NULL) {
@@ -930,16 +932,9 @@ bool eraseOldestFlightLog()
     String oldestlog = "~";
     int found = 0;
     // find oldest file by alphabetical order of file name
-#if defined(SOFTRF_NRF52_T1000E)
-    const char *logdir = "/Tracklogs";
-    const char *logprefix = "/Tracklogs/";
-#elif defined(ARDUINO_ARCH_NRF52)
-    const char *logdir = "/";
-    const char *logprefix = "/";
-#else
-    const char *logdir = "/";
-    const char *logprefix = "/";
-#endif
+    bool t1000e = (hw_info.model == SOFTRF_MODEL_CARD);
+    const char *logdir    = t1000e ? "/Tracklogs"  : "/";
+    const char *logprefix = t1000e ? "/Tracklogs/" : "/";
     SoC->WDT_fini();   // directory scan can be slow on internal flash — feed watchdog
     File root = FILESYS.open(logdir);
     if (! root)

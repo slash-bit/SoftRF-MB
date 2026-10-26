@@ -1795,9 +1795,11 @@ byte GNSS_setup() {
 #endif /* EXCLUDE_GNSS_SONY */
 
 #if !defined(EXCLUDE_GNSS_AG33)
-  gnss_id = GNSS_MODULE_AG33;
-  gnss_chip = &ag33_ops;
-#else
+  if (hw_info.model == SOFTRF_MODEL_CARD || hw_info.model == SOFTRF_MODEL_POCKET) {
+      gnss_id = GNSS_MODULE_AG33;                  // T1000E / TN-M3: always Ag3335
+      gnss_chip = &ag33_ops;
+  } else
+#endif /* EXCLUDE_GNSS_AG33 */
   if (gnss_id == GNSS_MODULE_NONE) {               // not Sony, listen for $G sentences
       gnss_id = generic_nmea_ops.probe();
       if (gnss_id == GNSS_MODULE_NONE) {           // no NMEA sentences seen
@@ -1806,7 +1808,6 @@ byte GNSS_setup() {
           gnss_id = probe_baud_rates();       // try other baud rates, ending with 9600
       }
   }
-#endif /* EXCLUDE_GNSS_AG33 */
 
   if (gnss_id == GNSS_MODULE_NONE) {               // no NMEA sentences seen at any baud rate
 

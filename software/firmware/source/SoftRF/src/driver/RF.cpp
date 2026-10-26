@@ -2328,7 +2328,9 @@ byte RF_setup(void)
   if (rf_chip == NULL) {
 #if !defined(USE_OGN_RF_DRIVER)
 #if defined(USE_LR1110)
-    /* LR1110-only configuration */
+    /* the radio type follows from the board detected at run time -
+     * do not probe for LR1110 on other boards (or SX12xx on LR1110 boards) */
+    if (hw_info.model == SOFTRF_MODEL_CARD || hw_info.model == SOFTRF_MODEL_POCKET) {
     Serial.println(F("[RF_setup] Attempting LR1110 probe..."));
     if (lr1110_ops.probe()) {
       rf_chip = &lr1110_ops;
@@ -2337,7 +2339,9 @@ byte RF_setup(void)
     } else {
       Serial.println(F("[RF_setup] LR1110 probe FAILED"));
     }
-#else
+    } else
+#endif /* USE_LR1110 */
+    {
     /* Standard multi-radio probe sequence */
 #if !defined(EXCLUDE_SX12XX)
 #if !defined(EXCLUDE_SX1276)
@@ -2376,7 +2380,7 @@ byte RF_setup(void)
     } else {
       Serial.println(F("WARNING! None of supported RFICs is detected!"));
     }
-#endif /* USE_LR1110 */
+    }
 #else /* USE_OGN_RF_DRIVER */
     if (ognrf_ops.probe()) {
       rf_chip = &ognrf_ops;

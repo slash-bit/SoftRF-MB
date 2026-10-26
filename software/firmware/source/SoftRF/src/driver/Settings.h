@@ -537,7 +537,7 @@ typedef union EEPROM_U {
 #define DEBUG_SIMULATE 0x800000
 
 /* Use JSON settings file (settings.json) instead of settings.txt
- * Enabled for Seeed T1000E/CARD builds (-DSOFTRF_MODEL_T1000E in build_opt.h)
+ * Enabled for all nRF52 boards in nRF52.h (or -DSOFTRF_MODEL_T1000E in build_opt.h)
  */
 #if defined(SOFTRF_MODEL_T1000E)
 #define USE_JSETTINGS

@@ -306,8 +306,8 @@ bool TARGETfileOpen = false;
 
 void Filesys_setup() {
   // fatfs was already mounted in SoC setup
-#if defined(SOFTRF_NRF52_T1000E)
-  if (FS_is_mounted) {
+#if defined(ARDUINO_ARCH_NRF52)
+  if (FS_is_mounted && hw_info.model == SOFTRF_MODEL_CARD) {   /* T1000E keeps IGC logs in /Tracklogs */
     if (! FILESYS.exists("/Tracklogs"))
       FILESYS.mkdir("/Tracklogs");
   }

@@ -772,6 +772,9 @@ void EPD_Message(const char *msg1, const char *msg2)
   uint16_t tbw, tbh;
   uint16_t x, y;
 
+  if (hw_info.display != DISPLAY_EPD_1_54)   /* no EPD on this board (e.g. T1000E) */
+    return;
+
 #if defined(USE_EPD_TASK)
   if (EPD_update_in_progress == EPD_UPDATE_NONE) {
 //  if (SoC->Display_lock()) {

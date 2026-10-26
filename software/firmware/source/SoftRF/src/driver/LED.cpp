@@ -221,7 +221,8 @@ void LED_loop() {
       return;
   }
 
-#if defined(SOFTRF_NRF52_T1000E)
+#if defined(ARDUINO_ARCH_NRF52)
+  if (hw_info.model == SOFTRF_MODEL_CARD)
   {
     static unsigned long t1000e_led_marker = 0;
     static unsigned long t1000e_buzz_marker = 0;
@@ -362,8 +363,8 @@ void LED_loop() {
         t1000e_led_marker = now_ms;
       }
     }
-  }
-#else
+  } else
+#endif /* ARDUINO_ARCH_NRF52 */
   if (status_LED != SOC_UNUSED_PIN) {
     if (Battery_voltage() > Battery_threshold() ) {
       if (digitalRead(status_LED) != LED_STATE_ON) {
@@ -376,5 +377,4 @@ void LED_loop() {
       }
     }
   }
-#endif
 }
