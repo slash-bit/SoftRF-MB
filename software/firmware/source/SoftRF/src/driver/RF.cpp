@@ -42,7 +42,7 @@
 #endif /* LOGGER_IS_ENABLED */
 #define DEBUG_RADIO_BASIC
 // #define DEBUG
-#define USE_LR1110
+/* USE_LR1110 / USE_RADIOLIB are selected per board in the platform header (nRF52.h) */
 
 byte RxBuffer[MAX_PKT_SIZE] __attribute__((aligned(sizeof(uint32_t))));
 
@@ -288,6 +288,7 @@ static bool ognrf_receive(void);
 static void ognrf_transmit(void);
 static void ognrf_shutdown(void);
 
+#if defined(USE_LR1110)
 /* LR1110 radio driver declarations */
 static bool lr11xx_probe();
 static void lr11xx_setup();
@@ -296,6 +297,7 @@ static bool lr11xx_receive();
 static void lr11xx_transmit();
 static void lr11xx_resetup(void);
 static void lr11xx_shutdown();
+#endif /* USE_LR1110 */
 #if !defined(EXCLUDE_NRF905)
 const rfchip_ops_t nrf905_ops = {
   RF_IC_NRF905,
@@ -2400,7 +2402,11 @@ byte RF_setup(void)
   if (settings->altprotocol == settings->rf_protocol
         //|| ! in_family(settings->rf_protocol)
         //|| ! in_family(settings->altprotocol)
-        || (rf_chip != &sx1276_ops && rf_chip != &sx1262_ops && rf_chip != &lr1110_ops)) {
+        || (rf_chip != &sx1276_ops && rf_chip != &sx1262_ops
+#if defined(USE_LR1110)
+            && rf_chip != &lr1110_ops
+#endif /* USE_LR1110 */
+           )) {
       settings->altprotocol = RF_PROTOCOL_NONE;
   }
 
@@ -3362,7 +3368,7 @@ bool RF_Transmit(size_t size, bool wait)   // only called with no-wait for air-r
             RF_chip_reset(current_TX_protocol);
         }
 #else /* LMIC-based chips (SX1276, SX1262, etc.) */
-        if (lr11xx_current_protocol_ptr != curr_tx_protocol_ptr) {
+        if (LMIC.protocol != curr_tx_protocol_ptr) {
           // (usually LMIC.protocol was set in set_protocol_for_slot())
           RF_FreqPlan.setPlan(settings->band, current_TX_protocol);
           LMIC.protocol = curr_tx_protocol_ptr;

@@ -109,7 +109,11 @@ static uint32_t bootCount __attribute__ ((section (".noinit")));
 
 /* Default board - will be updated by nRF52_board_detect() in setup */
 /* NOTE: For Seeed T1000E/CARD without proper bootloader marker, set to NRF52_SEEED_T1000E */
+#if defined(SOFTRF_NRF52_T1000E)
 static nRF52_board_id nRF52_board = NRF52_SEEED_T1000E; /* Changed from NRF52_LILYGO_TECHO_REV_2 for CARD support */
+#else
+static nRF52_board_id nRF52_board = NRF52_LILYGO_TECHO_REV_2;
+#endif /* SOFTRF_NRF52_T1000E */
 static nRF52_display_id nRF52_display = EP_UNKNOWN;
 
 const char *nRF52_Device_Manufacturer = SOFTRF_IDENT;
@@ -411,9 +415,13 @@ static void nRF52_system_off()
     }
     /* M1 would be here, but we only target M3 */
   }
-  Serial.println("[BOARD] No bootloader marker found - defaulting to LILYGO T-Echo (WRONG for T1000E!)");
-  Serial.println("[BOARD] WARNING: If this is a T1000E/CARD, battery will read wrong pin!");
+#if defined(SOFTRF_NRF52_T1000E)
+  Serial.println("[BOARD] No bootloader marker found - defaulting to Seeed T1000-E (build target)");
+  return NRF52_SEEED_T1000E;
+#else
+  Serial.println("[BOARD] No bootloader marker found - defaulting to LILYGO T-Echo");
   return NRF52_LILYGO_TECHO_REV_2;
+#endif /* SOFTRF_NRF52_T1000E */
   }
 
 /* Forward declaration for SPI initialization */
@@ -539,7 +547,7 @@ static void nRF52_setup()
   pinMode(PIN_LED3, INPUT);
   pinMode(PIN_LED4, INPUT);
 
-  static nRF52_board_id nRF52_board = nRF52_board_detect();
+  nRF52_board = nRF52_board_detect();   /* file-scope global, used by all nRF52_* functions */
 
   /* Set hardware model based on detected board */
   switch (nRF52_board) {

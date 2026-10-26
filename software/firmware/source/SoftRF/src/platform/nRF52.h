@@ -204,8 +204,8 @@ struct rst_info {
 /* Board-specific configuration for nRF52 platforms                           */
 /* Uncomment one of the following to select your board configuration:         */
 /* ============================================================================ */
-#define SOFTRF_NRF52_T1000E  // #define SOFTRF_NRF52_TECHO           /* LilyGO T-Echo with E-Paper display */
-         /* Seeed T1000E (Card Edition) with LR1110, no display */
+#define SOFTRF_NRF52_TECHO           /* LilyGO T-Echo with E-Paper display */
+//#define SOFTRF_NRF52_T1000E          /* Seeed T1000E (Card Edition) with LR1110, no display */
 //#define SOFTRF_NRF52_PCA10059        /* nRF52840 DK (PCA10059) */
 //#define SOFTRF_NRF52_M3              /* Elecrow TN-M3 with LR1110, no display */
 
