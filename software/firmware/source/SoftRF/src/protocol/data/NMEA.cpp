@@ -2813,6 +2813,29 @@ void NMEA_Process_SRF_SKV_Sentences()
           BT_NUS_flush();
           yield();
 #endif
+          /* Second line is "board,ARCH/MODEL" (e.g. "board,nRF52/T-Echo") -
+           * the detected hardware, so the webapp knows which settings apply */
+          const char *model;
+          switch (hw_info.model) {
+              case SOFTRF_MODEL_CARD:      model = "T1000E";     break;
+              case SOFTRF_MODEL_BADGE:     model = "T-Echo";     break;
+              case SOFTRF_MODEL_POCKET:    model = "TN-M3";      break;
+              case SOFTRF_MODEL_PRIME_MK2: model = "T-Beam";     break;
+              case SOFTRF_MODEL_PRIME_MK3: model = "T-Beam-S3";  break;
+              case SOFTRF_MODEL_STANDALONE: model = "Standalone"; break;
+              default:                     model = NULL;         break;
+          }
+          if (model)
+              snprintf_P(NMEABuffer, sizeof(NMEABuffer), PSTR("board,%s/%s\r\n"),
+                         SoC->name, model);
+          else
+              snprintf_P(NMEABuffer, sizeof(NMEABuffer), PSTR("board,%s/model%d\r\n"),
+                         SoC->name, hw_info.model);
+          nmea_cfg_reply(false);
+#if defined(ARDUINO_ARCH_NRF52)
+          BT_NUS_flush();
+          yield();
+#endif
           uint8_t board_bit = board_visibility_bit();
           for (int i = STG_MODE; i < STG_END; i++) {
               if (!(stgdesc[i].visible & board_bit))
