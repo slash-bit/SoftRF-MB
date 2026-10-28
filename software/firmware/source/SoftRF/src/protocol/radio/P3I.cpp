@@ -85,6 +85,8 @@ bool p3i_decode(void *pkt, container_t *this_aircraft, ufo_t *fop) {
 size_t p3i_encode(void *pkt, container_t *aircraft) {
 
   size_t size = adsl_encode(pkt, aircraft);
+  if (size == 0)      // not airborne: adsl_encode() only transmits once in 8 seconds
+    return 0;
   if (size != ADSL_PAYLOAD_SIZE + ADSL_CRC_SIZE  // 24
    || size != P3I_PAYLOAD_SIZE) {                // 24
     Serial.print("p3i_encode() error: adsl_encode() returned ");

@@ -125,6 +125,7 @@ protocol_duo protocol_duos[] = {
   {RF_PROTOCOL_ADSL,   RF_PROTOCOL_OGNTP,  "A+O"},
   {RF_PROTOCOL_ADSL,   RF_PROTOCOL_LEGACY, "A+L"},
   {RF_PROTOCOL_ADSL,   RF_PROTOCOL_LATEST, "A+T"},
+  {RF_PROTOCOL_ADSL,   RF_PROTOCOL_P3I,    "A+P"},
   {RF_PROTOCOL_FANET,  RF_PROTOCOL_LATEST, "F+T"},
   {RF_PROTOCOL_FANET,  RF_PROTOCOL_OGNTP,  "F+O"},
   {RF_PROTOCOL_FANET,  RF_PROTOCOL_ADSL,   "F+A"},
@@ -2389,14 +2390,10 @@ byte RF_setup(void)
   /* "UK" freq now mapped to EU */
   if (settings->band == RF_BAND_UK)
       settings->band = RF_BAND_EU;
-  /* Supersede EU plan with UK when PAW is selected */
-    if (rf_chip                &&
-#if !defined(EXCLUDE_NRF905)
-        rf_chip != &nrf905_ops &&
-#endif
-        settings->band == RF_BAND_EU
-            && (settings->rf_protocol == RF_PROTOCOL_P3I || settings->altprotocol == RF_PROTOCOL_P3I))
-      settings->band = RF_BAND_UK;
+  /* Do NOT supersede EU with UK when PAW is selected: setPlan() fixes P3I at
+   * 869.525 MHz regardless of band, while getChannel() treats Plan>=2 as a
+   * hopping plan - with UK that made FLARM/ADS-L slot 0 hop randomly between
+   * 868.2 and 868.4 instead of staying on 868.2 like other EU devices. */
 
   if (settings->altprotocol == settings->rf_protocol
         //|| ! in_family(settings->rf_protocol)
@@ -2495,6 +2492,13 @@ byte RF_setup(void)
            Serial.println("set up P3I+ADSL time slicing, FLR_ADSL rx + ADSL tx");
        else
            Serial.println("set up P3I+ADSL time slicing");
+  }
+  if (settings->rf_protocol==RF_PROTOCOL_ADSL && settings->altprotocol==RF_PROTOCOL_P3I) {
+       dual_protocol = RF_FLR_P3I;
+       if (settings->flr_adsl)
+           Serial.println("set up ADSL+P3I time slicing, FLR_ADSL rx + ADSL tx");
+       else
+           Serial.println("set up ADSL+P3I time slicing");
   }
   if (settings->rf_protocol==RF_PROTOCOL_P3I && settings->altprotocol==RF_PROTOCOL_OGNTP) {
        dual_protocol = RF_FLR_P3I;
@@ -4185,10 +4189,10 @@ static void lr11xx_transmit()
   // TxDone raised the shared IRQ pin, so the RX handler set the flag too;
   // transmit() already cleared the radio's IRQ status - not a received packet
   lr11xx_receive_complete = false;
-  // Restore RX syncword. For FLARM/Latest: skip 2 bytes so XC Tracer packets are received.
-  // For ADSL: use full syncword (no skip) — the LR1110 needs all 8 bytes for reliable detection.
+  // Restore RX syncword, skipping the leading 0x55 0x99 (FLARM/Latest and ADS-L alike):
+  // XC Tracer and Moshe's LR1110 ADS-L frames do not match the full 8-byte syncword
   {
-    int sw_skip = (curr_rx_protocol_ptr->type == RF_PROTOCOL_ADSL) ? 0 : curr_rx_protocol_ptr->syncword_skip;
+    int sw_skip = curr_rx_protocol_ptr->syncword_skip;
     lr11xx_radio->setSyncWord(
             (uint8_t *) &curr_rx_protocol_ptr->syncword[sw_skip],
             (size_t)    (curr_rx_protocol_ptr->syncword_size - sw_skip));
@@ -4246,7 +4250,11 @@ static void lr11xx_resetup()
   // ===== UPDATE PROTOCOL DESCRIPTORS =====
   /* Use curr_rx_protocol_ptr to set up protocol configuration */
   if (curr_rx_protocol_ptr) {
-    protocol_encode = get_protocol_encode_fn(curr_rx_protocol_ptr);
+    /* Encoder follows the TX protocol: set_protocol_for_slot() may pick e.g. adsl_encode
+     * while RX is flr_adsl (type LATEST) - deriving it from RX sent FLARM-encoded
+     * payloads under the ADS-L syncword, which ADS-L receivers rejected */
+    protocol_encode = get_protocol_encode_fn(curr_tx_protocol_ptr ? curr_tx_protocol_ptr
+                                                                  : curr_rx_protocol_ptr);
     protocol_decode = get_protocol_decode_fn(curr_rx_protocol_ptr);
     /* flr_adsl_proto_desc has type=LATEST so get_protocol_decode_fn returns legacy_decode.
      * Restore the correct flr_adsl dispatcher so ADSL packets are not mis-routed. */
@@ -4416,10 +4424,9 @@ static void lr11xx_resetup()
       uint8_t sword[4] = { preamble, preamble, cfg->syncword[0], cfg->syncword[1] };
       state = lr11xx_radio->setSyncWord(sword, 4);
     } else {
-      /* For ADSL: use full 8-byte syncword (no skip). The syncword_skip=2 is a
-       * SX12xx workaround; on the LR1110 it causes mis-alignment and stale FIFO reads.
-       * For FLARM/Latest: keep the 2-byte skip so XC Tracer (SX1262) frames are received. */
-      int sw_skip = (cfg->type == RF_PROTOCOL_ADSL) ? 0 : cfg->syncword_skip;
+      /* Skip the leading 0x55 0x99 for ADS-L as well as FLARM/Latest: with the full
+       * 8-byte syncword no XC Tracer or Moshe-firmware ADS-L frame was ever received */
+      int sw_skip = cfg->syncword_skip;
       state = lr11xx_radio->setSyncWord(
           (uint8_t *) &cfg->syncword[sw_skip],
           (size_t)    (cfg->syncword_size - sw_skip));
@@ -4540,6 +4547,8 @@ if (lr11xx_receive_complete == true) {
 
     if (RL_rxPacket.len > 0) {
 
+      const char *reject = "no data";   /* reason printed for rejected packets */
+
       if (RL_rxPacket.len > sizeof(RL_rxPacket.payload)) {
         RL_rxPacket.len = sizeof(RL_rxPacket.payload);
       }
@@ -4610,6 +4619,8 @@ if (lr11xx_receive_complete == true) {
 
           if (crc8 == pkt_crc8) {
             success = true;
+          } else {
+            reject = "PAW CRC8 wrong";
           }
           break;
         case RF_PROTOCOL_FANET:
@@ -4639,6 +4650,7 @@ if (lr11xx_receive_complete == true) {
                    curr_rx_protocol_ptr->crc_size +
                    curr_rx_protocol_ptr->crc_size;
 
+          reject = "too short";
           if (RL_rxPacket_ptr->len >= (size + offset)) {
 
             if (rx_flr_adsl) {
@@ -4659,6 +4671,11 @@ if (lr11xx_receive_complete == true) {
                 flr_adsl_crc_type = RF_CHECKSUM_TYPE_CRC_MODES;
               } else {
                 /* Not FLARM or ADS-L — discard */
+                reject = "unidentified ID bytes";
+                if (settings->debug_flags & DEBUG_DEEPER)
+                  Serial.printf("[LR1110] flr_adsl ID 0x%02X 0x%02X, s.b. FLR 0x%02X 0x%02X or ADS-L 0x%02X 0x%02X\r\n",
+                      (unsigned) id1, (unsigned) id2, FLR_ID_BYTE_1, FLR_ID_BYTE_2,
+                      ADSL_ID_BYTE_1, ADSL_ID_BYTE_2);
                 break;
               }
 
@@ -4714,17 +4731,22 @@ if (lr11xx_receive_complete == true) {
                   pkt_crc16 = ((u2_t)RxBuffer[payload_only] << 8) | RxBuffer[payload_only + 1];
                   if (crc16 == pkt_crc16) {
                     success = true;
-                  } else if (settings->debug_flags & DEBUG_DEEPER) {
-                    Serial.print(F("[LR1110] flr_adsl CRC MISMATCH: computed=0x"));
-                    Serial.print(crc16, HEX);
-                    Serial.print(F(" pkt=0x"));
-                    Serial.println(pkt_crc16, HEX);
+                  } else {
+                    reject = "FLR CRC wrong (flr_adsl)";
+                    if (settings->debug_flags & DEBUG_DEEPER) {
+                      Serial.print(F("[LR1110] flr_adsl CRC MISMATCH: computed=0x"));
+                      Serial.print(crc16, HEX);
+                      Serial.print(F(" pkt=0x"));
+                      Serial.println(pkt_crc16, HEX);
+                    }
                   }
                 }
               } else {
                 /* ADS-L: use checkPI */
                 if (ADSL_Packet::checkPI((uint8_t *) &RxBuffer[0], decoded_size) == 0) {
                   success = true;
+                } else {
+                  reject = "ADS-L CRC wrong (flr_adsl)";
                 }
               }
 
@@ -4762,11 +4784,15 @@ if (lr11xx_receive_complete == true) {
             case RF_CHECKSUM_TYPE_GALLAGER:
               if (LDPC_Check((uint8_t  *) &RxBuffer[0]) == 0) {
                 success = true;
+              } else {
+                reject = "OGNTP CRC wrong";
               }
               break;
             case RF_CHECKSUM_TYPE_CRC_MODES:
               if (ADSL_Packet::checkPI((uint8_t  *) &RxBuffer[0], size) == 0) {
                 success = true;
+              } else {
+                reject = "ADS-L CRC wrong";
               }
               break;
             case RF_CHECKSUM_TYPE_CCITT_FFFF:
@@ -4781,6 +4807,7 @@ if (lr11xx_receive_complete == true) {
                   }
                   success = true;
                 } else {
+                  reject = "FLR CRC wrong";
                   if (settings->debug_flags & DEBUG_DEEPER) {
                     Serial.print(F("[LR1110] CRC MISMATCH: computed=0x"));
                     Serial.print(crc16, HEX);
@@ -4820,9 +4847,14 @@ if (lr11xx_receive_complete == true) {
       if (settings->debug_flags) {
         uint32_t ms = millis() - ref_time_ms;
         if (ms < 300)  ms += 1000;
-        Serial.printf("RX in prot %d, time slot %d, sec %d(%d) + %d ms, %lu kHz, rssi %d\r\n",
-            current_RX_protocol, RF_current_slot, (long)RF_time, int(RF_time & 0x0F), ms,
-            (unsigned long) RF_freq_khz, (int) RF_last_rssi);
+        if (success)
+          Serial.printf("RX in prot %d, time slot %d, sec %d(%d) + %d ms, %lu kHz, rssi %d\r\n",
+              RF_last_protocol, RF_current_slot, (long)RF_time, int(RF_time & 0x0F), ms,
+              (unsigned long) RF_freq_khz, (int) RF_last_rssi);
+        else    /* protocol & rssi not updated for rejected packets */
+          Serial.printf("RX rejected (%s), time slot %d, sec %d(%d) + %d ms, %lu kHz\r\n",
+              reject, RF_current_slot, (long)RF_time, int(RF_time & 0x0F), ms,
+              (unsigned long) RF_freq_khz);
       }
     } else {
       // len == 0: radio fired IRQ but no data available.
