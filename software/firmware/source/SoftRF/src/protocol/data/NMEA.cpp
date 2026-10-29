@@ -1882,7 +1882,7 @@ void NMEA_loop()
 #if defined(USE_LK8EX1)
 // T1000E has no baro but has NTC temperature sensor
 #if !defined(EXCLUDE_LK8EX1)
-  if (isTimeToPGRMZ()) {
+  if (hw_info.model == SOFTRF_MODEL_CARD && isTimeToPGRMZ()) {
     snprintf_P(NMEABuffer, sizeof(NMEABuffer), PSTR("$LK8EX1,999999,%d,%d,%d,%d*"),
             constrain((int) ThisAircraft.pressure_altitude, -1000, 99998), /* meters */
             (int) ((ThisAircraft.vs * 100) / (_GPS_FEET_PER_METER * 60)),  /* cm/s   */
@@ -2010,13 +2010,14 @@ void NMEA_Export()
       // - LK8000 specs say to send percent instead of volts send as an integer, percent+1000
       if (baro_chip == NULL) {
 #if defined(ARDUINO_ARCH_NRF52)
+        if (hw_info.model == SOFTRF_MODEL_CARD)    /* T1000E NTC temperature sensor */
           snprintf_P(NMEABuffer, sizeof(NMEABuffer), PSTR("$LK8EX1,999999,99999,9999,%d,%d*"),
               constrain((int) (t1000e_ntc_sample() / 10), -99, 98),
               1000+(int)Battery_charge());
-#else
+        else
+#endif
           snprintf_P(NMEABuffer, sizeof(NMEABuffer), PSTR("$LK8EX1,999999,99999,9999,99,%d*"),
               1000+(int)Battery_charge());
-#endif
           NMEAOutC(NMEA_S_LK8);
       }
     }

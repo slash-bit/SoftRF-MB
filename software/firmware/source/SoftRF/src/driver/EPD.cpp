@@ -36,7 +36,7 @@
 #include <Fonts/FreeMonoBold9pt7b.h>
 #include <Fonts/FreeMono18pt7b.h>
 
-#include <Org_01.h>
+#include <Fonts/Org_01.h>
 #include <Fonts/FreeMonoBoldOblique9pt7b.h>
 #include <Fonts/FreeSerif9pt7b.h>
 
@@ -771,6 +771,9 @@ void EPD_Message(const char *msg1, const char *msg2)
   int16_t  tbx, tby;
   uint16_t tbw, tbh;
   uint16_t x, y;
+
+  if (hw_info.display != DISPLAY_EPD_1_54)   /* no EPD on this board (e.g. T1000E) */
+    return;
 
 #if defined(USE_EPD_TASK)
   if (EPD_update_in_progress == EPD_UPDATE_NONE) {

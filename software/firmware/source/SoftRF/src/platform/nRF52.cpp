@@ -108,8 +108,12 @@ struct rst_info reset_info = {
 static uint32_t bootCount __attribute__ ((section (".noinit")));
 
 /* Default board - will be updated by nRF52_board_detect() in setup */
-/* NOTE: For Seeed T1000E/CARD without proper bootloader marker, set to NRF52_SEEED_T1000E */
-static nRF52_board_id nRF52_board = NRF52_SEEED_T1000E; /* Changed from NRF52_LILYGO_TECHO_REV_2 for CARD support */
+static nRF52_board_id nRF52_board = NRF52_LILYGO_TECHO_REV_2;
+
+/* only the T-Echo family carries the E-Paper display */
+#define nRF52_board_has_EPD()  (nRF52_board == NRF52_LILYGO_TECHO_REV_0 || \
+                                nRF52_board == NRF52_LILYGO_TECHO_REV_1 || \
+                                nRF52_board == NRF52_LILYGO_TECHO_REV_2)
 static nRF52_display_id nRF52_display = EP_UNKNOWN;
 
 const char *nRF52_Device_Manufacturer = SOFTRF_IDENT;
@@ -411,8 +415,8 @@ static void nRF52_system_off()
     }
     /* M1 would be here, but we only target M3 */
   }
-  Serial.println("[BOARD] No bootloader marker found - defaulting to LILYGO T-Echo (WRONG for T1000E!)");
-  Serial.println("[BOARD] WARNING: If this is a T1000E/CARD, battery will read wrong pin!");
+  /* same fallback as upstream for "NRF52BOOT" and unknown bootloaders */
+  Serial.println("[BOARD] No known bootloader marker found - defaulting to LILYGO T-Echo");
   return NRF52_LILYGO_TECHO_REV_2;
   }
 
@@ -539,7 +543,7 @@ static void nRF52_setup()
   pinMode(PIN_LED3, INPUT);
   pinMode(PIN_LED4, INPUT);
 
-  static nRF52_board_id nRF52_board = nRF52_board_detect();
+  nRF52_board = nRF52_board_detect();   /* file-scope global, used by all nRF52_* functions */
 
   /* Set hardware model based on detected board */
   switch (nRF52_board) {
@@ -1022,9 +1026,8 @@ static void nRF52_post_init()
     Serial.flush();
     Serial.print(F("GNSS    : "));
     Serial.println(hw_info.gnss == ((hw_info.revision == 0 || hw_info.revision == 1) ?
-                                   GNSS_MODULE_GOKE :
-                                   hw_info.gnss == GNSS_MODULE_AG33) ?
-                                   F("PASS") : F("FAIL"));
+                                   GNSS_MODULE_GOKE : GNSS_MODULE_AT65)
+                                   ? F("PASS") : F("FAIL"));
     Serial.flush();
     Serial.print(F("DISPLAY : "));
     Serial.println(hw_info.display == DISPLAY_EPD_1_54 ? F("PASS") : F("FAIL"));
@@ -2057,6 +2060,8 @@ static byte nRF52_Display_setup()
   byte rval = DISPLAY_NONE;
 
 #if defined(USE_EPAPER)
+  if (! nRF52_board_has_EPD())
+      return rval;   /* T1000E, TN-M3, PCA10059: EPD pins are used for other things */
 
 #if SPI_INTERFACES_COUNT >= 2
   SPI1.setPins(SOC_GPIO_PIN_EPD_MISO,
@@ -2126,6 +2131,8 @@ static void nRF52_Display_loop()
 static void nRF52_Display_fini(int reason)
 {
 #if defined(USE_EPAPER)
+  if (! nRF52_board_has_EPD())
+      return;
 
   EPD_fini(reason, screen_saver);
 
@@ -2354,10 +2361,12 @@ void handleEvent(AceButton* button, uint8_t eventType,
           Serial.println(F("kEventReleased."));
         }
 #elif defined(USE_EPAPER)
+        if (nRF52_board_has_EPD()) {
         if (FlightLogOpen)
             completeFlightLog();   // manually ensure complete flight log
         EPD_Mode(screen_saver);    // if screen_saver then redraws current page/mode
         screen_saver = false;
+        }
 #endif
       } else if (button == &button_2) {    // touch
 #if defined(USE_EPAPER)
@@ -2371,6 +2380,7 @@ void handleEvent(AceButton* button, uint8_t eventType,
       if (button == &button_1) {
 
 #if defined(USE_EPAPER)
+       if (nRF52_board_has_EPD()) {
         if (settings->mode == SOFTRF_MODE_GPSBRIDGE) {
             settings->mode = SOFTRF_MODE_NORMAL;
             Serial.println(F("Switching to normal mode..."));
@@ -2389,10 +2399,9 @@ void handleEvent(AceButton* button, uint8_t eventType,
         digitalWrite(SOC_GPIO_PIN_EPD_BLGT,
                      digitalRead(SOC_GPIO_PIN_EPD_BLGT) == LOW);
         }
-      } else if (button == &button_2) {    // touch
-        if (! screen_saver)
-            EPD_Down();
-#else
+       } else
+#endif /* USE_EPAPER */
+        /* boards without EPD (T1000E, TN-M3): double-click is the SOS gesture */
         if (eventType == AceButton::kEventDoubleClicked) {
           #define SOS_BUTTON_COUNTDOWN_MS  10000UL
 
@@ -2424,7 +2433,11 @@ void handleEvent(AceButton* button, uint8_t eventType,
             fanet_sos_end();   /* same gesture ends DISTRESS -> Landed OK */
           }
         }
-#endif
+#if defined(USE_EPAPER)
+      } else if (button == &button_2) {    // touch
+        if (! screen_saver)
+            EPD_Down();
+#endif /* USE_EPAPER */
       }
       break;
 
@@ -2432,10 +2445,12 @@ void handleEvent(AceButton* button, uint8_t eventType,
       if (button == &button_1) {
 
 #if defined(USE_EPAPER)
+          if (nRF52_board_has_EPD()) {
             if (digitalRead(SOC_GPIO_PIN_PAD) == LOW)     // touch while long-press
                 screen_saver = true;
             else
                 screen_saver = false;
+          }
 #endif
             shutdown(SOFTRF_SHUTDOWN_BUTTON);
             Serial.println(F("This too will never be printed."));

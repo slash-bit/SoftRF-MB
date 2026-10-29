@@ -201,35 +201,18 @@ struct rst_info {
 
 
 /* ============================================================================ */
-/* Board-specific configuration for nRF52 platforms                           */
-/* Uncomment one of the following to select your board configuration:         */
+/* One firmware for all nRF52 boards - the board is detected at run time       */
+/* (bootloader marker, see nRF52_board_detect()) and hw_info.model is set:    */
+/*   LilyGO T-Echo       SOFTRF_MODEL_BADGE   SX1262 (LMIC), E-Paper display   */
+/*   Seeed T1000E        SOFTRF_MODEL_CARD    LR1110 (RadioLib), no display    */
+/*   Elecrow TN-M3       SOFTRF_MODEL_POCKET  LR1110 (RadioLib), no display    */
 /* ============================================================================ */
-#define SOFTRF_NRF52_T1000E  // #define SOFTRF_NRF52_TECHO           /* LilyGO T-Echo with E-Paper display */
-         /* Seeed T1000E (Card Edition) with LR1110, no display */
-//#define SOFTRF_NRF52_PCA10059        /* nRF52840 DK (PCA10059) */
-//#define SOFTRF_NRF52_M3              /* Elecrow TN-M3 with LR1110, no display */
-
-/* ============================================================================ */
-/* Board-specific feature selection                                           */
-/* ============================================================================ */
-#ifdef SOFTRF_NRF52_T1000E
-  /* T1000E: No barometer, no display */
-  #define EXCLUDE_BMP180
-  #define EXCLUDE_BMP280
-  #define EXCLUDE_MPL3115A2
-  #define EXCLUDE_SX1276
-  #define USE_JSETTINGS
-  #undef  USE_EPAPER
-  #undef  USE_EPD_TASK
-  /* T1000E uses LR1110 radio */
-  #define USE_RADIOLIB
-  #define USE_LR1110
-  #define USE_LK8EX1
-#else
-  /* Default for other nRF52 boards (e.g., T-Echo with E-Paper) */
-  #define USE_EPAPER
-  #define USE_EPD_TASK
-#endif /* SOFTRF_NRF52_T1000E */
+#define USE_EPAPER                 /* T-Echo only - Display_setup() skips other boards */
+#define USE_EPD_TASK
+#define USE_RADIOLIB               /* LR1110 boards */
+#define USE_LR1110
+#define USE_JSETTINGS              /* settings.json; settings.txt is migrated on first boot */
+#define USE_LK8EX1                 /* T1000E only - NTC temperature, no baro */
 
 #define EXCLUDE_WIFI
 #define EXCLUDE_CC13XX
@@ -240,9 +223,9 @@ struct rst_info {
 #define EXCLUDE_GNSS_UBLOX
 #define EXCLUDE_GNSS_SONY
 #define EXCLUDE_GNSS_MTK
-#define EXCLUDE_GNSS_GOKE     /* 'Air530' GK9501 GPS/GLO/BDS (GAL inop.) */
-#define EXCLUDE_GNSS_AT65     /* Quectel L76K */
-//#define EXCLUDE_GNSS_AG33     /* Ag3535 GNSS module */
+//#define EXCLUDE_GNSS_GOKE   /* 'Air530' GK9501 GPS/GLO/BDS (GAL inop.) - T-Echo rev 0/1 */
+//#define EXCLUDE_GNSS_AT65   /* Quectel L76K - T-Echo rev 2 */
+//#define EXCLUDE_GNSS_AG33   /* Ag3335 GNSS module - T1000E, TN-M3 */
 
 #define USE_PWM_SOUND
 

@@ -29,7 +29,9 @@ bool  Buzzer_active(uint8_t *state) {return false;}
 #include "Buzzer.h"
 #include "Strobe.h"
 #include "Settings.h"
+#if defined(USE_OLED)
 #include "OLED.h"
+#endif /* USE_OLED */
 
 /* need this for the alarm levels enum: */
 #include "../protocol/radio/Legacy.h"
