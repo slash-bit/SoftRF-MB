@@ -2825,12 +2825,23 @@ void NMEA_Process_SRF_SKV_Sentences()
               case SOFTRF_MODEL_STANDALONE: model = "Standalone"; break;
               default:                     model = NULL;         break;
           }
-          if (model)
-              snprintf_P(NMEABuffer, sizeof(NMEABuffer), PSTR("board,%s/%s\r\n"),
-                         SoC->name, model);
-          else
-              snprintf_P(NMEABuffer, sizeof(NMEABuffer), PSTR("board,%s/model%d\r\n"),
-                         SoC->name, hw_info.model);
+          char modelbuf[12];
+          if (model == NULL) {
+              snprintf(modelbuf, sizeof(modelbuf), "model%d", hw_info.model);
+              model = modelbuf;
+          }
+#if defined(ARDUINO_ARCH_NRF52)
+          /* Append SoftDevice version, e.g. "board,nRF52/T1000E/7.3.0".
+           * getBootloaderVersion() (Adafruit core) despite its name returns the
+           * SoftDevice as "s140 7.3.0" - skip the "s140 " part */
+          const char *sd = getBootloaderVersion();
+          const char *sp = strchr(sd, ' ');
+          snprintf_P(NMEABuffer, sizeof(NMEABuffer), PSTR("board,%s/%s/%s\r\n"),
+                     SoC->name, model, sp ? sp + 1 : sd);
+#else
+          snprintf_P(NMEABuffer, sizeof(NMEABuffer), PSTR("board,%s/%s\r\n"),
+                     SoC->name, model);
+#endif
           nmea_cfg_reply(false);
 #if defined(ARDUINO_ARCH_NRF52)
           BT_NUS_flush();
